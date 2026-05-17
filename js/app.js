@@ -82,4 +82,5 @@ document.addEventListener('DOMContentLoaded', () => {
     Services.init();
     Staff.init();
     Customers.init();
+    PriceBooks.init();
 });
