@@ -303,6 +303,18 @@
                                 <label for="staffEmail">Email*</label>
                                 <input type="email" id="staffEmail" required>
                             </div>
+							<div class="form-group">
+  								<label for="staffAadhar">Aadhar Number</label>
+								  <input type="text" id="staffAadhar" placeholder="1234-5678-9012">
+							</div>
+							<div class="form-group">
+								<label for="staffUpi">UPI ID</label>
+  								<input type="text" id="staffUpi" placeholder="user@upi">
+							</div>
+							<div class="form-group">
+  								<label for="staffStartDate">Start Date*</label>
+  								<input type="date" id="staffStartDate" required>
+							</div>
                             <div class="form-group">
                                 <label for="staffRole">Role*</label>
                                 <select id="staffRole" required>
@@ -314,6 +326,18 @@
                                     <option value="Trainee">Trainee</option>
                                 </select>
                             </div>
+							<div class="form-group">
+  								<label for="staffSalary">Salary</label>
+  								<input type="number" id="staffSalary" step="0.01" placeholder="3000">
+							</div>
+							<div class="form-group">
+  								<label for="staffAllowance">Allowance</label>
+  								<input type="number" id="staffAllowance" step="0.01" placeholder="500">
+							</div>
+							<div class="form-group">
+  								<label for="staffIncentive">Incentive Structure</label>
+  								<textarea id="staffIncentive" placeholder="e.g., 10% of sales"></textarea>
+							</div>
                             <div class="form-group">
                                 <label for="staffSpecialization">Specialization</label>
                                 <input type="text" id="staffSpecialization" placeholder="e.g., Hair Coloring, Bridal Makeup">
@@ -339,13 +363,15 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Specialization</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+									<th>Name</th>
+   									<th>Phone</th>
+    								<th>Email</th>
+    								<th>Role</th>
+   									<th>Start Date</th>
+   									<th>Salary</th>
+    								<th>Specialization</th>
+    								<th>Status</th>
+    								<th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="staffTableBody">
