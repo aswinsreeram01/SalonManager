@@ -135,29 +135,3 @@ const Auth = {
     }
   }
 };
-
-// UI Helper Module
-const UI = {
-  showLoading() {
-    const loader = document.getElementById('loader');
-    if (loader) loader.style.display = 'block';
-  },
-  
-  hideLoading() {
-    const loader = document.getElementById('loader');
-    if (loader) loader.style.display = 'none';
-  },
-  
-  showMessage(elementId, message, type = 'info') {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    
-    element.textContent = message;
-    element.className = `message ${type} show`;
-    
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      element.className = 'message';
-    }, 5000);
-  }
-};
