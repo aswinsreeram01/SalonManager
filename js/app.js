@@ -1,21 +1,24 @@
 // Main App Controller
 const UI = {
-    showLoading() {
-        document.getElementById('loadingOverlay').classList.add('show');
-    },
+  showLoading() {
+    document.getElementById('loadingOverlay')?.classList.add('show');
+  },
+  
+  hideLoading() {
+    document.getElementById('loadingOverlay')?.classList.remove('show');
+  },
+  
+  showMessage(elementId, text, type = 'info') {
+    const element = document.getElementById(elementId);
+    if (!element) return;
     
-    hideLoading() {
-        document.getElementById('loadingOverlay').classList.remove('show');
-    },
+    element.textContent = text;
+    element.className = `message ${type} show`;
     
-    showMessage(elementId, text, type) {
-        const element = document.getElementById(elementId);
-        element.textContent = text;
-        element.className = `message ${type} show`;
-        setTimeout(() => {
-            element.classList.remove('show');
-        }, 5000);
-    }
+    setTimeout(() => {
+      element.classList.remove('show');
+    }, 5000);
+  }
 };
 
 const Navigation = {
