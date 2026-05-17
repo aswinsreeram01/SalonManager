@@ -76,6 +76,12 @@
                     </svg>
                     Service Catalog
                 </div>
+				<div class="nav-item" data-page="pricebooks">
+					<svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+					</svg>
+					Price Books
+				</div>
                 <div class="nav-item" data-page="products">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
@@ -169,78 +175,78 @@
                 </div>
             </div>
             
-            <!-- Service Catalog -->
-            <div class="content-section" id="services">
-                <div class="page-header">
-                    <h1 class="page-title">Service Catalog</h1>
-                    <p class="page-subtitle">Manage your salon services and pricing</p>
-                </div>
-                
-                <div id="serviceMessage" class="message"></div>
-                
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #2d3748;">Add New Service</h3>
-                        <button class="btn btn-secondary" id="toggleServiceForm">
-                            <span id="serviceFormToggleText">Show Form</span>
-                        </button>
-                    </div>
-                    
-                    <form id="serviceForm" style="display: none;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                            <div class="form-group">
-                                <label for="serviceName">Service Name*</label>
-                                <input type="text" id="serviceName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="serviceDuration">Duration (mins)*</label>
-                                <input type="number" id="serviceDuration" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="servicePrice">Price*</label>
-                                <input type="number" id="servicePrice" step="0.01" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="serviceStatus">Status</label>
-                                <select id="serviceStatus">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="serviceDescription">Description</label>
-                            <textarea id="serviceDescription"></textarea>
-                        </div>
-                        <div class="btn-group">
-                            <button type="submit" class="btn btn-primary" id="saveServiceBtn">Save Service</button>
-                            <button type="button" class="btn btn-secondary" id="cancelServiceBtn">Cancel</button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="card">
-                    <h3 style="margin-bottom: 16px; color: #2d3748;">Services List</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Service Name</th>
-                                    <th>Duration</th>
-                                    <th>Price</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="servicesTableBody">
-                                <tr>
-                                    <td colspan="5" style="text-align: center; color: #a0aec0;">Loading services...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+			<!-- Service Catalog -->
+			<div class="content-section" id="services">
+				<div class="page-header">
+					<h1 class="page-title">Service Catalog</h1>
+					<p class="page-subtitle">Manage your salon services</p>
+				</div>
+				
+				<div id="serviceMessage" class="message"></div>
+				
+				<div class="card">
+					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+						<h3 style="color: #2d3748;">Add New Service</h3>
+						<button class="btn btn-secondary" id="toggleServiceForm">
+							<span id="serviceFormToggleText">Show Form</span>
+						</button>
+					</div>
+					
+					<form id="serviceForm" style="display: none;">
+						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+							<div class="form-group">
+								<label for="serviceName">Service Name*</label>
+								<input type="text" id="serviceName" required>
+							</div>
+							<div class="form-group">
+								<label for="serviceCategory">Category*</label>
+								<input type="text" id="serviceCategory" placeholder="e.g., Hair, Nails, Spa" required>
+							</div>
+							<div class="form-group">
+								<label for="serviceDuration">Duration (mins)*</label>
+								<input type="number" id="serviceDuration" required>
+							</div>
+							<div class="form-group">
+								<label for="serviceStatus">Status</label>
+								<select id="serviceStatus">
+									<option value="active">Active</option>
+									<option value="inactive">Inactive</option>
+								</select>
+							</div>
+						</div>
+						<div class="form-group">
+							<label for="serviceDescription">Description</label>
+							<textarea id="serviceDescription"></textarea>
+						</div>
+						<div class="btn-group">
+							<button type="submit" class="btn btn-primary" id="saveServiceBtn">Save Service</button>
+							<button type="button" class="btn btn-secondary" id="cancelServiceBtn">Cancel</button>
+						</div>
+					</form>
+				</div>
+				
+				<div class="card">
+					<h3 style="margin-bottom: 16px; color: #2d3748;">Services List</h3>
+					<div class="table-container">
+						<table>
+							<thead>
+								<tr>
+									<th>Service Name</th>
+									<th>Category</th>
+									<th>Duration</th>
+									<th>Status</th>
+									<th>Actions</th>
+								</tr>
+							</thead>
+							<tbody id="servicesTableBody">
+								<tr>
+									<td colspan="5" style="text-align: center; color: #a0aec0;">Loading services...</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
             
             <!-- Staff -->
             <div class="content-section" id="staff">
@@ -376,6 +382,120 @@
                 </div>
             </div>
             
+			<!-- Price Books -->
+			<div class="content-section" id="pricebooks">
+				<div id="priceBooksList">
+					<div class="page-header">
+						<h1 class="page-title">Price Books</h1>
+						<p class="page-subtitle">Manage different pricing structures</p>
+					</div>
+					
+					<div id="priceBookMessage" class="message"></div>
+					
+					<div class="card">
+						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+							<h3 style="color: #2d3748;">Add New Price Book</h3>
+							<button class="btn btn-secondary" id="togglePriceBookForm">
+								<span id="priceBookFormToggleText">Show Form</span>
+							</button>
+						</div>
+						
+						<form id="priceBookForm" style="display: none;">
+							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+								<div class="form-group">
+									<label for="priceBookName">Price Book Name*</label>
+									<input type="text" id="priceBookName" placeholder="e.g., Standard Pricing" required>
+								</div>
+								<div class="form-group">
+									<label for="priceBookStatus">Status</label>
+									<select id="priceBookStatus">
+										<option value="active">Active</option>
+										<option value="inactive">Inactive</option>
+									</select>
+								</div>
+							</div>
+							<div class="form-group">
+								<label for="priceBookDescription">Description</label>
+								<textarea id="priceBookDescription" placeholder="e.g., Regular customer pricing"></textarea>
+							</div>
+							<div class="btn-group">
+								<button type="submit" class="btn btn-primary" id="savePriceBookBtn">Save Price Book</button>
+								<button type="button" class="btn btn-secondary" id="cancelPriceBookBtn">Cancel</button>
+							</div>
+						</form>
+					</div>
+					
+					<div class="card">
+						<h3 style="margin-bottom: 16px; color: #2d3748;">Price Books List</h3>
+						<div class="table-container">
+							<table>
+								<thead>
+									<tr>
+										<th>Name</th>
+										<th>Description</th>
+										<th>Status</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody id="priceBooksTableBody">
+									<tr>
+										<td colspan="4" style="text-align: center; color: #a0aec0;">Loading price books...</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+				
+				<!-- Price Book Items View -->
+				<div id="priceBookItems" style="display: none;">
+					<div class="page-header">
+						<button class="btn btn-secondary" onclick="PriceBooks.backToPriceBooks()">← Back to Price Books</button>
+						<h1 class="page-title" id="priceBookItemsTitle">Service Prices</h1>
+					</div>
+					
+					<div id="priceBookItemMessage" class="message"></div>
+					
+					<div class="card">
+						<h3 style="margin-bottom: 16px; color: #2d3748;">Add Service Price</h3>
+						<div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; align-items: end;">
+							<div class="form-group" style="margin-bottom: 0;">
+								<label for="priceBookItemService">Service</label>
+								<select id="priceBookItemService">
+									<option value="">Select Service</option>
+								</select>
+							</div>
+							<div class="form-group" style="margin-bottom: 0;">
+								<label for="priceBookItemPrice">Price</label>
+								<input type="number" id="priceBookItemPrice" step="0.01" placeholder="0.00">
+							</div>
+							<button class="btn btn-primary" onclick="PriceBooks.addItemToCurrentPriceBook()">Add Price</button>
+						</div>
+					</div>
+					
+					<div class="card">
+						<h3 style="margin-bottom: 16px; color: #2d3748;">Service Prices</h3>
+						<div class="table-container">
+							<table>
+								<thead>
+									<tr>
+										<th>Service</th>
+										<th>Category</th>
+										<th>Price</th>
+										<th>Actions</th>
+									</tr>
+								</thead>
+								<tbody id="priceBookItemsTableBody">
+									<tr>
+										<td colspan="4" style="text-align: center; color: #a0aec0;">Loading prices...</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+			</div>
+			
             <!-- Placeholder Pages -->
             <div class="content-section" id="products">
                 <div class="page-header">
@@ -422,6 +542,8 @@
     <script src="js/services.js"></script>
     <script src="js/staff.js"></script>
     <script src="js/customers.js"></script>
+    <script src="js/pricebooks.js"></script>
     <script src="js/app.js"></script>
+    
 </body>
 </html>
