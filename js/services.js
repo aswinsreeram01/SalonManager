@@ -46,6 +46,7 @@ const Services = {
             description: document.getElementById('serviceDescription').value,
             duration: document.getElementById('serviceDuration').value,
             category: document.getElementById('serviceCategory').value,
+            defaultPrice: document.getElementById('serviceDefaultPrice').value,
             status: document.getElementById('serviceStatus').value
         };
         
@@ -89,6 +90,7 @@ const Services = {
                         <td>${service.name}</td>
                         <td>${service.category || '-'}</td>
                         <td>${service.duration} mins</td>
+                        <td>$${service.defaultPrice}</td>
                         <td><span class="status-badge status-${service.status}">${service.status}</span></td>
                         <td>
                             <div class="action-btns">
@@ -118,6 +120,7 @@ const Services = {
                 document.getElementById('serviceDescription').value = service.description;
                 document.getElementById('serviceDuration').value = service.duration;
                 document.getElementById('serviceCategory').value = service.category;
+                document.getElementById('serviceDefaultPrice').value = service.defaultPrice;
                 document.getElementById('serviceStatus').value = service.status;
                 document.getElementById('saveServiceBtn').textContent = 'Update Service';
                 document.getElementById('serviceForm').style.display = 'block';
