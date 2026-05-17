@@ -99,6 +99,8 @@ const Staff = {
                         <td>${staff.phone}</td>
                         <td>${staff.email}</td>
                         <td>${staff.role}</td>
+                        <td>${staff.startDate || '-'}</td>
+                        <td>$${staff.salary || 0}</td>
                         <td>${staff.specialization}</td>
                         <td><span class="status-badge status-${staff.status}">${staff.status}</span></td>
                         <td>
