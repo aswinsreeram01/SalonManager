@@ -64,5 +64,39 @@ const API = {
     
     deleteStaff(id) {
         return this.call('delete_staff', { id });
+    },
+    
+    // Price Books
+    getPriceBooks() {
+        return this.call('get_pricebooks');
+    },
+    
+    addPriceBook(data) {
+        return this.call('add_pricebook', data);
+    },
+    
+    updatePriceBook(data) {
+        return this.call('update_pricebook', data);
+    },
+    
+    deletePriceBook(id) {
+        return this.call('delete_pricebook', { id });
+    },
+    
+    // Price Book Items
+    getPriceBookItems(priceBookId) {
+        return this.call('get_pricebook_items', { priceBookId });
+    },
+    
+    addPriceBookItem(data) {
+        return this.call('add_pricebook_item', data);
+    },
+    
+    updatePriceBookItem(data) {
+        return this.call('update_pricebook_item', data);
+    },
+    
+    deletePriceBookItem(itemId) {
+        return this.call('delete_pricebook_item', { itemId });
     }
 };
