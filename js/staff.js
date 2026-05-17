@@ -40,12 +40,19 @@ const Staff = {
     async handleSubmit(e) {
         e.preventDefault();
         const saveBtn = document.getElementById('saveStaffBtn');
-        
+
         const data = {
+            userId: document.getElementById('staffUserId')?.value || '',
             name: document.getElementById('staffName').value,
             phone: document.getElementById('staffPhone').value,
             email: document.getElementById('staffEmail').value,
+            aadharNumber: document.getElementById('staffAadhar').value,
+            upiId: document.getElementById('staffUpi').value,
+            startDate: document.getElementById('staffStartDate').value,
             role: document.getElementById('staffRole').value,
+            salary: document.getElementById('staffSalary').value,
+            allowance: document.getElementById('staffAllowance').value,
+            incentiveStructure: document.getElementById('staffIncentive').value,
             specialization: document.getElementById('staffSpecialization').value,
             status: document.getElementById('staffStatus').value
         };
