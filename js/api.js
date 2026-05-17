@@ -106,7 +106,7 @@ const API = {
 	
 	addCustomer(data) {
 		return this.call('add_customer', data);
-	}
+	},
     
     // Services
     getServices() {
