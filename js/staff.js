@@ -124,13 +124,22 @@ const Staff = {
         try {
             const result = await API.getStaff();
             const staff = result.staff.find(s => s.id === id);
-            
+
             if (staff) {
                 this.editingId = id;
+                if (document.getElementById('staffUserId')) {
+                    document.getElementById('staffUserId').value = staff.userId || '';
+                }
                 document.getElementById('staffName').value = staff.name;
                 document.getElementById('staffPhone').value = staff.phone;
                 document.getElementById('staffEmail').value = staff.email;
+                document.getElementById('staffAadhar').value = staff.aadharNumber || '';
+                document.getElementById('staffUpi').value = staff.upiId || '';
+                document.getElementById('staffStartDate').value = staff.startDate || '';
                 document.getElementById('staffRole').value = staff.role;
+                document.getElementById('staffSalary').value = staff.salary || '';
+                document.getElementById('staffAllowance').value = staff.allowance || '';
+                document.getElementById('staffIncentive').value = staff.incentiveStructure || '';
                 document.getElementById('staffSpecialization').value = staff.specialization;
                 document.getElementById('staffStatus').value = staff.status;
                 document.getElementById('saveStaffBtn').textContent = 'Update Staff Member';
@@ -138,6 +147,7 @@ const Staff = {
                 document.getElementById('staffFormToggleText').textContent = 'Hide Form';
                 document.getElementById('staffForm').scrollIntoView({ behavior: 'smooth' });
             }
+
         } catch (error) {
             UI.showMessage('staffMessage', 'Error loading staff member', 'error');
         } finally {
