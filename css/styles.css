@@ -550,3 +550,18 @@ tr:hover {
 .hidden {
     display: none;
 }
+
+/* Price input styling */
+.price-input {
+    width: 120px;
+    padding: 6px 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.price-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
