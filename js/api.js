@@ -17,20 +17,96 @@ const API = {
             throw error;
         }
     },
-    
-    // Auth
-    login(username, password) {
-        return this.call('login', { username, password });
-    },
-    
-    // Customers
-    addCustomer(name, phone, submittedBy) {
-        return this.call('add_customer', { name, phone, submittedBy });
-    },
-    
-    getCustomers() {
-        return this.call('get_customers');
-    },
+      
+	// Authentication
+	login(email, password) {
+		return this.call('login', { email, password });
+	},
+	
+	requestPasswordReset(email) {
+		return this.call('request_password_reset', { email });
+	},
+	
+	validateResetToken(token) {
+		return this.call('validate_reset_token', { token });
+	},
+	
+	resetPassword(token, newPassword) {
+		return this.call('reset_password', { token, newPassword });
+	},
+	
+	// Organizations
+	getOrganizations(userOrgId) {
+		return this.call('get_organizations', { userOrgId });
+	},
+	
+	addOrganization(data) {
+		return this.call('add_organization', data);
+	},
+	
+	updateOrganization(data) {
+		return this.call('update_organization', data);
+	},
+	
+	deleteOrganization(id) {
+		return this.call('delete_organization', { id });
+	},
+
+	// Users
+	getUsers(userOrgId) {
+		return this.call('get_users', { userOrgId });
+	},
+	
+	addUser(data) {
+		return this.call('add_user', data);
+	},
+	
+	updateUser(data) {
+		return this.call('update_user', data);
+	},
+	
+	deleteUser(id) {
+		return this.call('delete_user', { id });
+	},
+	
+	// Roles
+	getRoles() {
+		return this.call('get_roles');
+	},
+	
+	addRole(data) {
+		return this.call('add_role', data);
+	},
+	
+	updateRole(data) {
+		return this.call('update_role', data);
+	},
+	
+	deleteRole(id) {
+		return this.call('delete_role', { id });
+	},
+	
+	// Permissions
+	getPermissions(roleId) {
+		return this.call('get_permissions', { roleId });
+	},
+	
+	getUserPermissions(userId) {
+		return this.call('get_user_permissions', { userId });
+	},
+	
+	updatePermissions(roleId, permissions) {
+		return this.call('update_permissions', { roleId, permissions });
+	},
+
+	// Customers
+	getCustomers() {
+		return this.call('get_customers');
+	},
+	
+	addCustomer(data) {
+		return this.call('add_customer', data);
+	}
     
     // Services
     getServices() {
