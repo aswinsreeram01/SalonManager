@@ -43,7 +43,7 @@ const Navigation = {
             });
         });
     },
-    
+
     switchPage(page) {
         // Update nav items
         document.querySelectorAll('.nav-item').forEach(item => {
@@ -53,7 +53,7 @@ const Navigation = {
                 item.classList.remove('active');
             }
         });
-        
+    
         // Update content sections
         document.querySelectorAll('.content-section').forEach(section => {
             if (section.id === page) {
@@ -62,17 +62,19 @@ const Navigation = {
                 if (page === 'services') Services.load();
                 if (page === 'staff') Staff.load();
                 if (page === 'customers') Customers.load();
+                if (page === 'pricebooks') PriceBooks.load();
             } else {
                 section.classList.remove('active');
             }
         });
-        
+    
         // Close sidebar on mobile
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebar').classList.add('collapsed');
         }
     }
+	
 };
 
 // Initialize app when DOM is ready
