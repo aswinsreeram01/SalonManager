@@ -171,23 +171,26 @@ const PriceBooks = {
             const result = await API.getPriceBookItems(this.currentPriceBookId);
             
             if (result.status === 'success' && result.items.length > 0) {
-                tbody.innerHTML = result.items.map(item => `
-                    <tr>
-                        <td>${item.serviceName}</td>
-                        <td>${item.category || '-'}</td>
-                        <td>
-                            <input type="number" 
-                                   value="${item.price}" 
-                                   step="0.01" 
-                                   class="price-input" 
-                                   data-item-id="${item.itemId}"
-                                   onchange="PriceBooks.updatePrice('${item.itemId}', this.value)">
-                        </td>
-                        <td>
-                            <button class="action-btn action-btn-delete" onclick="PriceBooks.deleteItem('${item.itemId}')">Delete</button>
-                        </td>
-                    </tr>
-                `).join('');
+				tbody.innerHTML = result.items.map(item => `
+					<tr>
+						<td>${item.serviceName}</td>
+						<td>${item.category || '-'}</td>
+						<td>
+						<input type="number" 
+								value="${item.price}" 
+								step="0.01" 
+								class="price-input" 
+								data-item-id="${item.itemId}"
+								data-service-id="${item.serviceId}"
+								data-is-default="${item.isDefault}"
+								onchange="PriceBooks.updatePrice('${item.itemId}', '${item.serviceId}', this.value, ${item.isDefault})">
+						${item.isDefault ? '<span style="color: #718096; font-size: 12px; margin-left: 8px;">(Default)</span>' : ''}
+						</td>
+						<td>
+						${!item.isDefault ? `<button class="action-btn action-btn-delete" onclick="PriceBooks.deleteItem('${item.itemId}')">Delete</button>` : ''}
+						</td>
+					</tr>
+				`).join('');
             } else {
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a0aec0;">No prices defined yet</td></tr>';
             }
@@ -250,26 +253,38 @@ const PriceBooks = {
         }
     },
     
-    async updatePrice(itemId, newPrice) {
-        UI.showLoading();
-        try {
-            const result = await API.updatePriceBookItem({
-                itemId: itemId,
-                price: parseFloat(newPrice)
-            });
-            
-            if (result.status === 'success') {
-                UI.showMessage('priceBookItemMessage', result.message, 'success');
-            } else {
-                UI.showMessage('priceBookItemMessage', result.message, 'error');
-                await this.loadItems(); // Reload to revert changes
-            }
-        } catch (error) {
-            UI.showMessage('priceBookItemMessage', 'Network error', 'error');
-        } finally {
-            UI.hideLoading();
-        }
-    },
+	async updatePrice(itemId, serviceId, newPrice, isDefault) {
+		UI.showLoading();
+		try {
+			let result;
+			if (isDefault) {
+			// Converting default to custom price
+			result = await API.addPriceBookItem({
+				priceBookId: this.currentPriceBookId,
+				serviceId: serviceId,
+				price: parseFloat(newPrice)
+			});
+			} else {
+			// Updating existing custom price
+			result = await API.updatePriceBookItem({
+				itemId: itemId,
+				price: parseFloat(newPrice)
+			});
+			}
+			
+			if (result.status === 'success') {
+			UI.showMessage('priceBookItemMessage', result.message, 'success');
+			await this.loadItems();
+			} else {
+			UI.showMessage('priceBookItemMessage', result.message, 'error');
+			await this.loadItems();
+			}
+		} catch (error) {
+			UI.showMessage('priceBookItemMessage', 'Network error', 'error');
+		} finally {
+			UI.hideLoading();
+		}
+	}
     
     async deleteItem(itemId) {
         if (!confirm('Are you sure you want to delete this price?')) return;
