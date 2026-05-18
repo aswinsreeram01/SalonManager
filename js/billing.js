@@ -25,7 +25,11 @@ const Billing = {
         document.getElementById('billingDiscount').addEventListener('input', () => this.recalcTotals());
         document.getElementById('billingTip').addEventListener('input', () => this.recalcTotals());
         document.querySelectorAll('input[name="paymentMode"]').forEach(r => {
-            r.addEventListener('change', () => { this.onPaymentModeChange(r.value); this.liveValidate(); });
+            r.addEventListener('change', () => {
+                const mode = document.querySelector('input[name="paymentMode"]:checked').value;
+                this.onPaymentModeChange(mode);
+                this.liveValidate();
+            });
         });
         ['splitCash', 'splitCard', 'splitUpi'].forEach(id => {
             document.getElementById(id).addEventListener('input', () => this.liveValidate());
@@ -323,18 +327,10 @@ const Billing = {
 
         const discType  = (document.getElementById('discountType')  || {}).value || 'value';
         const discInput = Math.max(0, Number((document.getElementById('billingDiscount') || {}).value) || 0);
-        const disc      = discType === 'pct' ? Math.round(baseAmt * discInput / 100 * 100) / 100 : discInput;
+        const disc      = discType === 'percent' ? Math.round(baseAmt * discInput / 100 * 100) / 100 : discInput;
 
-        const discAmtRow = document.getElementById('discountAmtRow');
-        const discAmtEl  = document.getElementById('sumDiscountAmt');
-        if (discAmtRow && discAmtEl) {
-            if (discType === 'pct' && discInput > 0) {
-                discAmtEl.textContent = `−₹${disc.toFixed(2)}`;
-                discAmtRow.style.display = '';
-            } else {
-                discAmtRow.style.display = 'none';
-            }
-        }
+        const discAmtEl = document.getElementById('sumDiscountAmt');
+        if (discAmtEl) discAmtEl.textContent = disc > 0 ? `−₹${disc.toFixed(2)}` : '₹0.00';
 
         const tip   = Math.max(0, Number((document.getElementById('billingTip') || {}).value) || 0);
         const grand = Math.max(0, baseAmt - disc + tip);
@@ -398,9 +394,9 @@ const Billing = {
     _getDiscountData() {
         const discType  = (document.getElementById('discountType')  || {}).value || 'value';
         const discInput = Math.max(0, Number((document.getElementById('billingDiscount') || {}).value) || 0);
-        if (discType === 'pct') {
+        if (discType === 'percent') {
             const base = this.rows.reduce((s, r) => s + r.lineSubtotal + r.lineGst, 0);
-            return { discountType: 'pct', discountInput, discount: Math.round(base * discInput / 100 * 100) / 100 };
+            return { discountType: 'percent', discountInput, discount: Math.round(base * discInput / 100 * 100) / 100 };
         }
         return { discountType: 'value', discountInput, discount: discInput };
     },
@@ -447,7 +443,7 @@ const Billing = {
             if (u  > 0) parts.push(`UPI ₹${u.toFixed(2)}`);
             payLine = parts.join(' + ');
         }
-        const discLabel = discountType === 'pct' ? `Discount (${discountInput}%)` : 'Discount';
+        const discLabel = discountType === 'percent' ? `Discount (${discountInput}%)` : 'Discount';
         const sumRow = (label, val, style='') => `<div class="conf-sum-row" ${style}><span>${label}</span><span>${val}</span></div>`;
 
         content.innerHTML = `
@@ -560,7 +556,7 @@ const Billing = {
             if (data.upiAmt  > 0) parts.push(`UPI ₹${Number(data.upiAmt).toFixed(2)}`);
             payLine = parts.join(' + ');
         }
-        const discLabel = discountType === 'pct' && discountInput > 0 ? `Discount (${discountInput}%)` : 'Discount';
+        const discLabel = discountType === 'percent' && discountInput > 0 ? `Discount (${discountInput}%)` : 'Discount';
         document.getElementById('invoiceContent').innerHTML = `
             <div class="inv-header">
                 <div>
