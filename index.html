@@ -788,24 +788,22 @@
 
                 <!-- Customer & Price Book -->
                 <div class="card">
-                    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:20px;align-items:end;">
-                        <div>
-                            <div class="form-group" style="margin-bottom:6px;">
-                                <label for="billingPhone">Customer Phone*</label>
-                                <input type="tel" id="billingPhone" placeholder="Enter phone to search…" maxlength="15" autocomplete="off">
-                            </div>
-                            <div id="billingCustomerName" style="font-size:14px;font-weight:500;min-height:20px;"></div>
+                    <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:200px;" class="form-group" style="margin-bottom:0;">
+                            <label for="billingPhone">Customer Phone*</label>
+                            <input type="tel" id="billingPhone" placeholder="Enter phone to search…" maxlength="15" autocomplete="off">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
+                        <div style="flex:1;min-width:200px;" class="form-group" style="margin-bottom:0;">
                             <label for="billingPriceBook">Price Book</label>
                             <select id="billingPriceBook">
                                 <option value="">No Price Book (use defaults)</option>
                             </select>
                         </div>
-                        <div>
+                        <div style="flex:0 0 auto;padding-bottom:1px;">
                             <button class="btn btn-secondary" onclick="Billing.resetBill()">Clear Bill</button>
                         </div>
                     </div>
+                    <div id="billingCustomerName" style="font-size:14px;font-weight:500;min-height:20px;margin-top:8px;"></div>
                 </div>
 
                 <!-- Items Grid -->

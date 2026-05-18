@@ -90,9 +90,10 @@ const Billing = {
             nameEl.textContent = '';
             return;
         }
-        const customer = this.customers.find(c => c.phone === phone);
+        // c.phone may be a number from Google Sheets — compare as strings
+        const customer = this.customers.find(c => String(c.phone).trim() === String(phone).trim());
         if (customer) {
-            this.selectedCustomerId = customer.id;
+            this.selectedCustomerId = String(customer.phone).trim(); // use phone as unique key
             this.selectedCustomerName = customer.name;
             nameEl.textContent = customer.name;
             nameEl.style.color = '#38a169';
@@ -134,9 +135,9 @@ const Billing = {
         try {
             const result = await API.addCustomer({ name, phone });
             if (result.status === 'success') {
-                const newCust = { id: result.id, name, phone };
+                const newCust = { name, phone };
                 this.customers.push(newCust);
-                this.selectedCustomerId = result.id;
+                this.selectedCustomerId = String(phone).trim(); // use phone as unique key
                 this.selectedCustomerName = name;
                 const nameEl = document.getElementById('billingCustomerName');
                 nameEl.textContent = name;
@@ -387,28 +388,60 @@ const Billing = {
     },
 
     validate() {
+        // 1. Customer required
         if (!this.selectedCustomerId) {
-            UI.showMessage('billingMessage', 'Please select a customer by phone number.', 'error');
+            UI.showMessage('billingMessage', 'Please enter a customer phone number and select a customer.', 'error');
             document.getElementById('billingPhone').focus();
             return false;
         }
-        const filledRows = this.rows.filter(r => r.itemId && r.qty > 0);
+
+        // 2. At least one item required
+        const filledRows = this.rows.filter(r => r.itemId);
         if (filledRows.length === 0) {
-            UI.showMessage('billingMessage', 'Please add at least one item.', 'error');
+            UI.showMessage('billingMessage', 'Please add at least one service or product.', 'error');
             return false;
         }
-        const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value;
-        if (mode === 'Split') {
-            const cash = Number(document.getElementById('splitCash').value) || 0;
-            const card = Number(document.getElementById('splitCard').value) || 0;
-            const upi  = Number(document.getElementById('splitUpi').value) || 0;
-            const grand = this._getGrandTotal();
-            if (Math.abs(cash + card + upi - grand) > 0.01) {
-                UI.showMessage('billingMessage',
-                    `Split amounts (₹${(cash+card+upi).toFixed(2)}) must equal Grand Total (₹${grand.toFixed(2)}).`, 'error');
+
+        // 3. All fields in each item row are required
+        for (let i = 0; i < filledRows.length; i++) {
+            const r = filledRows[i];
+            const rowNum = this.rows.indexOf(r) + 1;
+            if (!r.itemId) {
+                UI.showMessage('billingMessage', `Row ${rowNum}: Please select a service or product.`, 'error');
+                return false;
+            }
+            if (!r.staffId) {
+                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Please select a staff member.`, 'error');
+                return false;
+            }
+            if (!r.qty || r.qty <= 0) {
+                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Quantity must be greater than 0.`, 'error');
+                return false;
+            }
+            if (r.unitPrice === '' || r.unitPrice === null || r.unitPrice === undefined || isNaN(r.unitPrice)) {
+                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Please enter a valid price.`, 'error');
                 return false;
             }
         }
+
+        // 4. Split payment must equal grand total
+        const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value;
+        if (mode === 'Split') {
+            const cash  = Number(document.getElementById('splitCash').value) || 0;
+            const card  = Number(document.getElementById('splitCard').value) || 0;
+            const upi   = Number(document.getElementById('splitUpi').value) || 0;
+            const grand = this._getGrandTotal();
+            if (cash + card + upi === 0) {
+                UI.showMessage('billingMessage', 'Please enter the split payment amounts.', 'error');
+                return false;
+            }
+            if (Math.abs(cash + card + upi - grand) > 0.01) {
+                UI.showMessage('billingMessage',
+                    `Split total ₹${(cash+card+upi).toFixed(2)} does not match Grand Total ₹${grand.toFixed(2)}. Please adjust the amounts.`, 'error');
+                return false;
+            }
+        }
+
         return true;
     },
 

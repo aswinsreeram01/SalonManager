@@ -3,9 +3,16 @@ const Customers = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
     if (!sheet) return Utils.createResponse('error', 'Customers sheet not found. Please create it with columns: timestamp, name, phone, addedBy');
 
+    const existing = sheet.getDataRange().getValues();
+    for (let i = 1; i < existing.length; i++) {
+      if (String(existing[i][2]).trim() === String(data.phone).trim()) {
+        return Utils.createResponse('error', 'A customer with this phone number already exists');
+      }
+    }
+
     sheet.appendRow([new Date(), data.name, data.phone, data.submittedBy || 'Unknown']);
     Utils.clearCached('customers');
-    return Utils.createResponse('success', 'Customer added successfully');
+    return Utils.createResponse('success', 'Customer added successfully', { phone: data.phone });
   },
 
   getAll(data) {
