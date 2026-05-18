@@ -74,6 +74,10 @@ const Navigation = {
                 if (page === 'staff') Staff.load();
                 if (page === 'customers') Customers.load();
                 if (page === 'pricebooks') PriceBooks.load();
+                if (page === 'organizations') Organizations.load();
+                if (page === 'users') Users.load();
+                if (page === 'roles') Roles.load();
+                if (page === 'permissions') Permissions.load();
             } else {
                 section.classList.remove('active');
             }
@@ -106,4 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
     Staff.init();
     Customers.init();
     PriceBooks.init();
+    Organizations.init();
+    Users.init();
+    Roles.init();
+    Permissions.init();
 });

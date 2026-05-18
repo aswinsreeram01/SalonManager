@@ -151,6 +151,18 @@
                     </svg>
                     Permissions
                 </div>
+                <div class="nav-item" data-page="roles">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    Roles
+                </div>
+                <div class="nav-item" data-page="organizations">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                    Organizations
+                </div>
             </div>
         </div>
         
@@ -568,17 +580,272 @@
                 </div>
             </div>
             
+            <!-- Users -->
             <div class="content-section" id="users">
                 <div class="page-header">
                     <h1 class="page-title">User Management</h1>
-                    <p class="page-subtitle">Coming soon...</p>
+                    <p class="page-subtitle">Manage system users and their access</p>
+                </div>
+
+                <div id="userMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New User</h3>
+                        <button class="btn btn-secondary" id="toggleUserForm">
+                            <span id="userFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <div id="selfEditWarning" class="warning-banner" style="display: none;">
+                        You are editing your own account. Role and status cannot be changed.
+                    </div>
+
+                    <form id="userForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="userFullName">Full Name*</label>
+                                <input type="text" id="userFullName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userEmail">Email*</label>
+                                <input type="email" id="userEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userPassword">Password <span id="userPasswordHint" style="color:#a0aec0; font-weight:400;">(required)</span></label>
+                                <input type="password" id="userPassword" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="userPhone">Phone</label>
+                                <input type="tel" id="userPhone">
+                            </div>
+                            <div class="form-group">
+                                <label for="userWhatsapp">WhatsApp</label>
+                                <input type="tel" id="userWhatsapp">
+                            </div>
+                            <div class="form-group">
+                                <label for="userRole">Role*</label>
+                                <select id="userRole" required>
+                                    <option value="">Select Role</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userOrg">Organization*</label>
+                                <select id="userOrg" required>
+                                    <option value="">Select Organization</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userStatus">Status</label>
+                                <select id="userStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveUserBtn">Save User</button>
+                            <button type="button" class="btn btn-secondary" id="cancelUserBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Users List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Organization</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            
+
+            <!-- Roles -->
+            <div class="content-section" id="roles">
+                <div class="page-header">
+                    <h1 class="page-title">Roles</h1>
+                    <p class="page-subtitle">Manage user roles and responsibilities</p>
+                </div>
+
+                <div id="roleMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New Role</h3>
+                        <button class="btn btn-secondary" id="toggleRoleForm">
+                            <span id="roleFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="roleForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="roleName">Role Name*</label>
+                                <input type="text" id="roleName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="roleStatus">Status</label>
+                                <select id="roleStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="roleDescription">Description</label>
+                            <textarea id="roleDescription"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveRoleBtn">Save Role</button>
+                            <button type="button" class="btn btn-secondary" id="cancelRoleBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Roles List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rolesTableBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permissions -->
             <div class="content-section" id="permissions">
                 <div class="page-header">
                     <h1 class="page-title">Permissions</h1>
-                    <p class="page-subtitle">Coming soon...</p>
+                    <p class="page-subtitle">Manage role-based access control</p>
+                </div>
+
+                <div id="permissionMessage" class="message"></div>
+
+                <div class="card">
+                    <div class="form-group" style="max-width: 360px;">
+                        <label for="permRoleSelect">Select Role</label>
+                        <select id="permRoleSelect">
+                            <option value="">Choose a role to manage...</option>
+                        </select>
+                    </div>
+
+                    <div id="permMatrix" style="display: none;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Menu Item</th>
+                                        <th style="width: 80px;">Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="permMatrixBody"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="savePermissionsBtn">Save Permissions</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Organizations -->
+            <div class="content-section" id="organizations">
+                <div class="page-header">
+                    <h1 class="page-title">Organizations</h1>
+                    <p class="page-subtitle">Manage organizational structure</p>
+                </div>
+
+                <div id="organizationMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New Organization</h3>
+                        <button class="btn btn-secondary" id="toggleOrganizationForm">
+                            <span id="organizationFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="organizationForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="organizationName">Organization Name*</label>
+                                <input type="text" id="organizationName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationParent">Parent Organization</label>
+                                <select id="organizationParent">
+                                    <option value="">None (Root Level)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationType">Type*</label>
+                                <select id="organizationType" required>
+                                    <option value="headquarters">Headquarters</option>
+                                    <option value="branch">Branch</option>
+                                    <option value="franchise">Franchise</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationStatus">Status</label>
+                                <select id="organizationStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveOrganizationBtn">Save Organization</button>
+                            <button type="button" class="btn btn-secondary" id="cancelOrganizationBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Organizations List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Parent</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="organizationsTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             
@@ -593,6 +860,10 @@
     <script src="js/staff.js"></script>
     <script src="js/customers.js"></script>
     <script src="js/pricebooks.js"></script>
+    <script src="js/organizations.js"></script>
+    <script src="js/users.js"></script>
+    <script src="js/roles.js"></script>
+    <script src="js/permissions.js"></script>
     <script src="js/app.js"></script>
     
 </body>
