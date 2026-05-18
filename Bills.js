@@ -25,7 +25,7 @@ const Bills = {
       discount, tip, grandTotal,
       data.paymentMode || 'Cash',
       Number(data.cashAmt) || 0, Number(data.cardAmt) || 0, Number(data.upiAmt) || 0,
-      'active'
+      'active', data.discountType || 'value'
     ]);
 
     items.forEach(item => {
@@ -70,9 +70,29 @@ const Bills = {
         retailSubtotal: billData[i][7], retailGst: billData[i][8],
         discount: billData[i][9], tip: billData[i][10], grandTotal: billData[i][11],
         paymentMode: billData[i][12], cashAmt: billData[i][13],
-        cardAmt: billData[i][14], upiAmt: billData[i][15], status: billData[i][16]
+        cardAmt: billData[i][14], upiAmt: billData[i][15],
+        status: billData[i][16], discountType: billData[i][17] || 'value'
       });
     }
     return Utils.createResponse('success', 'Bills retrieved', { bills });
+  },
+
+  getItems(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('BillItems');
+    if (!sheet) return Utils.createResponse('success', 'Items retrieved', { items: [] });
+
+    const rows = sheet.getDataRange().getValues();
+    const items = [];
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === data.billId) {
+        items.push({
+          itemId: rows[i][0], billId: rows[i][1], type: rows[i][2], refId: rows[i][3],
+          itemName: rows[i][4], staffId: rows[i][5], staffName: rows[i][6],
+          qty: rows[i][7], unitPrice: rows[i][8], gstPct: rows[i][9],
+          lineSubtotal: rows[i][10], lineGst: rows[i][11], lineTotal: rows[i][12]
+        });
+      }
+    }
+    return Utils.createResponse('success', 'Items retrieved', { items });
   }
 };

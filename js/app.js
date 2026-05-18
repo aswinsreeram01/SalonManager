@@ -90,6 +90,7 @@ const Navigation = {
                     if (page === 'users')          Users.load();
                     if (page === 'roles')          Roles.load();
                     if (page === 'permissions')    Permissions.load();
+                    if (page === 'history')        History.load();
                 }
             } else {
                 section.classList.remove('active');
@@ -120,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Auth.init();
     Navigation.init();
     Billing.init();
+    History.init();
     Services.init();
     Staff.init();
     Customers.init();

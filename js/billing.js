@@ -11,6 +11,7 @@ const Billing = {
     selectedCustomerName: '',
     selectedPriceBookId: null,
     _phoneDebounce: null,
+    _invoiceCloseCallback: null,
 
     init() {
         document.getElementById('billingPhone').addEventListener('input', e => {
@@ -20,10 +21,14 @@ const Billing = {
         document.getElementById('billingPriceBook').addEventListener('change', e => {
             this.onPriceBookChange(e.target.value);
         });
+        document.getElementById('discountType').addEventListener('change', () => this.recalcTotals());
         document.getElementById('billingDiscount').addEventListener('input', () => this.recalcTotals());
         document.getElementById('billingTip').addEventListener('input', () => this.recalcTotals());
         document.querySelectorAll('input[name="paymentMode"]').forEach(r => {
-            r.addEventListener('change', () => this.onPaymentModeChange(r.value));
+            r.addEventListener('change', () => { this.onPaymentModeChange(r.value); this.liveValidate(); });
+        });
+        ['splitCash', 'splitCard', 'splitUpi'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => this.liveValidate());
         });
         document.getElementById('newCustomerForm').addEventListener('submit', e => this.saveNewCustomer(e));
         document.getElementById('cancelNewCustomer').addEventListener('click', () => this.closeNewCustomerModal());
@@ -33,29 +38,21 @@ const Billing = {
         UI.showLoading();
         try {
             const [custRes, staffRes, svcRes, sgRes, prodRes, pbRes] = await Promise.all([
-                API.getCustomers(),
-                API.getStaff(),
-                API.getServices(),
-                API.getServiceGroups(),
-                API.getProducts(),
-                API.getPriceBooks()
+                API.getCustomers(), API.getStaff(), API.getServices(),
+                API.getServiceGroups(), API.getProducts(), API.getPriceBooks()
             ]);
             this.customers = custRes.customers || [];
             this.staff = (staffRes.staff || []).filter(s => s.status === 'active');
-
             const sgMap = {};
             (sgRes.serviceGroups || []).forEach(sg => { sgMap[sg.id] = sg; });
             this.services = (svcRes.services || [])
                 .filter(s => s.status === 'active')
                 .map(s => ({ ...s, gstPct: Number((sgMap[s.serviceGroupId] || {}).gst) || 0 }));
-
             this.products = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Retail');
             this.priceBooks = (pbRes.priceBooks || []).filter(pb => pb.status === 'active');
-
             const pbSelect = document.getElementById('billingPriceBook');
             pbSelect.innerHTML = '<option value="">No Price Book (use defaults)</option>' +
                 this.priceBooks.map(pb => `<option value="${pb.id}">${pb.name}</option>`).join('');
-
             this.resetBill();
         } catch(e) {
             UI.showMessage('billingMessage', 'Error loading billing data. Please refresh.', 'error');
@@ -70,11 +67,18 @@ const Billing = {
         this.selectedCustomerId = null;
         this.selectedCustomerName = '';
         this.selectedPriceBookId = null;
-        document.getElementById('billingPhone').value = '';
-        document.getElementById('billingCustomerName').textContent = '';
-        document.getElementById('billingPriceBook').value = '';
-        document.getElementById('billingDiscount').value = '';
-        document.getElementById('billingTip').value = '';
+        const phoneEl = document.getElementById('billingPhone');
+        if (phoneEl) { phoneEl.value = ''; phoneEl.classList.remove('field-error'); }
+        const nameEl = document.getElementById('billingCustomerName');
+        if (nameEl) nameEl.textContent = '';
+        const pbEl = document.getElementById('billingPriceBook');
+        if (pbEl) pbEl.value = '';
+        const dtEl = document.getElementById('discountType');
+        if (dtEl) dtEl.value = 'value';
+        const discEl = document.getElementById('billingDiscount');
+        if (discEl) discEl.value = '';
+        const tipEl = document.getElementById('billingTip');
+        if (tipEl) tipEl.value = '';
         const cashRadio = document.querySelector('input[name="paymentMode"][value="Cash"]');
         if (cashRadio) cashRadio.checked = true;
         this.onPaymentModeChange('Cash');
@@ -83,35 +87,40 @@ const Billing = {
     },
 
     lookupCustomer(phone) {
-        const nameEl = document.getElementById('billingCustomerName');
+        const nameEl  = document.getElementById('billingCustomerName');
+        const phoneEl = document.getElementById('billingPhone');
         if (!phone) {
             this.selectedCustomerId = null;
             this.selectedCustomerName = '';
-            nameEl.textContent = '';
+            if (nameEl)  nameEl.textContent = '';
+            if (phoneEl) phoneEl.classList.remove('field-error');
+            this.liveValidate();
             return;
         }
-        // c.phone may be a number from Google Sheets — compare as strings
         const customer = this.customers.find(c => String(c.phone).trim() === String(phone).trim());
         if (customer) {
-            this.selectedCustomerId = String(customer.phone).trim(); // use phone as unique key
+            this.selectedCustomerId   = String(customer.phone).trim();
             this.selectedCustomerName = customer.name;
-            nameEl.textContent = customer.name;
-            nameEl.style.color = '#38a169';
+            if (nameEl)  { nameEl.textContent = customer.name; nameEl.style.color = '#38a169'; }
+            if (phoneEl) phoneEl.classList.remove('field-error');
         } else if (phone.length >= 10) {
-            this.selectedCustomerId = null;
+            this.selectedCustomerId   = null;
             this.selectedCustomerName = '';
-            nameEl.textContent = 'Customer not found — ';
-            nameEl.style.color = '#e53e3e';
-            const link = document.createElement('a');
-            link.href = '#';
-            link.textContent = 'Add new customer';
-            link.style.color = '#667eea';
-            link.onclick = e => { e.preventDefault(); this.showNewCustomerModal(phone); };
-            nameEl.appendChild(link);
+            if (nameEl) {
+                nameEl.textContent = 'Customer not found — ';
+                nameEl.style.color = '#e53e3e';
+                const link = document.createElement('a');
+                link.href = '#'; link.textContent = 'Add new customer'; link.style.color = '#667eea';
+                link.onclick = e => { e.preventDefault(); this.showNewCustomerModal(phone); };
+                nameEl.appendChild(link);
+            }
+            if (phoneEl) phoneEl.classList.add('field-error');
         } else {
             this.selectedCustomerId = null;
-            nameEl.textContent = '';
+            if (nameEl)  nameEl.textContent = '';
+            if (phoneEl) phoneEl.classList.remove('field-error');
         }
+        this.liveValidate();
     },
 
     showNewCustomerModal(phone) {
@@ -127,7 +136,7 @@ const Billing = {
 
     async saveNewCustomer(e) {
         e.preventDefault();
-        const name = document.getElementById('newCustomerName').value.trim();
+        const name  = document.getElementById('newCustomerName').value.trim();
         const phone = document.getElementById('newCustomerPhone').value.trim();
         if (!name || !phone) return;
         const btn = document.getElementById('saveNewCustomerBtn');
@@ -135,14 +144,15 @@ const Billing = {
         try {
             const result = await API.addCustomer({ name, phone });
             if (result.status === 'success') {
-                const newCust = { name, phone };
-                this.customers.push(newCust);
-                this.selectedCustomerId = String(phone).trim(); // use phone as unique key
+                this.customers.push({ name, phone });
+                this.selectedCustomerId   = String(phone).trim();
                 this.selectedCustomerName = name;
                 const nameEl = document.getElementById('billingCustomerName');
-                nameEl.textContent = name;
-                nameEl.style.color = '#38a169';
+                if (nameEl) { nameEl.textContent = name; nameEl.style.color = '#38a169'; }
+                const phoneEl = document.getElementById('billingPhone');
+                if (phoneEl) phoneEl.classList.remove('field-error');
                 this.closeNewCustomerModal();
+                this.liveValidate();
             } else {
                 alert(result.message);
             }
@@ -155,25 +165,12 @@ const Billing = {
 
     async onPriceBookChange(pbId) {
         this.selectedPriceBookId = pbId || null;
-        if (!pbId) {
-            this.rows.forEach(row => {
-                if (row.type === 'service' && row.itemId) {
-                    row.unitPrice = this.getPriceForService(row.itemId);
-                    this.recalcRow(row);
-                }
-            });
-            this.renderRows();
-            this.recalcTotals();
-            return;
-        }
-        if (!this.pbItemsCache[pbId]) {
+        if (pbId && !this.pbItemsCache[pbId]) {
             UI.showLoading();
             try {
                 const result = await API.getPriceBookItems(pbId);
                 const cache = {};
-                (result.items || []).filter(i => !i.isDefault).forEach(i => {
-                    cache[i.serviceId] = Number(i.price);
-                });
+                (result.items || []).filter(i => !i.isDefault).forEach(i => { cache[i.serviceId] = Number(i.price); });
                 this.pbItemsCache[pbId] = cache;
             } catch(e) {
                 this.pbItemsCache[pbId] = {};
@@ -201,18 +198,15 @@ const Billing = {
     },
 
     _newRow() {
-        return {
-            rowId: this._nextRowId++,
-            type: 'service', itemId: '', itemName: '',
-            staffId: '', staffName: '',
-            qty: 1, unitPrice: 0, gstPct: 0,
-            lineSubtotal: 0, lineGst: 0, lineTotal: 0
-        };
+        return { rowId: this._nextRowId++, type: 'service', itemId: '', itemName: '',
+                 staffId: '', staffName: '', qty: 1, unitPrice: 0, gstPct: 0,
+                 lineSubtotal: 0, lineGst: 0, lineTotal: 0 };
     },
 
     addRow() {
         this.rows.push(this._newRow());
         this.renderRows();
+        this.liveValidate();
     },
 
     removeRow(rowId) {
@@ -225,62 +219,45 @@ const Billing = {
     onTypeChange(rowId, type) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
-        row.type = type;
-        row.itemId = ''; row.itemName = '';
-        row.unitPrice = 0; row.gstPct = 0;
-        this.recalcRow(row);
-        this.renderRows();
-        this.recalcTotals();
+        row.type = type; row.itemId = ''; row.itemName = ''; row.unitPrice = 0; row.gstPct = 0;
+        this.recalcRow(row); this.renderRows(); this.recalcTotals();
     },
 
     onItemChange(rowId, itemId) {
         const row = this.rows.find(r => r.rowId === rowId);
-        if (!row || !itemId) return;
+        if (!row) return;
         row.itemId = itemId;
-        if (row.type === 'service') {
+        if (!itemId) { row.itemName = ''; row.unitPrice = 0; row.gstPct = 0; }
+        else if (row.type === 'service') {
             const svc = this.services.find(s => s.id === itemId);
-            if (svc) {
-                row.itemName = svc.name;
-                row.unitPrice = this.getPriceForService(itemId);
-                row.gstPct = svc.gstPct || 0;
-            }
+            if (svc) { row.itemName = svc.name; row.unitPrice = this.getPriceForService(itemId); row.gstPct = svc.gstPct || 0; }
         } else {
             const prod = this.products.find(p => p.id === itemId);
-            if (prod) {
-                row.itemName = prod.name;
-                row.unitPrice = Number(prod.retailPrice) || 0;
-                row.gstPct = Number(prod.gst) || 0;
-            }
+            if (prod) { row.itemName = prod.name; row.unitPrice = Number(prod.retailPrice) || 0; row.gstPct = Number(prod.gst) || 0; }
         }
-        this.recalcRow(row);
-        this.renderRows();
-        this.recalcTotals();
+        this.recalcRow(row); this.renderRows(); this.recalcTotals();
     },
 
     onStaffChange(rowId, staffId) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
         const s = this.staff.find(st => st.id === staffId);
-        row.staffId = staffId;
-        row.staffName = s ? s.name : '';
+        row.staffId = staffId; row.staffName = s ? s.name : '';
+        this.liveValidate();
     },
 
     onQtyChange(rowId, val) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
         row.qty = Math.max(0, Number(val) || 0);
-        this.recalcRow(row);
-        this._updateRowTotals(rowId);
-        this.recalcTotals();
+        this.recalcRow(row); this._updateRowTotals(rowId); this.recalcTotals();
     },
 
     onPriceChange(rowId, val) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
         row.unitPrice = Math.max(0, Number(val) || 0);
-        this.recalcRow(row);
-        this._updateRowTotals(rowId);
-        this.recalcTotals();
+        this.recalcRow(row); this._updateRowTotals(rowId); this.recalcTotals();
     },
 
     recalcRow(row) {
@@ -303,57 +280,34 @@ const Billing = {
         const tbody = document.getElementById('billingItemsBody');
         if (!tbody) return;
         tbody.innerHTML = this.rows.map((row, idx) => {
-            const svcOpts = this.services.map(s =>
-                `<option value="${s.id}" ${row.itemId === s.id ? 'selected' : ''}>${s.name}</option>`
-            ).join('');
-            const prdOpts = this.products.map(p =>
-                `<option value="${p.id}" ${row.itemId === p.id ? 'selected' : ''}>${p.name}</option>`
-            ).join('');
-            const staffOpts = this.staff.map(s =>
-                `<option value="${s.id}" ${row.staffId === s.id ? 'selected' : ''}>${s.name}</option>`
-            ).join('');
-            const itemOpts = row.type === 'service'
+            const svcOpts   = this.services.map(s => `<option value="${s.id}" ${row.itemId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+            const prdOpts   = this.products.map(p => `<option value="${p.id}" ${row.itemId === p.id ? 'selected' : ''}>${p.name}</option>`).join('');
+            const staffOpts = this.staff.map(s => `<option value="${s.id}" ${row.staffId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+            const itemOpts  = row.type === 'service'
                 ? `<option value="">Select service…</option>${svcOpts}`
                 : `<option value="">Select product…</option>${prdOpts}`;
-
+            const staffBorder = (row.itemId && !row.staffId) ? 'border-color:#e53e3e;' : '';
+            const qtyBorder   = (row.itemId && row.qty <= 0)  ? 'border-color:#e53e3e;' : '';
             return `<tr data-row="${row.rowId}">
-                <td style="text-align:center;color:#a0aec0;width:32px;">${idx + 1}</td>
-                <td>
-                    <select class="bill-select" onchange="Billing.onTypeChange(${row.rowId}, this.value)">
-                        <option value="service" ${row.type === 'service' ? 'selected' : ''}>Service</option>
-                        <option value="product" ${row.type === 'product' ? 'selected' : ''}>Product</option>
-                    </select>
-                </td>
-                <td>
-                    <select class="bill-select bill-item-select" onchange="Billing.onItemChange(${row.rowId}, this.value)">
-                        ${itemOpts}
-                    </select>
-                </td>
-                <td>
-                    <select class="bill-select" onchange="Billing.onStaffChange(${row.rowId}, this.value)">
-                        <option value="">— None —</option>
-                        ${staffOpts}
-                    </select>
-                </td>
-                <td>
-                    <input type="number" class="bill-input" value="${row.qty}" min="0" step="1"
-                        oninput="Billing.onQtyChange(${row.rowId}, this.value)"
-                        style="width:60px;text-align:center;">
-                </td>
-                <td>
-                    <input type="number" class="bill-input" value="${row.unitPrice || ''}" min="0" step="0.01"
-                        oninput="Billing.onPriceChange(${row.rowId}, this.value)"
-                        style="width:90px;text-align:right;" placeholder="0.00">
-                </td>
-                <td style="text-align:center;color:#718096;white-space:nowrap;">${row.gstPct}%</td>
+                <td style="text-align:center;color:#a0aec0;width:28px;">${idx + 1}</td>
+                <td><select class="bill-select" onchange="Billing.onTypeChange(${row.rowId}, this.value)">
+                    <option value="service" ${row.type==='service'?'selected':''}>Service</option>
+                    <option value="product" ${row.type==='product'?'selected':''}>Product</option>
+                </select></td>
+                <td><select class="bill-select bill-item-select" onchange="Billing.onItemChange(${row.rowId}, this.value)">${itemOpts}</select></td>
+                <td><select class="bill-select" style="${staffBorder}" onchange="Billing.onStaffChange(${row.rowId}, this.value)">
+                    <option value="">— Select —</option>${staffOpts}
+                </select></td>
+                <td><input type="number" class="bill-input bill-qty" value="${row.qty}" min="0" step="1"
+                    style="width:58px;text-align:center;${qtyBorder}" oninput="Billing.onQtyChange(${row.rowId}, this.value)"></td>
+                <td><input type="number" class="bill-input" value="${row.unitPrice||''}" min="0" step="0.01"
+                    style="width:88px;text-align:right;" placeholder="0.00" oninput="Billing.onPriceChange(${row.rowId}, this.value)"></td>
+                <td style="text-align:center;color:#718096;">${row.gstPct}%</td>
                 <td style="text-align:right;" class="cell-subtotal">₹${row.lineSubtotal.toFixed(2)}</td>
                 <td style="text-align:right;" class="cell-gst">₹${row.lineGst.toFixed(2)}</td>
                 <td style="text-align:right;font-weight:600;" class="cell-total">₹${row.lineTotal.toFixed(2)}</td>
-                <td style="text-align:center;width:32px;">
-                    ${this.rows.length > 1
-                        ? `<button class="bill-del-btn" onclick="Billing.removeRow(${row.rowId})" title="Remove row">✕</button>`
-                        : ''}
-                </td>
+                <td style="text-align:center;width:28px;">${this.rows.length > 1
+                    ? `<button class="bill-del-btn" onclick="Billing.removeRow(${row.rowId})" title="Remove">✕</button>` : ''}</td>
             </tr>`;
         }).join('');
     },
@@ -365,111 +319,200 @@ const Billing = {
         const svcGst  = svcRows.reduce((s, r) => s + r.lineGst, 0);
         const prdSub  = prdRows.reduce((s, r) => s + r.lineSubtotal, 0);
         const prdGst  = prdRows.reduce((s, r) => s + r.lineGst, 0);
-        const disc    = Math.max(0, Number(document.getElementById('billingDiscount').value) || 0);
-        const tip     = Math.max(0, Number(document.getElementById('billingTip').value) || 0);
-        const grand   = svcSub + svcGst + prdSub + prdGst - disc + tip;
-        const fmt = v => '₹' + v.toFixed(2);
-        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = fmt(v); };
-        set('sumSvcSubtotal', svcSub);
-        set('sumSvcGst', svcGst);
-        set('sumPrdSubtotal', prdSub);
-        set('sumPrdGst', prdGst);
+        const baseAmt = svcSub + svcGst + prdSub + prdGst;
+
+        const discType  = (document.getElementById('discountType')  || {}).value || 'value';
+        const discInput = Math.max(0, Number((document.getElementById('billingDiscount') || {}).value) || 0);
+        const disc      = discType === 'pct' ? Math.round(baseAmt * discInput / 100 * 100) / 100 : discInput;
+
+        const discAmtRow = document.getElementById('discountAmtRow');
+        const discAmtEl  = document.getElementById('sumDiscountAmt');
+        if (discAmtRow && discAmtEl) {
+            if (discType === 'pct' && discInput > 0) {
+                discAmtEl.textContent = `−₹${disc.toFixed(2)}`;
+                discAmtRow.style.display = '';
+            } else {
+                discAmtRow.style.display = 'none';
+            }
+        }
+
+        const tip   = Math.max(0, Number((document.getElementById('billingTip') || {}).value) || 0);
+        const grand = Math.max(0, baseAmt - disc + tip);
+
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₹' + v.toFixed(2); };
+        set('sumSvcSubtotal', svcSub); set('sumSvcGst', svcGst);
+        set('sumPrdSubtotal', prdSub); set('sumPrdGst', prdGst);
         set('sumGrandTotal', grand);
+        this.liveValidate();
+    },
+
+    liveValidate() {
+        const checks = [];
+        checks.push({ ok: !!this.selectedCustomerId, msg: 'Select a customer by phone number' });
+        const filledRows = this.rows.filter(r => r.itemId);
+        checks.push({ ok: filledRows.length > 0, msg: 'Add at least one service or product' });
+        filledRows.forEach(row => {
+            const n = this.rows.indexOf(row) + 1;
+            if (!row.staffId)       checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): Select a staff member` });
+            if (!row.qty || row.qty <= 0) checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): Qty must be > 0` });
+        });
+        const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value;
+        if (mode === 'Split') {
+            const cash  = Number((document.getElementById('splitCash') || {}).value) || 0;
+            const card  = Number((document.getElementById('splitCard') || {}).value) || 0;
+            const upi   = Number((document.getElementById('splitUpi')  || {}).value) || 0;
+            const grand = this._getGrandTotal();
+            if (cash + card + upi === 0)
+                checks.push({ ok: false, msg: 'Enter the split payment amounts' });
+            else if (Math.abs(cash + card + upi - grand) > 0.01)
+                checks.push({ ok: false, msg: `Split total ₹${(cash+card+upi).toFixed(2)} must equal Grand Total ₹${grand.toFixed(2)}` });
+            else
+                checks.push({ ok: true, msg: 'Split amounts balance' });
+        }
+        const allOk = checks.every(c => c.ok);
+        const saveBtn = document.getElementById('saveBillBtn');
+        if (saveBtn) saveBtn.disabled = !allOk;
+        const listEl = document.getElementById('billingValidationList');
+        if (listEl) {
+            if (allOk) { listEl.style.display = 'none'; listEl.innerHTML = ''; }
+            else {
+                listEl.style.display = 'block';
+                listEl.innerHTML = '<ul class="validation-list">' +
+                    checks.map(c => `<li class="${c.ok ? 'v-ok' : 'v-err'}">${c.ok ? '✓' : '✗'} ${c.msg}</li>`).join('') +
+                    '</ul>';
+            }
+        }
+        return allOk;
     },
 
     onPaymentModeChange(mode) {
-        const splitDiv = document.getElementById('splitInputs');
-        if (splitDiv) splitDiv.style.display = mode === 'Split' ? 'block' : 'none';
+        const el = document.getElementById('splitInputs');
+        if (el) el.style.display = mode === 'Split' ? 'block' : 'none';
     },
 
     _getGrandTotal() {
         const el = document.getElementById('sumGrandTotal');
-        return el ? parseFloat(el.textContent.replace('₹', '')) || 0 : 0;
+        return el ? parseFloat(el.textContent.replace('₹','')) || 0 : 0;
     },
 
-    validate() {
-        // 1. Customer required
-        if (!this.selectedCustomerId) {
-            UI.showMessage('billingMessage', 'Please enter a customer phone number and select a customer.', 'error');
-            document.getElementById('billingPhone').focus();
-            return false;
+    _getDiscountData() {
+        const discType  = (document.getElementById('discountType')  || {}).value || 'value';
+        const discInput = Math.max(0, Number((document.getElementById('billingDiscount') || {}).value) || 0);
+        if (discType === 'pct') {
+            const base = this.rows.reduce((s, r) => s + r.lineSubtotal + r.lineGst, 0);
+            return { discountType: 'pct', discountInput, discount: Math.round(base * discInput / 100 * 100) / 100 };
         }
-
-        // 2. At least one item required
-        const filledRows = this.rows.filter(r => r.itemId);
-        if (filledRows.length === 0) {
-            UI.showMessage('billingMessage', 'Please add at least one service or product.', 'error');
-            return false;
-        }
-
-        // 3. All fields in each item row are required
-        for (let i = 0; i < filledRows.length; i++) {
-            const r = filledRows[i];
-            const rowNum = this.rows.indexOf(r) + 1;
-            if (!r.itemId) {
-                UI.showMessage('billingMessage', `Row ${rowNum}: Please select a service or product.`, 'error');
-                return false;
-            }
-            if (!r.staffId) {
-                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Please select a staff member.`, 'error');
-                return false;
-            }
-            if (!r.qty || r.qty <= 0) {
-                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Quantity must be greater than 0.`, 'error');
-                return false;
-            }
-            if (r.unitPrice === '' || r.unitPrice === null || r.unitPrice === undefined || isNaN(r.unitPrice)) {
-                UI.showMessage('billingMessage', `Row ${rowNum} (${r.itemName}): Please enter a valid price.`, 'error');
-                return false;
-            }
-        }
-
-        // 4. Split payment must equal grand total
-        const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value;
-        if (mode === 'Split') {
-            const cash  = Number(document.getElementById('splitCash').value) || 0;
-            const card  = Number(document.getElementById('splitCard').value) || 0;
-            const upi   = Number(document.getElementById('splitUpi').value) || 0;
-            const grand = this._getGrandTotal();
-            if (cash + card + upi === 0) {
-                UI.showMessage('billingMessage', 'Please enter the split payment amounts.', 'error');
-                return false;
-            }
-            if (Math.abs(cash + card + upi - grand) > 0.01) {
-                UI.showMessage('billingMessage',
-                    `Split total ₹${(cash+card+upi).toFixed(2)} does not match Grand Total ₹${grand.toFixed(2)}. Please adjust the amounts.`, 'error');
-                return false;
-            }
-        }
-
-        return true;
+        return { discountType: 'value', discountInput, discount: discInput };
     },
 
-    async save() {
-        if (!this.validate()) return;
+    save() {
+        if (!this.liveValidate()) return;
+        this.showConfirmation();
+    },
+
+    showConfirmation() {
+        const content = document.getElementById('billConfirmContent');
+        if (!content) return;
+        const filledRows = this.rows.filter(r => r.itemId && r.qty > 0);
+        const svcRows = filledRows.filter(r => r.type === 'service');
+        const prdRows = filledRows.filter(r => r.type === 'product');
+        const svcSub  = svcRows.reduce((s, r) => s + r.lineSubtotal, 0);
+        const svcGst  = svcRows.reduce((s, r) => s + r.lineGst, 0);
+        const prdSub  = prdRows.reduce((s, r) => s + r.lineSubtotal, 0);
+        const prdGst  = prdRows.reduce((s, r) => s + r.lineGst, 0);
+        const { discountType, discountInput, discount } = this._getDiscountData();
+        const tip   = Math.max(0, Number((document.getElementById('billingTip') || {}).value) || 0);
+        const grand = this._getGrandTotal();
         const mode  = (document.querySelector('input[name="paymentMode"]:checked') || {}).value || 'Cash';
-        const disc  = Math.max(0, Number(document.getElementById('billingDiscount').value) || 0);
-        const tip   = Math.max(0, Number(document.getElementById('billingTip').value) || 0);
+        const today = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
+        const pbName = (this.priceBooks.find(pb => pb.id === this.selectedPriceBookId) || {}).name || '';
+
+        const rowsHtml = rows => rows.map(r => `<tr>
+            <td style="padding:7px 10px;">${r.itemName}</td>
+            <td style="padding:7px 10px;">${r.staffName||'—'}</td>
+            <td style="padding:7px 10px;text-align:center;">${r.qty}</td>
+            <td style="padding:7px 10px;text-align:right;">₹${Number(r.unitPrice).toFixed(2)}</td>
+            <td style="padding:7px 10px;text-align:center;">${r.gstPct}%</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:600;">₹${Number(r.lineTotal).toFixed(2)}</td>
+        </tr>`).join('');
+
+        let payLine = mode;
+        if (mode === 'Split') {
+            const c = Number((document.getElementById('splitCash')||{}).value)||0;
+            const ca= Number((document.getElementById('splitCard')||{}).value)||0;
+            const u = Number((document.getElementById('splitUpi') ||{}).value)||0;
+            const parts = [];
+            if (c  > 0) parts.push(`Cash ₹${c.toFixed(2)}`);
+            if (ca > 0) parts.push(`Card ₹${ca.toFixed(2)}`);
+            if (u  > 0) parts.push(`UPI ₹${u.toFixed(2)}`);
+            payLine = parts.join(' + ');
+        }
+        const discLabel = discountType === 'pct' ? `Discount (${discountInput}%)` : 'Discount';
+        const sumRow = (label, val, style='') => `<div class="conf-sum-row" ${style}><span>${label}</span><span>${val}</span></div>`;
+
+        content.innerHTML = `
+            <div style="background:#f7fafc;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><strong>Customer</strong><span>${this.selectedCustomerName}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;"><strong>Date</strong><span>${today}</span></div>
+                ${pbName ? `<div style="display:flex;justify-content:space-between;"><strong>Price Book</strong><span>${pbName}</span></div>` : ''}
+            </div>
+            <div class="table-container" style="margin-bottom:16px;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead><tr style="background:#f7fafc;">
+                        <th style="padding:7px 10px;text-align:left;">Item</th>
+                        <th style="padding:7px 10px;text-align:left;">Staff</th>
+                        <th style="padding:7px 10px;text-align:center;">Qty</th>
+                        <th style="padding:7px 10px;text-align:right;">Price</th>
+                        <th style="padding:7px 10px;text-align:center;">GST</th>
+                        <th style="padding:7px 10px;text-align:right;">Total</th>
+                    </tr></thead>
+                    <tbody>
+                        ${svcRows.length > 0 ? `<tr><td colspan="6" style="padding:5px 10px;background:#ebf8ff;font-size:11px;font-weight:700;color:#2b6cb0;letter-spacing:.05em;">SERVICES</td></tr>${rowsHtml(svcRows)}` : ''}
+                        ${prdRows.length > 0 ? `<tr><td colspan="6" style="padding:5px 10px;background:#f0fff4;font-size:11px;font-weight:700;color:#276749;letter-spacing:.05em;">RETAIL PRODUCTS</td></tr>${rowsHtml(prdRows)}` : ''}
+                    </tbody>
+                </table>
+            </div>
+            <div style="border-top:2px solid #e2e8f0;padding-top:12px;">
+                ${svcSub > 0 ? sumRow('Services Subtotal', '₹'+svcSub.toFixed(2)) : ''}
+                ${svcGst > 0 ? sumRow('Services GST', '₹'+svcGst.toFixed(2)) : ''}
+                ${prdSub > 0 ? sumRow('Retail Subtotal', '₹'+prdSub.toFixed(2)) : ''}
+                ${prdGst > 0 ? sumRow('Retail GST', '₹'+prdGst.toFixed(2)) : ''}
+                ${discount > 0 ? sumRow(discLabel, `<span style="color:#e53e3e;">−₹${discount.toFixed(2)}</span>`) : ''}
+                ${tip > 0 ? sumRow('Tip', '₹'+tip.toFixed(2)) : ''}
+                <div class="conf-sum-row" style="font-size:18px;font-weight:700;color:#2d3748;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:6px;">
+                    <span>GRAND TOTAL</span><span style="color:#667eea;">₹${grand.toFixed(2)}</span>
+                </div>
+                ${sumRow('Payment', payLine, 'style="color:#718096;font-size:13px;"')}
+            </div>`;
+        document.getElementById('billConfirmModal').style.display = 'flex';
+    },
+
+    closeConfirmation() {
+        document.getElementById('billConfirmModal').style.display = 'none';
+    },
+
+    async _doSave() {
+        this.closeConfirmation();
+        const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value || 'Cash';
+        const { discountType, discountInput, discount } = this._getDiscountData();
+        const tip   = Math.max(0, Number((document.getElementById('billingTip') || {}).value) || 0);
         const grand = this._getGrandTotal();
         const filledRows = this.rows.filter(r => r.itemId && r.qty > 0);
         const pbName = (this.priceBooks.find(pb => pb.id === this.selectedPriceBookId) || {}).name || '';
-
         const payload = {
             customerId: this.selectedCustomerId,
             customerName: this.selectedCustomerName,
             priceBookId: this.selectedPriceBookId || '',
             priceBookName: pbName,
-            discount: disc, tip,
+            discount, discountType, discountInput, tip,
             paymentMode: mode,
-            cashAmt: mode === 'Cash'  ? grand : (mode === 'Split' ? (Number(document.getElementById('splitCash').value) || 0) : 0),
-            cardAmt: mode === 'Card'  ? grand : (mode === 'Split' ? (Number(document.getElementById('splitCard').value) || 0) : 0),
-            upiAmt:  mode === 'UPI'   ? grand : (mode === 'Split' ? (Number(document.getElementById('splitUpi').value) || 0) : 0),
+            cashAmt: mode === 'Cash' ? grand : (mode === 'Split' ? (Number((document.getElementById('splitCash')||{}).value)||0) : 0),
+            cardAmt: mode === 'Card' ? grand : (mode === 'Split' ? (Number((document.getElementById('splitCard')||{}).value)||0) : 0),
+            upiAmt:  mode === 'UPI'  ? grand : (mode === 'Split' ? (Number((document.getElementById('splitUpi') ||{}).value)||0) : 0),
             items: filledRows
         };
-
         const btn = document.getElementById('saveBillBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span>Saving…';
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…'; }
         try {
             const result = await API.saveBill(payload);
             if (result.status === 'success') {
@@ -480,42 +523,44 @@ const Billing = {
         } catch(e) {
             UI.showMessage('billingMessage', 'Network error. Please try again.', 'error');
         } finally {
-            btn.disabled = false;
-            btn.textContent = 'Save & Generate Invoice';
+            if (btn) { btn.disabled = false; btn.textContent = 'Save & Generate Invoice'; }
+            this.liveValidate();
         }
     },
 
-    renderInvoice(billId, data, grandTotal) {
+    renderInvoice(billId, data, grandTotal, closeCallback) {
+        this._invoiceCloseCallback = closeCallback || null;
+        const closeBtn = document.getElementById('invoiceCloseBtn');
+        if (closeBtn) closeBtn.textContent = closeCallback ? 'Close' : 'Close & New Bill';
         const today   = new Date();
-        const dateStr = today.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-        const timeStr = today.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        const svcRows = (data.items || []).filter(i => i.type === 'service');
-        const prdRows = (data.items || []).filter(i => i.type === 'product');
-        const svcSub  = svcRows.reduce((s, r) => s + r.lineSubtotal, 0);
-        const svcGst  = svcRows.reduce((s, r) => s + r.lineGst, 0);
-        const prdSub  = prdRows.reduce((s, r) => s + r.lineSubtotal, 0);
-        const prdGst  = prdRows.reduce((s, r) => s + r.lineGst, 0);
-
-        const rowHtml = (rows, offset) => rows.map((r, i) => `
-            <tr>
-                <td style="color:#a0aec0;">${offset + i + 1}</td>
-                <td>${r.itemName}</td>
-                <td>${r.staffName || '—'}</td>
-                <td style="text-align:center;">${r.qty}</td>
-                <td style="text-align:right;">₹${Number(r.unitPrice).toFixed(2)}</td>
-                <td style="text-align:center;">${r.gstPct}%</td>
-                <td style="text-align:right;">₹${Number(r.lineTotal).toFixed(2)}</td>
-            </tr>`).join('');
-
-        let paymentLine = data.paymentMode;
+        const dateStr = today.toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
+        const timeStr = today.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+        const svcRows = (data.items||[]).filter(i => i.type==='service');
+        const prdRows = (data.items||[]).filter(i => i.type==='product');
+        const svcSub  = svcRows.reduce((s,r) => s + r.lineSubtotal, 0);
+        const svcGst  = svcRows.reduce((s,r) => s + r.lineGst, 0);
+        const prdSub  = prdRows.reduce((s,r) => s + r.lineSubtotal, 0);
+        const prdGst  = prdRows.reduce((s,r) => s + r.lineGst, 0);
+        const discount     = Number(data.discount)     || 0;
+        const discountType = data.discountType || 'value';
+        const discountInput= Number(data.discountInput)|| 0;
+        const rowHtml = (rows, offset) => rows.map((r,i) => `<tr>
+            <td style="color:#a0aec0;">${offset+i+1}</td>
+            <td>${r.itemName}</td><td>${r.staffName||'—'}</td>
+            <td style="text-align:center;">${r.qty}</td>
+            <td style="text-align:right;">₹${Number(r.unitPrice).toFixed(2)}</td>
+            <td style="text-align:center;">${r.gstPct}%</td>
+            <td style="text-align:right;">₹${Number(r.lineTotal).toFixed(2)}</td>
+        </tr>`).join('');
+        let payLine = data.paymentMode;
         if (data.paymentMode === 'Split') {
             const parts = [];
             if (data.cashAmt > 0) parts.push(`Cash ₹${Number(data.cashAmt).toFixed(2)}`);
             if (data.cardAmt > 0) parts.push(`Card ₹${Number(data.cardAmt).toFixed(2)}`);
             if (data.upiAmt  > 0) parts.push(`UPI ₹${Number(data.upiAmt).toFixed(2)}`);
-            paymentLine = parts.join(' + ');
+            payLine = parts.join(' + ');
         }
-
+        const discLabel = discountType === 'pct' && discountInput > 0 ? `Discount (${discountInput}%)` : 'Discount';
         document.getElementById('invoiceContent').innerHTML = `
             <div class="inv-header">
                 <div>
@@ -524,38 +569,34 @@ const Billing = {
                 </div>
                 <div class="inv-meta">
                     <div><strong>Invoice #</strong> ${billId}</div>
-                    <div>${dateStr}</div>
-                    <div>${timeStr}</div>
+                    <div>${dateStr}</div><div>${timeStr}</div>
                 </div>
             </div>
             <div class="inv-customer"><strong>Bill To:</strong> ${data.customerName}</div>
             <table class="inv-items-table">
-                <thead>
-                    <tr>
-                        <th>#</th><th>Item</th><th>Staff</th>
-                        <th style="text-align:center;">Qty</th>
-                        <th style="text-align:right;">Price</th>
-                        <th style="text-align:center;">GST%</th>
-                        <th style="text-align:right;">Total</th>
-                    </tr>
-                </thead>
+                <thead><tr>
+                    <th>#</th><th>Item</th><th>Staff</th>
+                    <th style="text-align:center;">Qty</th>
+                    <th style="text-align:right;">Price</th>
+                    <th style="text-align:center;">GST%</th>
+                    <th style="text-align:right;">Total</th>
+                </tr></thead>
                 <tbody>
-                    ${svcRows.length > 0 ? `<tr class="inv-section-header"><td colspan="7">Services</td></tr>${rowHtml(svcRows, 0)}` : ''}
-                    ${prdRows.length > 0 ? `<tr class="inv-section-header"><td colspan="7">Retail Products</td></tr>${rowHtml(prdRows, svcRows.length)}` : ''}
+                    ${svcRows.length>0 ? `<tr class="inv-section-header"><td colspan="7">Services</td></tr>${rowHtml(svcRows,0)}` : ''}
+                    ${prdRows.length>0 ? `<tr class="inv-section-header"><td colspan="7">Retail Products</td></tr>${rowHtml(prdRows,svcRows.length)}` : ''}
                 </tbody>
             </table>
             <div class="inv-totals">
-                ${svcSub > 0 ? `<div class="inv-total-row"><span>Services Subtotal</span><span>₹${svcSub.toFixed(2)}</span></div>` : ''}
-                ${svcGst > 0 ? `<div class="inv-total-row"><span>Services GST</span><span>₹${svcGst.toFixed(2)}</span></div>` : ''}
-                ${prdSub > 0 ? `<div class="inv-total-row"><span>Retail Subtotal</span><span>₹${prdSub.toFixed(2)}</span></div>` : ''}
-                ${prdGst > 0 ? `<div class="inv-total-row"><span>Retail GST</span><span>₹${prdGst.toFixed(2)}</span></div>` : ''}
-                ${data.discount > 0 ? `<div class="inv-total-row"><span>Discount</span><span style="color:#e53e3e;">−₹${Number(data.discount).toFixed(2)}</span></div>` : ''}
-                ${data.tip > 0 ? `<div class="inv-total-row"><span>Tip</span><span>₹${Number(data.tip).toFixed(2)}</span></div>` : ''}
+                ${svcSub>0 ? `<div class="inv-total-row"><span>Services Subtotal</span><span>₹${svcSub.toFixed(2)}</span></div>` : ''}
+                ${svcGst>0 ? `<div class="inv-total-row"><span>Services GST</span><span>₹${svcGst.toFixed(2)}</span></div>` : ''}
+                ${prdSub>0 ? `<div class="inv-total-row"><span>Retail Subtotal</span><span>₹${prdSub.toFixed(2)}</span></div>` : ''}
+                ${prdGst>0 ? `<div class="inv-total-row"><span>Retail GST</span><span>₹${prdGst.toFixed(2)}</span></div>` : ''}
+                ${discount>0 ? `<div class="inv-total-row"><span>${discLabel}</span><span style="color:#e53e3e;">−₹${discount.toFixed(2)}</span></div>` : ''}
+                ${data.tip>0 ? `<div class="inv-total-row"><span>Tip</span><span>₹${Number(data.tip).toFixed(2)}</span></div>` : ''}
                 <div class="inv-total-row inv-grand-total"><span>GRAND TOTAL</span><span>₹${Number(grandTotal).toFixed(2)}</span></div>
-                <div class="inv-total-row" style="color:#718096;font-size:13px;margin-top:4px;"><span>Payment</span><span>${paymentLine}</span></div>
+                <div class="inv-total-row" style="color:#718096;font-size:13px;margin-top:4px;"><span>Payment</span><span>${payLine}</span></div>
             </div>
             <div class="inv-footer">Thank you for your visit!</div>`;
-
         document.getElementById('invoiceOverlay').style.display = 'flex';
     },
 
@@ -567,7 +608,12 @@ const Billing = {
 
     closeInvoice() {
         document.getElementById('invoiceOverlay').style.display = 'none';
-        Navigation._loaded.delete('billing');
-        this.resetBill();
+        if (this._invoiceCloseCallback) {
+            this._invoiceCloseCallback();
+            this._invoiceCloseCallback = null;
+        } else {
+            Navigation._loaded.delete('billing');
+            this.resetBill();
+        }
     }
 };

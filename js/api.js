@@ -240,5 +240,9 @@ const API = {
 
     getBills() {
         return this.call('get_bills');
+    },
+
+    getBillItems(billId) {
+        return this.call('get_bill_items', { billId });
     }
 };

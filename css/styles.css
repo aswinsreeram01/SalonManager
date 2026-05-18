@@ -1089,3 +1089,58 @@ button:disabled {
     }
     body.printing-invoice .no-print { display: none !important; }
 }
+
+/* Billing: Validation List */
+.validation-list {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+}
+.validation-list p {
+    font-weight: 600;
+    color: #c53030;
+    margin-bottom: 8px;
+}
+.v-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    color: #4a5568;
+}
+.v-ok { color: #38a169; }
+.v-err { color: #e53e3e; }
+
+/* Billing: Field error highlight */
+.field-error {
+    border-color: #fc8181 !important;
+    background: #fff5f5 !important;
+}
+
+/* Billing: Save button disabled */
+#saveBillBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Bill Confirmation Modal */
+.conf-sum-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #f7fafc;
+    color: #4a5568;
+}
+.conf-sum-row.conf-grand {
+    font-weight: 700;
+    font-size: 16px;
+    color: #2d3748;
+    border-bottom: none;
+    padding-top: 10px;
+    margin-top: 4px;
+    border-top: 2px solid #e2e8f0;
+}
+}

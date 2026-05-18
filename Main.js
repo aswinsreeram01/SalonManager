@@ -135,6 +135,8 @@ function doPost(e) {
         return Bills.voidBill(data);
       case 'get_bills':
         return Bills.getAll(data);
+      case 'get_bill_items':
+        return Bills.getItems(data);
 
       default:
         return Utils.createResponse('error', 'Invalid action');
