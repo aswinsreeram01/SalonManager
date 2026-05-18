@@ -79,6 +79,7 @@ const Navigation = {
                 // Only load data on first visit; re-clicking the active nav item forces a refresh
                 if (!this._loaded.has(page)) {
                     this._loaded.add(page);
+                    if (page === 'billing')        Billing.load();
                     if (page === 'products')       Products.load();
                     if (page === 'servicegroups')  ServiceGroups.load();
                     if (page === 'services')       Services.load();
@@ -118,6 +119,7 @@ const Navigation = {
 document.addEventListener('DOMContentLoaded', () => {
     Auth.init();
     Navigation.init();
+    Billing.init();
     Services.init();
     Staff.init();
     Customers.init();

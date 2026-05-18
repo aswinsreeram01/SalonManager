@@ -227,5 +227,18 @@ const API = {
     
     deletePriceBookItem(itemId) {
         return this.call('delete_pricebook_item', { itemId });
+    },
+
+    // Bills
+    saveBill(data) {
+        return this.call('save_bill', data);
+    },
+
+    voidBill(billId) {
+        return this.call('void_bill', { billId });
+    },
+
+    getBills() {
+        return this.call('get_bills');
     }
 };

@@ -128,6 +128,14 @@ function doPost(e) {
       case 'update_permissions':
         return Permissions.updateBulk(data);
       
+      // Bills
+      case 'save_bill':
+        return Bills.save(data);
+      case 'void_bill':
+        return Bills.voidBill(data);
+      case 'get_bills':
+        return Bills.getAll(data);
+
       default:
         return Utils.createResponse('error', 'Invalid action');
     }
