@@ -1,6 +1,6 @@
 // Main App Controller
 const UI = {
-  _bgMode: false,   // true while a background preload is running
+  _bgMode: false,
 
   showLoading() {
     if (this._bgMode) return;
@@ -15,13 +15,9 @@ const UI = {
   showMessage(elementId, text, type = 'info') {
     const element = document.getElementById(elementId);
     if (!element) return;
-
     element.textContent = text;
     element.className = `message ${type} show`;
-
-    setTimeout(() => {
-      element.classList.remove('show');
-    }, 5000);
+    setTimeout(() => element.classList.remove('show'), 5000);
   },
 
   handleExpiredSession() {
@@ -38,49 +34,81 @@ const Navigation = {
 
     init() {
         const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
+        const sidebar    = document.getElementById('sidebar');
         const mainContent = document.getElementById('mainContent');
-        const navItems = document.querySelectorAll('.nav-item');
-        const quickLinks = document.querySelectorAll('.quick-link');
+        const backdrop   = document.getElementById('sidebarBackdrop');
 
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            sidebar.classList.toggle('open');
-            mainContent.classList.toggle('expanded');
-        });
+        // ── Sidebar helpers ──────────────────────────────────
+        const isMobile = () => window.innerWidth < 768;
 
-        navItems.forEach(item => {
+        const openSidebar = () => {
+            sidebar.classList.add('open');
+            sidebar.classList.remove('collapsed');
+            if (isMobile() && backdrop) backdrop.classList.add('show');
+            if (!isMobile()) mainContent.classList.remove('expanded');
+        };
+
+        const closeSidebar = () => {
+            sidebar.classList.remove('open');
+            if (backdrop) backdrop.classList.remove('show');
+            if (!isMobile()) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            }
+        };
+
+        const toggleSidebar = () => {
+            const isOpen = isMobile()
+                ? sidebar.classList.contains('open')
+                : !sidebar.classList.contains('collapsed');
+            isOpen ? closeSidebar() : openSidebar();
+        };
+
+        menuToggle.addEventListener('click', toggleSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeSidebar);
+
+        // ── Desktop nav items ────────────────────────────────
+        document.querySelectorAll('.nav-item').forEach(item => {
             item.addEventListener('click', () => {
                 const page = item.dataset.page;
-                // Re-clicking the active page forces a fresh data load
                 if (item.classList.contains('active')) this._loaded.delete(page);
                 this.switchPage(page);
+                if (isMobile()) closeSidebar();
             });
         });
 
-        quickLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
+        // ── Quick links ──────────────────────────────────────
+        document.querySelectorAll('.quick-link').forEach(link => {
+            link.addEventListener('click', e => {
                 e.preventDefault();
                 this.switchPage(link.dataset.page);
             });
         });
+
+        // ── Mobile bottom nav ────────────────────────────────
+        document.querySelectorAll('.mob-nav-btn[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => this.switchPage(btn.dataset.page));
+        });
+
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        if (mobileMenuBtn) mobileMenuBtn.addEventListener('click', toggleSidebar);
     },
 
     switchPage(page) {
-        // Update nav items
+        // Update desktop nav active state
         document.querySelectorAll('.nav-item').forEach(item => {
-            if (item.dataset.page === page) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
+            item.classList.toggle('active', item.dataset.page === page);
         });
 
-        // Update content sections
+        // Update mobile bottom nav active state
+        document.querySelectorAll('.mob-nav-btn[data-page]').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.page === page);
+        });
+
+        // Show the right content section and trigger load
         document.querySelectorAll('.content-section').forEach(section => {
             if (section.id === page) {
                 section.classList.add('active');
-                // Only load data on first visit; re-clicking the active nav item forces a refresh
                 if (!this._loaded.has(page)) {
                     this._loaded.add(page);
                     if (page === 'dashboard')      Dashboard.load();
@@ -101,21 +129,13 @@ const Navigation = {
                 section.classList.remove('active');
             }
         });
-
-        // Close sidebar on mobile
-        if (window.innerWidth <= 768) {
-            document.getElementById('sidebar').classList.remove('open');
-            document.getElementById('sidebar').classList.add('collapsed');
-        }
     },
 
     startPreload() {
-        // 1 s delay so the dashboard finishes rendering before we start touching the network
         setTimeout(() => this._runPreload(), 1000);
     },
 
     async _runPreload() {
-        // Priority order: New Bill → Transactions → Master Data → Settings
         const queue = [
             'billing',
             'history',
@@ -123,20 +143,16 @@ const Navigation = {
             'users', 'roles', 'permissions', 'organizations'
         ];
         for (const page of queue) {
-            if (this._loaded.has(page)) continue;   // user already visited this page
-
-            // Claim the slot so switchPage won't trigger a concurrent foreground load
+            if (this._loaded.has(page)) continue;
             this._loaded.add(page);
             UI._bgMode = true;
             try {
                 await this._callLoad(page);
             } catch(e) {
-                // Release the claim so a later user visit triggers a normal load
                 this._loaded.delete(page);
             } finally {
                 UI._bgMode = false;
             }
-            // Short pause between loads — keeps the event loop responsive
             await new Promise(r => setTimeout(r, 200));
         }
     },
@@ -165,9 +181,7 @@ const Navigation = {
         document.querySelectorAll('.nav-item[data-page]').forEach(item => {
             const page = item.dataset.page;
             const perm = permissions.find(p => p.menuItem === page);
-            if (perm && perm.canAccess === false) {
-                item.style.display = 'none';
-            }
+            if (perm && perm.canAccess === false) item.style.display = 'none';
         });
     }
 };
