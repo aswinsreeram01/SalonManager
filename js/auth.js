@@ -81,7 +81,7 @@ const Auth = {
   },
   
   showLogin() {
-    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('loginSection').style.display = 'flex';
     document.getElementById('appSection').style.display = 'none';
     document.getElementById('loginForm').reset();
   },
