@@ -15,34 +15,29 @@ const Utils = {
 
   createSession(userId) {
     const token = Utilities.getUuid();
-    const expiry = new Date();
-    expiry.setHours(expiry.getHours() + 8);
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sessions');
-    sheet.appendRow([token, userId, expiry, new Date()]);
+    const expiry = Date.now() + (8 * 60 * 60 * 1000); // 8 hours in ms
+    CacheService.getScriptCache().put(
+      token,
+      JSON.stringify({ userId, expiry }),
+      28800 // 8 hours in seconds
+    );
     return token;
   },
 
   validateSession(token) {
     if (!token) return null;
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sessions');
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === token && new Date() <= new Date(data[i][2])) {
-        return data[i][1]; // userId
-      }
+    const cached = CacheService.getScriptCache().get(token);
+    if (!cached) return null;
+    const session = JSON.parse(cached);
+    if (Date.now() > session.expiry) {
+      CacheService.getScriptCache().remove(token);
+      return null;
     }
-    return null;
+    return session.userId;
   },
 
   invalidateSession(token) {
     if (!token) return;
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Sessions');
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      if (data[i][0] === token) {
-        sheet.deleteRow(i + 1);
-        return;
-      }
-    }
+    CacheService.getScriptCache().remove(token);
   }
 };
