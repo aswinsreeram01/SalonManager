@@ -2,16 +2,27 @@
 const API = {
     async call(action, data = {}) {
         try {
+            const token = localStorage.getItem('sessionToken');
+            const body = { action, ...data };
+            if (token) body.sessionToken = token;
+
             const response = await fetch(CONFIG.API_URL, {
                 method: 'POST',
-                body: JSON.stringify({ action, ...data })
+                body: JSON.stringify(body)
             });
             
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            
-            return await response.json();
+
+            const result = await response.json();
+
+            if (result.status === 'error' && result.message === 'Session expired. Please login again.') {
+                UI.handleExpiredSession();
+                throw new Error(result.message);
+            }
+
+            return result;
         } catch (error) {
             console.error('API Error:', error);
             throw error;
@@ -21,6 +32,10 @@ const API = {
 	// Authentication
 	login(email, password) {
 		return this.call('login', { email, password });
+	},
+
+	logout() {
+		return this.call('logout');
 	},
 	
 	requestPasswordReset(email) {

@@ -50,10 +50,10 @@ const Auth = {
           roleId: result.roleId,
           permissions: result.permissions || []
         };
-        
-        // Save to localStorage
+
         localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-        
+        localStorage.setItem('sessionToken', result.sessionToken);
+
         this.showApp();
         UI.showMessage('loginMessage', 'Login successful!', 'success');
       } else {
@@ -67,8 +67,10 @@ const Auth = {
     }
   },
   
-  handleLogout() {
+  async handleLogout() {
+    try { await API.logout(); } catch(e) {}
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('sessionToken');
     this.currentUser = null;
     this.showLogin();
     UI.showMessage('loginMessage', 'Logged out successfully', 'success');
@@ -83,9 +85,9 @@ const Auth = {
   showApp() {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('appSection').style.display = 'block';
-    // Update user display info if elements exist
     const userNameSpan = document.getElementById('userName');
     if (userNameSpan) userNameSpan.textContent = this.currentUser.fullName;
+    Navigation.applyPermissions(this.currentUser.permissions);
   },
   
   showForgotPassword(e) {

@@ -3,21 +3,29 @@ const UI = {
   showLoading() {
     document.getElementById('loadingOverlay')?.classList.add('show');
   },
-  
+
   hideLoading() {
     document.getElementById('loadingOverlay')?.classList.remove('show');
   },
-  
+
   showMessage(elementId, text, type = 'info') {
     const element = document.getElementById(elementId);
     if (!element) return;
-    
+
     element.textContent = text;
     element.className = `message ${type} show`;
-    
+
     setTimeout(() => {
       element.classList.remove('show');
     }, 5000);
+  },
+
+  handleExpiredSession() {
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('sessionToken');
+    Auth.currentUser = null;
+    Auth.showLogin();
+    UI.showMessage('loginMessage', 'Your session has expired. Please login again.', 'error');
   }
 };
 
@@ -76,8 +84,18 @@ const Navigation = {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebar').classList.add('collapsed');
         }
+    },
+
+    applyPermissions(permissions) {
+        if (!permissions || permissions.length === 0) return;
+        document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+            const page = item.dataset.page;
+            const perm = permissions.find(p => p.menuItem === page);
+            if (perm && perm.canAccess === false) {
+                item.style.display = 'none';
+            }
+        });
     }
-	
 };
 
 // Initialize app when DOM is ready

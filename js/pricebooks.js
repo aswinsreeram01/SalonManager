@@ -284,8 +284,8 @@ const PriceBooks = {
 		} finally {
 			UI.hideLoading();
 		}
-	}
-    
+	},
+
     async deleteItem(itemId) {
         if (!confirm('Are you sure you want to delete this price?')) return;
         

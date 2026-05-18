@@ -16,7 +16,7 @@ const Customers = {
         saveBtn.innerHTML = '<span class="spinner"></span>Saving...';
         
         try {
-            const result = await API.addCustomer(name, phone, Auth.currentUser);
+            const result = await API.addCustomer({ name, phone, submittedBy: Auth.currentUser?.fullName || 'Unknown' });
             
             if (result.status === 'success') {
                 UI.showMessage('customerMessage', result.message, 'success');
