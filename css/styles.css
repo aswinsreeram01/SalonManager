@@ -821,6 +821,8 @@ tr:hover td { background: #fafbff; }
    ══════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
 
+    html, body { overflow-x: hidden; }
+
     /* Header: compact */
     .header { height: 52px; padding: 0 8px 0 2px; }
     .app-title { font-size: 15px; }
@@ -880,18 +882,124 @@ tr:hover td { background: #fafbff; }
     .action-btns { gap: 4px; }
     .action-btn { padding: 5px 9px; font-size: 11px; }
 
-    /* Billing table: hide derived columns, save horizontal space */
-    .billing-table th:nth-child(7),
-    .billing-table th:nth-child(8),
-    .billing-table th:nth-child(9),
-    .billing-table td:nth-child(7),
-    .billing-table .cell-subtotal,
-    .billing-table .cell-gst { display: none; }
+    /* Billing table: card layout (no horizontal scroll) */
+    .table-container:has(.billing-table) { overflow-x: hidden; }
 
-    .bill-select { min-width: 80px; max-width: 130px; font-size: 12px; padding: 4px 5px; }
-    .bill-item-select { min-width: 110px; max-width: 150px; }
-    .bill-input { font-size: 12px; padding: 4px 5px; }
-    .billing-table th, .billing-table td { padding: 6px 6px; }
+    .billing-table { display: block; overflow: hidden; }
+    .billing-table thead { display: none; }
+    .billing-table tbody { display: block; }
+
+    /* Each row = a card, 4-column × 3-row grid */
+    .billing-table tr[data-row] {
+        display: grid;
+        grid-template-columns: 28px auto 1fr 36px;
+        grid-template-rows: auto auto auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    /* Service rows attach to their prof sub-row below */
+    .billing-table tr[data-type="service"] {
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 0;
+    }
+
+    /* td 1: row index */
+    .billing-table tr[data-row] > td:nth-child(1) {
+        grid-column: 1; grid-row: 1;
+        background: #f7fafc;
+        border-right: 1px solid #edf2f7;
+        display: flex; align-items: center; justify-content: center;
+        padding: 10px 2px;
+        font-size: 11px; color: #a0aec0;
+    }
+    /* td 2: type select */
+    .billing-table tr[data-row] > td:nth-child(2) {
+        grid-column: 2; grid-row: 1;
+        padding: 8px 6px;
+    }
+    /* td 3: item select */
+    .billing-table tr[data-row] > td:nth-child(3) {
+        grid-column: 3; grid-row: 1;
+        padding: 8px 6px;
+    }
+    .billing-table tr[data-row] > td:nth-child(3) .bill-select {
+        width: 100%; max-width: 100%; min-width: 0;
+    }
+    /* td 4: staff — full-width row 2 */
+    .billing-table tr[data-row] > td:nth-child(4) {
+        grid-column: 1 / -1; grid-row: 2;
+        padding: 6px 10px;
+        border-top: 1px solid #edf2f7;
+        background: #fafafa;
+    }
+    .billing-table tr[data-row] > td:nth-child(4) .bill-select {
+        width: 100%; max-width: 100%; min-width: 0;
+    }
+    /* td 5: qty */
+    .billing-table tr[data-row] > td:nth-child(5) {
+        grid-column: 2; grid-row: 3;
+        padding: 6px 6px 10px;
+        border-top: 1px solid #edf2f7;
+    }
+    /* td 6: unit price */
+    .billing-table tr[data-row] > td:nth-child(6) {
+        grid-column: 3; grid-row: 3;
+        padding: 6px 6px 10px;
+        border-top: 1px solid #edf2f7;
+    }
+    .billing-table tr[data-row] > td:nth-child(6) .bill-input {
+        width: 100%; min-width: 0;
+    }
+    /* td 7, 8, 9: GST%, subtotal, GST amt — hidden */
+    .billing-table tr[data-row] > td:nth-child(7),
+    .billing-table tr[data-row] > td:nth-child(8),
+    .billing-table tr[data-row] > td:nth-child(9) { display: none; }
+    /* td 10: line total */
+    .billing-table tr[data-row] > td:nth-child(10) {
+        grid-column: 1; grid-row: 3;
+        padding: 6px 4px 10px;
+        border-top: 1px solid #edf2f7;
+        border-right: 1px solid #edf2f7;
+        background: #f7fafc;
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 13px; color: #2d3748;
+    }
+    /* td 11: delete button */
+    .billing-table tr[data-row] > td:nth-child(11) {
+        grid-column: 4; grid-row: 1;
+        border-left: 1px solid #edf2f7;
+        display: flex; align-items: center; justify-content: center;
+        padding: 4px;
+    }
+
+    /* Prof sub-row: attaches to card above */
+    .billing-table tr[data-row-prof] {
+        display: block;
+        border: 1px solid #e2e8f0;
+        border-top: none;
+        border-radius: 0 0 10px 10px;
+        margin-bottom: 10px;
+        background: #f7fafc;
+    }
+    .billing-table tr[data-row-prof] > td:nth-child(1) { display: none; }
+    .billing-table tr[data-row-prof] > td:nth-child(2) {
+        display: block;
+        padding: 6px 10px 10px;
+    }
+
+    /* Billing inputs inside cards */
+    .billing-table input, .billing-table select {
+        font-size: 15px;
+        padding: 7px 8px;
+        border-radius: 6px;
+    }
+    .bill-select { min-width: 0; max-width: 100%; }
+    .bill-item-select { min-width: 0; max-width: 100%; }
+    .bill-input { min-width: 0; }
 
     /* Billing: summary + payment stack vertically */
     .billing-cols { grid-template-columns: 1fr; gap: 24px; }

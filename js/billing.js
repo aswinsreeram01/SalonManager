@@ -322,7 +322,7 @@ const Billing = {
             const staffBorder = (row.itemId && !row.staffId) ? 'border-color:#e53e3e;' : '';
             const qtyBorder   = (row.itemId && row.qty <= 0)  ? 'border-color:#e53e3e;' : '';
 
-            const mainRow = `<tr data-row="${row.rowId}">
+            const mainRow = `<tr data-row="${row.rowId}" data-type="${row.type}">
                 <td style="text-align:center;color:#a0aec0;width:28px;">${idx + 1}</td>
                 <td><select class="bill-select" onchange="Billing.onTypeChange(${row.rowId}, this.value)">
                     <option value="service" ${row.type==='service'?'selected':''}>Service</option>
