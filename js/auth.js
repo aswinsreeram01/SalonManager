@@ -89,6 +89,7 @@ const Auth = {
     const userNameSpan = document.getElementById('userName');
     if (userNameSpan) userNameSpan.textContent = this.currentUser.fullName;
     Navigation.applyPermissions(this.currentUser.permissions);
+    Navigation.startPreload();
   },
   
   showForgotPassword(e) {

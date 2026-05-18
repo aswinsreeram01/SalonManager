@@ -1,10 +1,14 @@
 // Main App Controller
 const UI = {
+  _bgMode: false,   // true while a background preload is running
+
   showLoading() {
+    if (this._bgMode) return;
     document.getElementById('loadingOverlay')?.classList.add('show');
   },
 
   hideLoading() {
+    if (this._bgMode) return;
     document.getElementById('loadingOverlay')?.classList.remove('show');
   },
 
@@ -102,6 +106,56 @@ const Navigation = {
             document.getElementById('sidebar').classList.remove('open');
             document.getElementById('sidebar').classList.add('collapsed');
         }
+    },
+
+    startPreload() {
+        // 1 s delay so the dashboard finishes rendering before we start touching the network
+        setTimeout(() => this._runPreload(), 1000);
+    },
+
+    async _runPreload() {
+        // Priority order: New Bill → Transactions → Master Data → Settings
+        const queue = [
+            'billing',
+            'history',
+            'servicegroups', 'services', 'pricebooks', 'products', 'staff', 'customers',
+            'users', 'roles', 'permissions', 'organizations'
+        ];
+        for (const page of queue) {
+            if (this._loaded.has(page)) continue;   // user already visited this page
+
+            // Claim the slot so switchPage won't trigger a concurrent foreground load
+            this._loaded.add(page);
+            UI._bgMode = true;
+            try {
+                await this._callLoad(page);
+            } catch(e) {
+                // Release the claim so a later user visit triggers a normal load
+                this._loaded.delete(page);
+            } finally {
+                UI._bgMode = false;
+            }
+            // Short pause between loads — keeps the event loop responsive
+            await new Promise(r => setTimeout(r, 200));
+        }
+    },
+
+    _callLoad(page) {
+        const map = {
+            billing:       () => Billing.load(),
+            history:       () => History.load(),
+            servicegroups: () => ServiceGroups.load(),
+            services:      () => Services.load(),
+            pricebooks:    () => PriceBooks.load(),
+            products:      () => Products.load(),
+            staff:         () => Staff.load(),
+            customers:     () => Customers.load(),
+            users:         () => Users.load(),
+            roles:         () => Roles.load(),
+            permissions:   () => Permissions.load(),
+            organizations: () => Organizations.load()
+        };
+        return (map[page] || (() => Promise.resolve()))();
     },
 
     applyPermissions(permissions) {
