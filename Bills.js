@@ -35,7 +35,10 @@ const Bills = {
         item.staffId || '', item.staffName || '',
         Number(item.qty) || 1, Number(item.unitPrice) || 0,
         Number(item.gstPct) || 0,
-        Number(item.lineSubtotal) || 0, Number(item.lineGst) || 0, Number(item.lineTotal) || 0
+        Number(item.lineSubtotal) || 0, Number(item.lineGst) || 0, Number(item.lineTotal) || 0,
+        item.profProductId || '', item.profProductName || '',
+        item.profQty !== '' && item.profQty !== undefined ? Number(item.profQty) : '',
+        item.profUom || ''
       ]);
     });
 
@@ -89,7 +92,10 @@ const Bills = {
           itemId: rows[i][0], billId: rows[i][1], type: rows[i][2], refId: rows[i][3],
           itemName: rows[i][4], staffId: rows[i][5], staffName: rows[i][6],
           qty: rows[i][7], unitPrice: rows[i][8], gstPct: rows[i][9],
-          lineSubtotal: rows[i][10], lineGst: rows[i][11], lineTotal: rows[i][12]
+          lineSubtotal: rows[i][10], lineGst: rows[i][11], lineTotal: rows[i][12],
+          profProductId: rows[i][13] || '', profProductName: rows[i][14] || '',
+          profQty: rows[i][15] !== undefined && rows[i][15] !== '' ? rows[i][15] : '',
+          profUom: rows[i][16] || ''
         });
       }
     }

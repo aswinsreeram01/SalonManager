@@ -68,13 +68,16 @@ const Auth = {
     }
   },
   
-  async handleLogout() {
-    try { await API.logout(); } catch(e) {}
+  handleLogout() {
+    // Clean up locally first so the UI responds instantly
     localStorage.removeItem('currentUser');
     localStorage.removeItem('sessionToken');
     this.currentUser = null;
+    Navigation._loaded.clear();
     this.showLogin();
     UI.showMessage('loginMessage', 'Logged out successfully', 'success');
+    // Fire the server-side session invalidation in the background
+    API.logout().catch(() => {});
   },
   
   showLogin() {
@@ -89,6 +92,7 @@ const Auth = {
     const userNameSpan = document.getElementById('userName');
     if (userNameSpan) userNameSpan.textContent = this.currentUser.fullName;
     Navigation.applyPermissions(this.currentUser.permissions);
+    Dashboard.load();
     Navigation.startPreload();
   },
   

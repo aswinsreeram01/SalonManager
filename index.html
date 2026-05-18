@@ -191,11 +191,11 @@
                 <div class="dashboard-cards">
                     <div class="stat-card">
                         <div class="stat-label">Today's Revenue</div>
-                        <div class="stat-value">$0</div>
+                        <div class="stat-value" id="todayRevenue">₹0.00</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Appointments</div>
-                        <div class="stat-value">0</div>
+                        <div class="stat-label">Today's Bills</div>
+                        <div class="stat-value" id="todayBillCount">0</div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Active Staff</div>
@@ -1175,11 +1175,7 @@
                             </div>
                             <div class="form-group">
                                 <label for="organizationType">Type*</label>
-                                <select id="organizationType" required>
-                                    <option value="headquarters">Headquarters</option>
-                                    <option value="branch">Branch</option>
-                                    <option value="franchise">Franchise</option>
-                                </select>
+                                <input type="text" id="organizationType" placeholder="e.g., Headquarters, Branch, Franchise" required>
                             </div>
                             <div class="form-group">
                                 <label for="organizationStatus">Status</label>
@@ -1261,7 +1257,39 @@
             <div id="invoiceContent"></div>
             <div class="invoice-actions no-print">
                 <button class="btn btn-primary" onclick="Billing.printInvoice()">Print / Save PDF</button>
+                <button class="btn btn-secondary" onclick="Billing.openTemplateSettings()">Edit Template</button>
                 <button class="btn btn-secondary" id="invoiceCloseBtn" onclick="Billing.closeInvoice()">Close &amp; New Bill</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Template Settings Modal -->
+    <div id="invoiceSettingsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:3000;align-items:center;justify-content:center;">
+        <div class="modal-box" style="max-width:440px;width:100%;">
+            <h3 style="color:#2d3748;margin-bottom:20px;">Invoice Template</h3>
+            <div class="form-group">
+                <label for="invSetSalonName">Salon Name</label>
+                <input type="text" id="invSetSalonName" placeholder="Salon Manager">
+            </div>
+            <div class="form-group">
+                <label for="invSetAddress">Address</label>
+                <textarea id="invSetAddress" placeholder="123 Main St&#10;City, State — 600001" rows="2" style="resize:vertical;"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="invSetPhone">Phone</label>
+                <input type="text" id="invSetPhone" placeholder="+91 98765 43210">
+            </div>
+            <div class="form-group">
+                <label for="invSetGstNumber">GST Number</label>
+                <input type="text" id="invSetGstNumber" placeholder="29XXXXX1234X1ZX">
+            </div>
+            <div class="form-group">
+                <label for="invSetFooterText">Footer Message</label>
+                <input type="text" id="invSetFooterText" placeholder="Thank you for your visit!">
+            </div>
+            <div class="btn-group" style="margin-top:8px;">
+                <button class="btn btn-primary" onclick="Billing.saveTemplateSettings()">Save</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('invoiceSettingsModal').style.display='none'">Cancel</button>
             </div>
         </div>
     </div>

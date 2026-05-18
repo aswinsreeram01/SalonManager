@@ -83,6 +83,7 @@ const Navigation = {
                 // Only load data on first visit; re-clicking the active nav item forces a refresh
                 if (!this._loaded.has(page)) {
                     this._loaded.add(page);
+                    if (page === 'dashboard')      Dashboard.load();
                     if (page === 'billing')        Billing.load();
                     if (page === 'products')       Products.load();
                     if (page === 'servicegroups')  ServiceGroups.load();
@@ -142,6 +143,7 @@ const Navigation = {
 
     _callLoad(page) {
         const map = {
+            dashboard:     () => Dashboard.load(),
             billing:       () => Billing.load(),
             history:       () => History.load(),
             servicegroups: () => ServiceGroups.load(),

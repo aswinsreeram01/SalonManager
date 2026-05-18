@@ -3,7 +3,8 @@ const Billing = {
     customers: [],
     staff: [],
     services: [],
-    products: [],
+    products: [],       // retail — used in product-type bill rows
+    profProducts: [],   // professional — used for service consumption tracking
     priceBooks: [],
     pbItemsCache: {},
     rows: [],
@@ -52,7 +53,8 @@ const Billing = {
             this.services = (svcRes.services || [])
                 .filter(s => s.status === 'active')
                 .map(s => ({ ...s, gstPct: Number((sgMap[s.serviceGroupId] || {}).gst) || 0 }));
-            this.products = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Retail');
+            this.products     = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Retail');
+            this.profProducts = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Professional');
             this.priceBooks = (pbRes.priceBooks || []).filter(pb => pb.status === 'active');
             const pbSelect = document.getElementById('billingPriceBook');
             pbSelect.innerHTML = '<option value="">No Price Book (use defaults)</option>' +
@@ -204,7 +206,8 @@ const Billing = {
     _newRow() {
         return { rowId: this._nextRowId++, type: 'service', itemId: '', itemName: '',
                  staffId: '', staffName: '', qty: 1, unitPrice: 0, gstPct: 0,
-                 lineSubtotal: 0, lineGst: 0, lineTotal: 0 };
+                 lineSubtotal: 0, lineGst: 0, lineTotal: 0,
+                 profProductId: '', profProductName: '', profQty: '', profUom: '' };
     },
 
     addRow() {
@@ -224,6 +227,7 @@ const Billing = {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
         row.type = type; row.itemId = ''; row.itemName = ''; row.unitPrice = 0; row.gstPct = 0;
+        row.profProductId = ''; row.profProductName = ''; row.profQty = ''; row.profUom = '';
         this.recalcRow(row); this.renderRows(); this.recalcTotals();
     },
 
@@ -264,6 +268,31 @@ const Billing = {
         this.recalcRow(row); this._updateRowTotals(rowId); this.recalcTotals();
     },
 
+    onProfProductChange(rowId, productId) {
+        const row = this.rows.find(r => r.rowId === rowId);
+        if (!row) return;
+        const prod = this.profProducts.find(p => p.id === productId);
+        row.profProductId   = productId;
+        row.profProductName = prod ? prod.name : '';
+        row.profUom         = prod ? (prod.uom || '') : '';
+        if (!productId) row.profQty = '';
+        const subRow = document.querySelector(`tr[data-row-prof="${rowId}"]`);
+        if (!subRow) return;
+        const qtyInput = subRow.querySelector('input[type="number"]');
+        const uomCell  = subRow.querySelector('.prof-uom');
+        if (qtyInput) {
+            qtyInput.disabled     = !productId;
+            qtyInput.style.opacity = productId ? '1' : '0.4';
+            if (!productId) qtyInput.value = '';
+        }
+        if (uomCell) uomCell.textContent = row.profUom || '—';
+    },
+
+    onProfQtyChange(rowId, val) {
+        const row = this.rows.find(r => r.rowId === rowId);
+        if (row) row.profQty = val;
+    },
+
     recalcRow(row) {
         row.lineSubtotal = Math.round(row.qty * row.unitPrice * 100) / 100;
         row.lineGst      = Math.round(row.lineSubtotal * row.gstPct / 100 * 100) / 100;
@@ -292,7 +321,8 @@ const Billing = {
                 : `<option value="">Select product…</option>${prdOpts}`;
             const staffBorder = (row.itemId && !row.staffId) ? 'border-color:#e53e3e;' : '';
             const qtyBorder   = (row.itemId && row.qty <= 0)  ? 'border-color:#e53e3e;' : '';
-            return `<tr data-row="${row.rowId}">
+
+            const mainRow = `<tr data-row="${row.rowId}">
                 <td style="text-align:center;color:#a0aec0;width:28px;">${idx + 1}</td>
                 <td><select class="bill-select" onchange="Billing.onTypeChange(${row.rowId}, this.value)">
                     <option value="service" ${row.type==='service'?'selected':''}>Service</option>
@@ -313,6 +343,36 @@ const Billing = {
                 <td style="text-align:center;width:28px;">${this.rows.length > 1
                     ? `<button class="bill-del-btn" onclick="Billing.removeRow(${row.rowId})" title="Remove">✕</button>` : ''}</td>
             </tr>`;
+
+            if (row.type !== 'service') return mainRow;
+
+            const profOpts     = this.profProducts.map(p =>
+                `<option value="${p.id}" ${row.profProductId === p.id ? 'selected' : ''}>${p.name}</option>`
+            ).join('');
+            const qtyDisabled  = !row.profProductId ? 'disabled' : '';
+            const qtyOpacity   = !row.profProductId ? 'opacity:0.4;' : '';
+            const noProfProds  = this.profProducts.length === 0
+                ? `<option value="" disabled>No professional products added</option>` : '';
+
+            const subRow = `<tr data-row-prof="${row.rowId}" style="background:#f7fafc;">
+                <td style="text-align:center;color:#cbd5e0;font-size:11px;padding:3px 6px 6px;">↳</td>
+                <td colspan="10" style="padding:3px 8px 6px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <span style="font-size:12px;color:#718096;white-space:nowrap;">Product used:</span>
+                        <select class="bill-select" style="font-size:12px;flex:1;min-width:140px;max-width:220px;"
+                                onchange="Billing.onProfProductChange(${row.rowId}, this.value)">
+                            <option value="">— None —</option>
+                            ${noProfProds}${profOpts}
+                        </select>
+                        <input type="number" class="bill-input" min="0" step="0.01" value="${row.profQty || ''}"
+                               style="width:70px;font-size:12px;${qtyOpacity}" placeholder="Qty"
+                               oninput="Billing.onProfQtyChange(${row.rowId}, this.value)" ${qtyDisabled}>
+                        <span class="prof-uom" style="font-size:12px;color:#4a5568;min-width:32px;">${row.profUom || '—'}</span>
+                    </div>
+                </td>
+            </tr>`;
+
+            return mainRow + subRow;
         }).join('');
     },
 
@@ -396,9 +456,9 @@ const Billing = {
         const discInput = Math.max(0, Number((document.getElementById('billingDiscount') || {}).value) || 0);
         if (discType === 'percent') {
             const base = this.rows.reduce((s, r) => s + r.lineSubtotal + r.lineGst, 0);
-            return { discountType: 'percent', discountInput, discount: Math.round(base * discInput / 100 * 100) / 100 };
+            return { discountType: 'percent', discountInput: discInput, discount: Math.round(base * discInput / 100 * 100) / 100 };
         }
-        return { discountType: 'value', discountInput, discount: discInput };
+        return { discountType: 'value', discountInput: discInput, discount: discInput };
     },
 
     save() {
@@ -424,7 +484,12 @@ const Billing = {
         const pbName = (this.priceBooks.find(pb => pb.id === this.selectedPriceBookId) || {}).name || '';
 
         const rowsHtml = rows => rows.map(r => `<tr>
-            <td style="padding:7px 10px;">${r.itemName}</td>
+            <td style="padding:7px 10px;">
+                ${r.itemName}
+                ${r.type === 'service' && r.profProductId
+                    ? `<div style="font-size:11px;color:#718096;margin-top:2px;">↳ ${r.profProductName}${r.profQty ? ` &times; ${r.profQty} ${r.profUom}` : ''}</div>`
+                    : ''}
+            </td>
             <td style="padding:7px 10px;">${r.staffName||'—'}</td>
             <td style="padding:7px 10px;text-align:center;">${r.qty}</td>
             <td style="padding:7px 10px;text-align:right;">₹${Number(r.unitPrice).toFixed(2)}</td>
@@ -524,10 +589,45 @@ const Billing = {
         }
     },
 
+    // ── Invoice Template Settings ──────────────────────────────────────────────
+
+    _getInvoiceSettings() {
+        try { return JSON.parse(localStorage.getItem('invoiceSettings') || '{}'); } catch(e) { return {}; }
+    },
+
+    openTemplateSettings() {
+        const s = this._getInvoiceSettings();
+        document.getElementById('invSetSalonName').value  = s.salonName  || '';
+        document.getElementById('invSetAddress').value    = s.address    || '';
+        document.getElementById('invSetPhone').value      = s.phone      || '';
+        document.getElementById('invSetGstNumber').value  = s.gstNumber  || '';
+        document.getElementById('invSetFooterText').value = s.footerText || '';
+        document.getElementById('invoiceSettingsModal').style.display = 'flex';
+    },
+
+    saveTemplateSettings() {
+        const settings = {
+            salonName:  document.getElementById('invSetSalonName').value.trim(),
+            address:    document.getElementById('invSetAddress').value.trim(),
+            phone:      document.getElementById('invSetPhone').value.trim(),
+            gstNumber:  document.getElementById('invSetGstNumber').value.trim(),
+            footerText: document.getElementById('invSetFooterText').value.trim()
+        };
+        localStorage.setItem('invoiceSettings', JSON.stringify(settings));
+        document.getElementById('invoiceSettingsModal').style.display = 'none';
+    },
+
+    // ── Invoice Rendering ──────────────────────────────────────────────────────
+
     renderInvoice(billId, data, grandTotal, closeCallback) {
         this._invoiceCloseCallback = closeCallback || null;
         const closeBtn = document.getElementById('invoiceCloseBtn');
         if (closeBtn) closeBtn.textContent = closeCallback ? 'Close' : 'Close & New Bill';
+
+        const s = this._getInvoiceSettings();
+        const salonName  = s.salonName  || 'Salon Manager';
+        const footerText = s.footerText || 'Thank you for your visit!';
+
         const today   = new Date();
         const dateStr = today.toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' });
         const timeStr = today.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
@@ -537,9 +637,10 @@ const Billing = {
         const svcGst  = svcRows.reduce((s,r) => s + r.lineGst, 0);
         const prdSub  = prdRows.reduce((s,r) => s + r.lineSubtotal, 0);
         const prdGst  = prdRows.reduce((s,r) => s + r.lineGst, 0);
-        const discount     = Number(data.discount)     || 0;
-        const discountType = data.discountType || 'value';
-        const discountInput= Number(data.discountInput)|| 0;
+        const discount      = Number(data.discount)      || 0;
+        const discountType  = data.discountType  || 'value';
+        const discountInput = Number(data.discountInput) || 0;
+
         const rowHtml = (rows, offset) => rows.map((r,i) => `<tr>
             <td style="color:#a0aec0;">${offset+i+1}</td>
             <td>${r.itemName}</td><td>${r.staffName||'—'}</td>
@@ -548,6 +649,7 @@ const Billing = {
             <td style="text-align:center;">${r.gstPct}%</td>
             <td style="text-align:right;">₹${Number(r.lineTotal).toFixed(2)}</td>
         </tr>`).join('');
+
         let payLine = data.paymentMode;
         if (data.paymentMode === 'Split') {
             const parts = [];
@@ -557,10 +659,14 @@ const Billing = {
             payLine = parts.join(' + ');
         }
         const discLabel = discountType === 'percent' && discountInput > 0 ? `Discount (${discountInput}%)` : 'Discount';
+
         document.getElementById('invoiceContent').innerHTML = `
             <div class="inv-header">
                 <div>
-                    <div class="inv-salon-name">Salon Manager</div>
+                    <div class="inv-salon-name">${salonName}</div>
+                    ${s.address    ? `<div style="font-size:12px;color:#718096;margin-top:3px;white-space:pre-line;">${s.address}</div>` : ''}
+                    ${s.phone      ? `<div style="font-size:12px;color:#718096;">Tel: ${s.phone}</div>` : ''}
+                    ${s.gstNumber  ? `<div style="font-size:12px;color:#718096;">GST: ${s.gstNumber}</div>` : ''}
                     ${data.priceBookName ? `<div style="color:#718096;font-size:13px;margin-top:4px;">${data.priceBookName}</div>` : ''}
                 </div>
                 <div class="inv-meta">
@@ -592,7 +698,7 @@ const Billing = {
                 <div class="inv-total-row inv-grand-total"><span>GRAND TOTAL</span><span>₹${Number(grandTotal).toFixed(2)}</span></div>
                 <div class="inv-total-row" style="color:#718096;font-size:13px;margin-top:4px;"><span>Payment</span><span>${payLine}</span></div>
             </div>
-            <div class="inv-footer">Thank you for your visit!</div>`;
+            <div class="inv-footer">${footerText}</div>`;
         document.getElementById('invoiceOverlay').style.display = 'flex';
     },
 
