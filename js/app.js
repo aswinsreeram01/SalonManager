@@ -70,6 +70,7 @@ const Navigation = {
             if (section.id === page) {
                 section.classList.add('active');
                 // Load data when switching to certain pages
+                if (page === 'products') Products.load();
                 if (page === 'servicegroups') ServiceGroups.load();
                 if (page === 'services') Services.load();
                 if (page === 'staff') Staff.load();
@@ -111,6 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Staff.init();
     Customers.init();
     PriceBooks.init();
+    Products.init();
     ServiceGroups.init();
     Organizations.init();
     Users.init();

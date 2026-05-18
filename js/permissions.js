@@ -1,6 +1,7 @@
 const Permissions = {
     menuItems: [
         { key: 'dashboard',     label: 'Dashboard' },
+        { key: 'servicegroups', label: 'Service Groups' },
         { key: 'services',      label: 'Service Catalog' },
         { key: 'pricebooks',    label: 'Price Books' },
         { key: 'products',      label: 'Products Inventory' },

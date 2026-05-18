@@ -40,6 +40,18 @@ function doPost(e) {
       case 'delete_service_group':
         return ServiceGroups.remove(data);
       
+      // Products
+      case 'get_products':
+        return Products.getAll(data);
+      case 'add_product':
+        return Products.add(data);
+      case 'update_product':
+        return Products.update(data);
+      case 'update_product_stock':
+        return Products.updateStock(data);
+      case 'delete_product':
+        return Products.remove(data);
+
       // Services
       case 'get_services':
         return Services.getAll(data);

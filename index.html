@@ -636,10 +636,144 @@
 			</div>
 			
             <!-- Placeholder Pages -->
+            <!-- Products Inventory -->
             <div class="content-section" id="products">
                 <div class="page-header">
                     <h1 class="page-title">Products Inventory</h1>
-                    <p class="page-subtitle">Coming soon...</p>
+                    <p class="page-subtitle">Manage retail and professional products, track stock, and generate purchase orders</p>
+                </div>
+
+                <div id="productMessage" class="message"></div>
+
+                <!-- Add / Edit Form -->
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <h3 style="color:#2d3748;">Add New Product</h3>
+                        <button class="btn btn-secondary" id="toggleProductForm">
+                            <span id="productFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="productForm" style="display:none;">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+                            <div class="form-group">
+                                <label for="productName">Product Name*</label>
+                                <input type="text" id="productName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCategory">Category*</label>
+                                <select id="productCategory" required>
+                                    <option value="">Select Category</option>
+                                    <option value="Retail">Retail (for sale)</option>
+                                    <option value="Professional">Professional (salon use)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="productUom">Unit of Measure*</label>
+                                <select id="productUom" required>
+                                    <option value="">Select UOM</option>
+                                    <option value="pcs">Pieces (pcs)</option>
+                                    <option value="ml">Millilitres (ml)</option>
+                                    <option value="L">Litres (L)</option>
+                                    <option value="g">Grams (g)</option>
+                                    <option value="kg">Kilograms (kg)</option>
+                                    <option value="bottle">Bottle</option>
+                                    <option value="tube">Tube</option>
+                                    <option value="box">Box</option>
+                                    <option value="sachet">Sachet</option>
+                                    <option value="set">Set</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="productUnitCost">Unit Cost (₹)*</label>
+                                <input type="number" id="productUnitCost" min="0" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="productRetailPrice">Retail Price (₹)</label>
+                                <input type="number" id="productRetailPrice" min="0" step="0.01" placeholder="For retail products">
+                            </div>
+                            <div class="form-group">
+                                <label for="productGst">GST (%)*</label>
+                                <input type="number" id="productGst" min="0" max="100" step="0.01" value="18" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="productCurrentStock">Current Stock</label>
+                                <input type="number" id="productCurrentStock" min="0" step="1" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="productBaseStock">Base Stock (Reorder Point)</label>
+                                <input type="number" id="productBaseStock" min="0" step="1" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label for="productManufacturer">Manufacturer</label>
+                                <input type="text" id="productManufacturer">
+                            </div>
+                            <div class="form-group">
+                                <label for="productVendorName">Vendor Name</label>
+                                <input type="text" id="productVendorName">
+                            </div>
+                            <div class="form-group">
+                                <label for="productVendorContact">Vendor Contact</label>
+                                <input type="tel" id="productVendorContact">
+                            </div>
+                            <div class="form-group">
+                                <label for="productStatus">Status</label>
+                                <select id="productStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveProductBtn">Save Product</button>
+                            <button type="button" class="btn btn-secondary" id="cancelProductBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Purchase Order Card (generated on demand) -->
+                <div class="card" id="poCard" style="display:none;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <h3 style="color:#2d3748;">Purchase Orders</h3>
+                        <div style="display:flex;gap:12px;">
+                            <button class="btn btn-secondary" onclick="Products.printPO()">Print</button>
+                            <button class="btn btn-secondary" onclick="Products.closePO()">Close</button>
+                        </div>
+                    </div>
+                    <div id="poContent"></div>
+                </div>
+
+                <!-- Products Table -->
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <div>
+                            <h3 style="color:#2d3748;">Products List</h3>
+                            <div id="lowStockIndicator" style="display:none;color:#e53e3e;font-size:13px;margin-top:4px;font-weight:500;"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="Products.generatePO()">Generate Purchase Orders</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Category</th>
+                                    <th>UOM</th>
+                                    <th style="text-align:right;">Cost / Retail</th>
+                                    <th style="text-align:center;">GST</th>
+                                    <th style="text-align:center;">Stock (Curr / Base)</th>
+                                    <th>Vendor</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productsTableBody">
+                                <tr>
+                                    <td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
             
@@ -937,6 +1071,7 @@
     <script src="js/staff.js"></script>
     <script src="js/customers.js"></script>
     <script src="js/pricebooks.js"></script>
+    <script src="js/products.js"></script>
     <script src="js/servicegroups.js"></script>
     <script src="js/organizations.js"></script>
     <script src="js/users.js"></script>

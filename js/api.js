@@ -114,6 +114,27 @@ const API = {
 		return this.call('update_permissions', { roleId, permissions });
 	},
 
+	// Products
+	getProducts() {
+		return this.call('get_products');
+	},
+
+	addProduct(data) {
+		return this.call('add_product', data);
+	},
+
+	updateProduct(data) {
+		return this.call('update_product', data);
+	},
+
+	updateProductStock(id, currentStock) {
+		return this.call('update_product_stock', { id, currentStock });
+	},
+
+	deleteProduct(id) {
+		return this.call('delete_product', { id });
+	},
+
 	// Service Groups
 	getServiceGroups() {
 		return this.call('get_service_groups');

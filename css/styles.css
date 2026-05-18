@@ -763,3 +763,63 @@ button:disabled {
     margin-bottom: 24px;
     font-size: 14px;
 }
+
+/* Purchase Order Styles */
+.po-vendor-block {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.po-vendor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.po-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.po-table th {
+    background: #f7fafc;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a5568;
+    text-align: left;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.po-table td {
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.po-table tfoot td {
+    border-top: 2px solid #e2e8f0;
+    border-bottom: none;
+}
+
+/* Print: show only PO card */
+@media print {
+    body * { visibility: hidden; }
+    #poCard, #poCard * { visibility: visible; }
+    #poCard {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        box-shadow: none;
+        border-radius: 0;
+        padding: 24px;
+    }
+    #poCard .btn { display: none !important; }
+}
