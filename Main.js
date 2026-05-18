@@ -29,6 +29,16 @@ function doPost(e) {
         return Customers.add(data);
       case 'get_customers':
         return Customers.getAll(data);
+
+      // Service Groups
+      case 'get_service_groups':
+        return ServiceGroups.getAll(data);
+      case 'add_service_group':
+        return ServiceGroups.add(data);
+      case 'update_service_group':
+        return ServiceGroups.update(data);
+      case 'delete_service_group':
+        return ServiceGroups.remove(data);
       
       // Services
       case 'get_services':

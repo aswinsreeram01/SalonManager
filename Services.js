@@ -1,71 +1,76 @@
 const Services = {
   getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Services');
+    if (!sheet) return Utils.createResponse('success', 'Services retrieved', { services: [] });
+
     const serviceData = sheet.getDataRange().getValues();
     const services = [];
-    
+
     for (let i = 1; i < serviceData.length; i++) {
       services.push({
         id: serviceData[i][0],
         name: serviceData[i][1],
         description: serviceData[i][2],
         duration: serviceData[i][3],
-        category: serviceData[i][4],
+        serviceGroupId: serviceData[i][4],
         defaultPrice: serviceData[i][5],
         status: serviceData[i][6]
       });
     }
-    
-    return Utils.createResponse('success', 'Services retrieved', { services: services });
+
+    return Utils.createResponse('success', 'Services retrieved', { services });
   },
-  
+
   add(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Services');
+    if (!sheet) return Utils.createResponse('error', 'Services sheet not found');
+
     const serviceId = 'SRV' + Date.now();
-    
     sheet.appendRow([
       serviceId,
       data.name,
-      data.description,
+      data.description || '',
       data.duration,
-      data.category,
+      data.serviceGroupId || '',
       data.defaultPrice,
       data.status || 'active'
     ]);
-    
+
     return Utils.createResponse('success', 'Service added successfully');
   },
-  
+
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Services');
+    if (!sheet) return Utils.createResponse('error', 'Services sheet not found');
+
     const dataRange = sheet.getDataRange().getValues();
-    
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.getRange(i + 1, 2).setValue(data.name);
-        sheet.getRange(i + 1, 3).setValue(data.description);
+        sheet.getRange(i + 1, 3).setValue(data.description || '');
         sheet.getRange(i + 1, 4).setValue(data.duration);
-        sheet.getRange(i + 1, 5).setValue(data.category);
+        sheet.getRange(i + 1, 5).setValue(data.serviceGroupId || '');
         sheet.getRange(i + 1, 6).setValue(data.defaultPrice);
         sheet.getRange(i + 1, 7).setValue(data.status);
         return Utils.createResponse('success', 'Service updated successfully');
       }
     }
-    
+
     return Utils.createResponse('error', 'Service not found');
   },
-  
+
   remove(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Services');
+    if (!sheet) return Utils.createResponse('error', 'Services sheet not found');
+
     const dataRange = sheet.getDataRange().getValues();
-    
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.deleteRow(i + 1);
         return Utils.createResponse('success', 'Service deleted successfully');
       }
     }
-    
+
     return Utils.createResponse('error', 'Service not found');
   }
 };

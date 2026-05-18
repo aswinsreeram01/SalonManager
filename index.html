@@ -89,6 +89,12 @@
             
             <div class="nav-section">
                 <div class="nav-section-title">Master Data</div>
+                <div class="nav-item" data-page="servicegroups">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                    </svg>
+                    Service Groups
+                </div>
                 <div class="nav-item" data-page="services">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -206,6 +212,75 @@
                 </div>
             </div>
             
+            <!-- Service Groups -->
+            <div class="content-section" id="servicegroups">
+                <div class="page-header">
+                    <h1 class="page-title">Service Groups</h1>
+                    <p class="page-subtitle">Group services by category and set GST rates</p>
+                </div>
+
+                <div id="serviceGroupMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New Service Group</h3>
+                        <button class="btn btn-secondary" id="toggleServiceGroupForm">
+                            <span id="serviceGroupFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="serviceGroupForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="serviceGroupName">Group Name*</label>
+                                <input type="text" id="serviceGroupName" placeholder="e.g., Hair, Skin, Nails" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="serviceGroupGst">GST (%)*</label>
+                                <input type="number" id="serviceGroupGst" min="0" max="100" step="0.01" placeholder="e.g., 18" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="serviceGroupStatus">Status</label>
+                                <select id="serviceGroupStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="serviceGroupDescription">Description</label>
+                            <textarea id="serviceGroupDescription" placeholder="Optional description"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveServiceGroupBtn">Save Group</button>
+                            <button type="button" class="btn btn-secondary" id="cancelServiceGroupBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Service Groups List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>GST</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="serviceGroupsTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
 			<!-- Service Catalog -->
 			<div class="content-section" id="services">
 				<div class="page-header">
@@ -230,8 +305,10 @@
 								<input type="text" id="serviceName" required>
 							</div>
 							<div class="form-group">
-								<label for="serviceCategory">Category*</label>
-								<input type="text" id="serviceCategory" placeholder="e.g., Hair, Nails, Spa" required>
+								<label for="serviceGroupId">Service Group*</label>
+								<select id="serviceGroupId" required>
+									<option value="">Select Service Group</option>
+								</select>
 							</div>
 							<div class="form-group">
 								<label for="serviceDefaultPrice">Default Price*</label>
@@ -267,7 +344,7 @@
 							<thead>
 								<tr>
 									<th>Service Name</th>
-									<th>Category</th>
+									<th>Service Group</th>
 									<th>Duration</th>
 									<th>Default Price</th>
 									<th>Status</th>
@@ -276,7 +353,7 @@
 							</thead>
 							<tbody id="servicesTableBody">
 								<tr>
-									<td colspan="5" style="text-align: center; color: #a0aec0;">Loading services...</td>
+									<td colspan="6" style="text-align: center; color: #a0aec0;">Loading services...</td>
 								</tr>
 							</tbody>
 						</table>
@@ -860,6 +937,7 @@
     <script src="js/staff.js"></script>
     <script src="js/customers.js"></script>
     <script src="js/pricebooks.js"></script>
+    <script src="js/servicegroups.js"></script>
     <script src="js/organizations.js"></script>
     <script src="js/users.js"></script>
     <script src="js/roles.js"></script>

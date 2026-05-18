@@ -114,11 +114,28 @@ const API = {
 		return this.call('update_permissions', { roleId, permissions });
 	},
 
+	// Service Groups
+	getServiceGroups() {
+		return this.call('get_service_groups');
+	},
+
+	addServiceGroup(data) {
+		return this.call('add_service_group', data);
+	},
+
+	updateServiceGroup(data) {
+		return this.call('update_service_group', data);
+	},
+
+	deleteServiceGroup(id) {
+		return this.call('delete_service_group', { id });
+	},
+
 	// Customers
 	getCustomers() {
 		return this.call('get_customers');
 	},
-	
+
 	addCustomer(data) {
 		return this.call('add_customer', data);
 	},
