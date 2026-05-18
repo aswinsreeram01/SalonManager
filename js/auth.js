@@ -64,6 +64,7 @@ const Auth = {
     } finally {
       loginBtn.disabled = false;
       loginBtn.innerHTML = 'Login';
+      UI.hideLoading();
     }
   },
   
