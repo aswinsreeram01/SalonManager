@@ -39,5 +39,24 @@ const Utils = {
   invalidateSession(token) {
     if (!token) return;
     CacheService.getScriptCache().remove(token);
+  },
+
+  getCached(key) {
+    try {
+      const val = CacheService.getScriptCache().get('d_' + key);
+      return val ? JSON.parse(val) : null;
+    } catch(e) { return null; }
+  },
+
+  setCached(key, data, ttlSecs) {
+    try {
+      CacheService.getScriptCache().put('d_' + key, JSON.stringify(data), ttlSecs || 300);
+    } catch(e) {}
+  },
+
+  clearCached(key) {
+    try {
+      CacheService.getScriptCache().remove('d_' + key);
+    } catch(e) {}
   }
 };

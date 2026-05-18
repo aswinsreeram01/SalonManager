@@ -235,31 +235,18 @@ const Products = {
             const vendor = p.vendorName || 'Unknown Vendor';
             if (!byVendor[vendor]) byVendor[vendor] = { contact: p.vendorContact || '', items: [] };
             const qty = Number(p.baseStock) - Number(p.currentStock);
-            byVendor[vendor].items.push({
-                name: p.name, category: p.category, uom: p.uom,
-                qty, unitCost: Number(p.unitCost), gst: Number(p.gst),
-                subtotal: qty * Number(p.unitCost)
-            });
+            byVendor[vendor].items.push({ name: p.name, category: p.category, uom: p.uom, qty });
         });
 
         let vendorBlocks = '';
-        let grandTotal   = 0;
         const today = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 
         Object.entries(byVendor).forEach(([vendorName, vendor]) => {
-            const subtotal  = vendor.items.reduce((s, i) => s + i.subtotal, 0);
-            const gstAmt    = vendor.items.reduce((s, i) => s + (i.subtotal * i.gst / 100), 0);
-            const total     = subtotal + gstAmt;
-            grandTotal += total;
-
             vendorBlocks += `
                 <div class="po-vendor-block">
                     <div class="po-vendor-header">
-                        <div>
-                            <strong style="font-size:15px;">${vendorName}</strong>
-                            ${vendor.contact ? `<span style="color:#718096;margin-left:12px;font-size:13px;">&#9990; ${vendor.contact}</span>` : ''}
-                        </div>
-                        <strong style="color:#667eea;font-size:15px;">₹${total.toFixed(2)}</strong>
+                        <strong style="font-size:15px;">${vendorName}</strong>
+                        ${vendor.contact ? `<span style="color:#718096;margin-left:12px;font-size:13px;">&#9990; ${vendor.contact}</span>` : ''}
                     </div>
                     <div class="table-container">
                         <table class="po-table">
@@ -268,36 +255,17 @@ const Products = {
                                     <th>Product</th>
                                     <th>Category</th>
                                     <th style="text-align:center;">Qty to Order</th>
-                                    <th style="text-align:right;">Unit Cost</th>
-                                    <th style="text-align:right;">GST%</th>
-                                    <th style="text-align:right;">Subtotal</th>
-                                    <th style="text-align:right;">GST Amt</th>
-                                    <th style="text-align:right;">Total</th>
+                                    <th>UOM</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                ${vendor.items.map(item => {
-                                    const gst = item.subtotal * item.gst / 100;
-                                    return `<tr>
-                                        <td>${item.name}</td>
-                                        <td><span style="font-size:11px;padding:2px 6px;border-radius:3px;${item.category === 'Retail' ? 'background:#c6f6d5;color:#22543d;' : 'background:#bee3f8;color:#2c5282;'}">${item.category}</span></td>
-                                        <td style="text-align:center;font-weight:600;">${item.qty} ${item.uom}</td>
-                                        <td style="text-align:right;">₹${item.unitCost.toFixed(2)}</td>
-                                        <td style="text-align:right;">${item.gst}%</td>
-                                        <td style="text-align:right;">₹${item.subtotal.toFixed(2)}</td>
-                                        <td style="text-align:right;">₹${gst.toFixed(2)}</td>
-                                        <td style="text-align:right;font-weight:600;">₹${(item.subtotal + gst).toFixed(2)}</td>
-                                    </tr>`;
-                                }).join('')}
+                                ${vendor.items.map(item => `<tr>
+                                    <td>${item.name}</td>
+                                    <td><span style="font-size:11px;padding:2px 6px;border-radius:3px;${item.category === 'Retail' ? 'background:#c6f6d5;color:#22543d;' : 'background:#bee3f8;color:#2c5282;'}">${item.category}</span></td>
+                                    <td style="text-align:center;font-weight:600;">${item.qty}</td>
+                                    <td>${item.uom}</td>
+                                </tr>`).join('')}
                             </tbody>
-                            <tfoot>
-                                <tr style="font-weight:600;background:#f7fafc;">
-                                    <td colspan="5" style="text-align:right;padding:8px 12px;">Vendor Total</td>
-                                    <td style="text-align:right;padding:8px 12px;">₹${subtotal.toFixed(2)}</td>
-                                    <td style="text-align:right;padding:8px 12px;">₹${gstAmt.toFixed(2)}</td>
-                                    <td style="text-align:right;padding:8px 12px;color:#667eea;">₹${total.toFixed(2)}</td>
-                                </tr>
-                            </tfoot>
                         </table>
                     </div>
                 </div>`;
@@ -309,10 +277,7 @@ const Products = {
                 ${belowBase.length} product(s) below reorder point &nbsp;·&nbsp;
                 ${Object.keys(byVendor).length} vendor(s)
             </div>
-            ${vendorBlocks}
-            <div style="text-align:right;font-size:20px;font-weight:700;color:#2d3748;padding:20px 0 0;border-top:2px solid #e2e8f0;margin-top:8px;">
-                Grand Total (incl. GST): ₹${grandTotal.toFixed(2)}
-            </div>`;
+            ${vendorBlocks}`;
 
         document.getElementById('poCard').style.display = 'block';
         document.getElementById('poCard').scrollIntoView({ behavior: 'smooth' });

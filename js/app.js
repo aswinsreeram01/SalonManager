@@ -30,23 +30,30 @@ const UI = {
 };
 
 const Navigation = {
+    _loaded: new Set(),
+
     init() {
         const menuToggle = document.getElementById('menuToggle');
         const sidebar = document.getElementById('sidebar');
         const mainContent = document.getElementById('mainContent');
         const navItems = document.querySelectorAll('.nav-item');
         const quickLinks = document.querySelectorAll('.quick-link');
-        
+
         menuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('collapsed');
             sidebar.classList.toggle('open');
             mainContent.classList.toggle('expanded');
         });
-        
+
         navItems.forEach(item => {
-            item.addEventListener('click', () => this.switchPage(item.dataset.page));
+            item.addEventListener('click', () => {
+                const page = item.dataset.page;
+                // Re-clicking the active page forces a fresh data load
+                if (item.classList.contains('active')) this._loaded.delete(page);
+                this.switchPage(page);
+            });
         });
-        
+
         quickLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -64,27 +71,30 @@ const Navigation = {
                 item.classList.remove('active');
             }
         });
-    
+
         // Update content sections
         document.querySelectorAll('.content-section').forEach(section => {
             if (section.id === page) {
                 section.classList.add('active');
-                // Load data when switching to certain pages
-                if (page === 'products') Products.load();
-                if (page === 'servicegroups') ServiceGroups.load();
-                if (page === 'services') Services.load();
-                if (page === 'staff') Staff.load();
-                if (page === 'customers') Customers.load();
-                if (page === 'pricebooks') PriceBooks.load();
-                if (page === 'organizations') Organizations.load();
-                if (page === 'users') Users.load();
-                if (page === 'roles') Roles.load();
-                if (page === 'permissions') Permissions.load();
+                // Only load data on first visit; re-clicking the active nav item forces a refresh
+                if (!this._loaded.has(page)) {
+                    this._loaded.add(page);
+                    if (page === 'products')       Products.load();
+                    if (page === 'servicegroups')  ServiceGroups.load();
+                    if (page === 'services')       Services.load();
+                    if (page === 'staff')          Staff.load();
+                    if (page === 'customers')      Customers.load();
+                    if (page === 'pricebooks')     PriceBooks.load();
+                    if (page === 'organizations')  Organizations.load();
+                    if (page === 'users')          Users.load();
+                    if (page === 'roles')          Roles.load();
+                    if (page === 'permissions')    Permissions.load();
+                }
             } else {
                 section.classList.remove('active');
             }
         });
-    
+
         // Close sidebar on mobile
         if (window.innerWidth <= 768) {
             document.getElementById('sidebar').classList.remove('open');

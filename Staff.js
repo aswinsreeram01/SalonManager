@@ -1,59 +1,45 @@
 const Staff = {
   getAll(data) {
+    const cached = Utils.getCached('staff');
+    if (cached) return Utils.createResponse('success', 'Staff retrieved', { staff: cached });
+
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('success', 'Staff retrieved', { staff: [] });
+
     const staffData = sheet.getDataRange().getValues();
     const staff = [];
-    
     for (let i = 1; i < staffData.length; i++) {
       staff.push({
-        id: staffData[i][0],
-        userId: staffData[i][1],
-        name: staffData[i][2],
-        phone: staffData[i][3],
-        email: staffData[i][4],
-        aadharNumber: staffData[i][5],
-        upiId: staffData[i][6],
-        startDate: staffData[i][7],
-        role: staffData[i][8],
-        salary: staffData[i][9],
-        allowance: staffData[i][10],
-        incentiveStructure: staffData[i][11],
-        specialization: staffData[i][12],
-        status: staffData[i][13]
+        id: staffData[i][0], userId: staffData[i][1], name: staffData[i][2],
+        phone: staffData[i][3], email: staffData[i][4], aadharNumber: staffData[i][5],
+        upiId: staffData[i][6], startDate: staffData[i][7], role: staffData[i][8],
+        salary: staffData[i][9], allowance: staffData[i][10],
+        incentiveStructure: staffData[i][11], specialization: staffData[i][12], status: staffData[i][13]
       });
     }
-    
-    return Utils.createResponse('success', 'Staff retrieved', { staff: staff });
+
+    Utils.setCached('staff', staff);
+    return Utils.createResponse('success', 'Staff retrieved', { staff });
   },
-  
+
   add(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
+
     const staffId = 'STF' + Date.now();
-    
-    sheet.appendRow([
-      staffId,
-      data.userId || '',
-      data.name,
-      data.phone,
-      data.email,
-      data.aadharNumber,
-      data.upiId,
-      data.startDate,
-      data.role,
-      data.salary,
-      data.allowance,
-      data.incentiveStructure,
-      data.specialization,
-      data.status || 'active'
-    ]);
-    
+    sheet.appendRow([staffId, data.userId || '', data.name, data.phone, data.email,
+                     data.aadharNumber, data.upiId, data.startDate, data.role,
+                     data.salary, data.allowance, data.incentiveStructure,
+                     data.specialization, data.status || 'active']);
+    Utils.clearCached('staff');
     return Utils.createResponse('success', 'Staff member added successfully');
   },
-  
+
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
+
     const dataRange = sheet.getDataRange().getValues();
-    
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.getRange(i + 1, 2).setValue(data.userId || '');
@@ -69,24 +55,25 @@ const Staff = {
         sheet.getRange(i + 1, 12).setValue(data.incentiveStructure);
         sheet.getRange(i + 1, 13).setValue(data.specialization);
         sheet.getRange(i + 1, 14).setValue(data.status);
+        Utils.clearCached('staff');
         return Utils.createResponse('success', 'Staff member updated successfully');
       }
     }
-    
     return Utils.createResponse('error', 'Staff member not found');
   },
-  
+
   remove(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
+
     const dataRange = sheet.getDataRange().getValues();
-    
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.deleteRow(i + 1);
+        Utils.clearCached('staff');
         return Utils.createResponse('success', 'Staff member deleted successfully');
       }
     }
-    
     return Utils.createResponse('error', 'Staff member not found');
   }
 };
