@@ -525,6 +525,8 @@ tr:hover td { background: #fafbff; }
     max-width: 180px;
 }
 .bill-item-select { min-width: 150px; max-width: 220px; }
+.prof-prod-select { min-width: 140px; max-width: 220px; font-size: 12px; flex: 1; }
+.prof-qty-input   { width: 70px; font-size: 12px; text-align: center; }
 
 .bill-input {
     border: 1px solid #e2e8f0;
@@ -882,13 +884,14 @@ tr:hover td { background: #fafbff; }
     .action-btns { gap: 4px; }
     .action-btn { padding: 5px 9px; font-size: 11px; }
 
-    /* Billing table: flex-wrap card layout — no horizontal scroll */
-    .table-container:has(.billing-table) { overflow-x: hidden; }
-    .billing-table { display: block; width: 100%; }
+    /* Billing: prevent all overflow — belt + suspenders */
+    #billing { overflow-x: hidden; }
+    #billing .table-container { overflow-x: hidden; }
+    .billing-table { display: block; width: 100%; max-width: 100%; }
     .billing-table thead { display: none; }
-    .billing-table tbody { display: block; }
+    .billing-table tbody { display: block; width: 100%; }
 
-    /* Each row = a flex-wrap card with 3 visual lines */
+    /* Each billing row = a flex-wrap card with 3 visual lines */
     .billing-table tr[data-row] {
         display: flex;
         flex-wrap: wrap;
@@ -900,6 +903,7 @@ tr:hover td { background: #fafbff; }
         background: white;
         box-shadow: 0 1px 4px rgba(0,0,0,0.06);
         width: 100%;
+        max-width: 100%;
         box-sizing: border-box;
     }
     .billing-table tr[data-type="service"] {
@@ -913,28 +917,30 @@ tr:hover td { background: #fafbff; }
         align-items: center;
         box-sizing: border-box;
         min-width: 0;
+        max-width: 100%;
         overflow: hidden;
+        white-space: normal;
     }
 
     /* ── Line 1: [#] [Type] [Item…] [Delete] ── */
-    .billing-table tr[data-row] > td:nth-child(1) {  /* # */
-        order: 1; flex: 0 0 26px;
+    .billing-table tr[data-row] > td:nth-child(1) {
+        order: 1; flex: 0 0 26px; max-width: 26px;
         justify-content: center;
         padding: 8px 2px;
         background: #f7fafc;
         border-right: 1px solid #edf2f7;
         font-size: 11px; color: #a0aec0;
     }
-    .billing-table tr[data-row] > td:nth-child(2) {  /* Type */
+    .billing-table tr[data-row] > td:nth-child(2) {
         order: 2; flex: 0 0 auto;
         padding: 6px 5px;
     }
-    .billing-table tr[data-row] > td:nth-child(3) {  /* Item */
-        order: 3; flex: 1 1 0;
+    .billing-table tr[data-row] > td:nth-child(3) {
+        order: 3; flex: 1 1 0; min-width: 0;
         padding: 6px 5px;
     }
-    .billing-table tr[data-row] > td:nth-child(11) {  /* Delete */
-        order: 4; flex: 0 0 36px;
+    .billing-table tr[data-row] > td:nth-child(11) {
+        order: 4; flex: 0 0 36px; max-width: 36px;
         justify-content: center;
         padding: 6px 4px;
         border-left: 1px solid #edf2f7;
@@ -942,29 +948,29 @@ tr:hover td { background: #fafbff; }
 
     /* ── Line 2: Staff (full width) ── */
     .billing-table tr[data-row] > td:nth-child(4) {
-        order: 10; flex: 0 0 100%;
+        order: 10; flex: 0 0 100%; max-width: 100%;
         padding: 5px 8px;
         border-top: 1px solid #edf2f7;
         background: #fafafa;
     }
 
     /* ── Line 3: [Total] [Qty] [Price] ── */
-    .billing-table tr[data-row] > td:nth-child(10) {  /* Total */
-        order: 19; flex: 0 0 80px;
+    .billing-table tr[data-row] > td:nth-child(10) {
+        order: 19; flex: 0 0 76px; max-width: 76px;
         justify-content: center;
-        padding: 7px 6px;
+        padding: 7px 4px;
         border-top: 1px solid #edf2f7;
         border-right: 1px solid #edf2f7;
         background: #f7fafc;
         font-weight: 700; font-size: 13px; color: #2d3748;
     }
-    .billing-table tr[data-row] > td:nth-child(5) {  /* Qty */
-        order: 20; flex: 0 0 90px;
+    .billing-table tr[data-row] > td:nth-child(5) {
+        order: 20; flex: 0 0 88px; max-width: 88px;
         padding: 7px 6px;
         border-top: 1px solid #edf2f7;
     }
-    .billing-table tr[data-row] > td:nth-child(6) {  /* Price */
-        order: 21; flex: 1 1 0;
+    .billing-table tr[data-row] > td:nth-child(6) {
+        order: 21; flex: 1 1 0; min-width: 0;
         padding: 7px 6px;
         border-top: 1px solid #edf2f7;
     }
@@ -974,25 +980,22 @@ tr:hover td { background: #fafbff; }
     .billing-table tr[data-row] > td:nth-child(8),
     .billing-table tr[data-row] > td:nth-child(9) { display: none !important; }
 
-    /* All inputs/selects inside billing cards: compact, no iOS-zoom font trick */
+    /* All inputs/selects inside billing cards */
     .billing-table tr[data-row] select,
     .billing-table tr[data-row] input {
         font-size: 16px !important;
         padding: 5px 7px !important;
         border-radius: 6px;
-        min-width: 0;
-        max-width: 100%;
-        width: 100%;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
         box-sizing: border-box;
     }
-    /* Qty input: fixed narrow width */
+    /* Qty cell: fixed width input */
     .billing-table tr[data-row] > td:nth-child(5) input {
-        width: 64px !important; max-width: 64px !important;
+        width: 60px !important; max-width: 60px !important;
         text-align: center;
     }
-    /* Kill desktop min-widths */
-    .billing-table .bill-select,
-    .billing-table .bill-item-select { min-width: 0; max-width: 100%; }
 
     /* ── Prof sub-row ── */
     .billing-table tr[data-row-prof] {
@@ -1003,15 +1006,30 @@ tr:hover td { background: #fafbff; }
         margin-bottom: 10px;
         background: #f7fafc;
         overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
-    .billing-table tr[data-row-prof] > td:nth-child(1) { display: none; }
+    .billing-table tr[data-row-prof] > td:nth-child(1) { display: none !important; }
     .billing-table tr[data-row-prof] > td:nth-child(2) {
-        flex: 1; padding: 6px 10px 10px; min-width: 0; overflow: hidden;
+        flex: 1; min-width: 0; padding: 6px 10px 10px; overflow: hidden;
     }
-    /* Sub-row inner flex: allow wrapping on small screens */
+    /* Inner flex: stack select on its own line, qty + uom below */
     .billing-table tr[data-row-prof] > td:nth-child(2) > div {
         flex-wrap: wrap !important;
-        row-gap: 6px;
+        gap: 6px !important;
+        align-items: center;
+    }
+    .prof-prod-select {
+        min-width: 0 !important; max-width: 100% !important;
+        width: 100% !important; flex: 1 1 auto !important;
+        font-size: 16px !important; padding: 5px 7px !important;
+        box-sizing: border-box;
+    }
+    .prof-qty-input {
+        width: 70px !important; max-width: 70px !important;
+        font-size: 16px !important; padding: 5px 7px !important;
+        text-align: center; box-sizing: border-box;
     }
 
     /* Billing: summary + payment stack vertically */

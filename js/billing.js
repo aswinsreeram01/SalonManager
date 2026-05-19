@@ -359,13 +359,13 @@ const Billing = {
                 <td colspan="10" style="padding:3px 8px 6px;">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                         <span style="font-size:12px;color:#718096;white-space:nowrap;">Product used:</span>
-                        <select class="bill-select" style="font-size:12px;flex:1;min-width:140px;max-width:220px;"
+                        <select class="bill-select prof-prod-select"
                                 onchange="Billing.onProfProductChange(${row.rowId}, this.value)">
                             <option value="">— None —</option>
                             ${noProfProds}${profOpts}
                         </select>
-                        <input type="number" class="bill-input" min="0" step="0.01" value="${row.profQty || ''}"
-                               style="width:70px;font-size:12px;${qtyOpacity}" placeholder="Qty"
+                        <input type="number" class="bill-input prof-qty-input" min="0" step="0.01" value="${row.profQty || ''}"
+                               style="${qtyOpacity}" placeholder="Qty"
                                oninput="Billing.onProfQtyChange(${row.rowId}, this.value)" ${qtyDisabled}>
                         <span class="prof-uom" style="font-size:12px;color:#4a5568;min-width:32px;">${row.profUom || '—'}</span>
                     </div>
