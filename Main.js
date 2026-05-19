@@ -146,6 +146,16 @@ function doPost(e) {
       case 'update_appointment':
         return Appointments.update(data);
 
+      // Expenses
+      case 'get_expenses':
+        return Expenses.getAll();
+      case 'save_expense':
+        return Expenses.save(data);
+      case 'update_expense':
+        return Expenses.update(data);
+      case 'void_expense':
+        return Expenses.voidExpense(data);
+
       default:
         return Utils.createResponse('error', 'Invalid action');
     }

@@ -125,6 +125,7 @@ const Navigation = {
                     if (page === 'permissions')    Permissions.load();
                     if (page === 'history')        History.load();
                     if (page === 'appointments')   Appointments.load();
+                    if (page === 'expenses')       Expenses.load();
                 }
             } else {
                 section.classList.remove('active');
@@ -164,6 +165,7 @@ const Navigation = {
             billing:       () => Billing.load(),
             history:       () => History.load(),
             appointments:  () => Appointments.load(),
+            expenses:      () => Expenses.load(),
             servicegroups: () => ServiceGroups.load(),
             services:      () => Services.load(),
             pricebooks:    () => PriceBooks.load(),
@@ -205,4 +207,5 @@ document.addEventListener('DOMContentLoaded', () => {
     Roles.init();
     Permissions.init();
     Appointments.init();
+    Expenses.init();
 });

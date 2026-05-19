@@ -1254,6 +1254,69 @@ tr:hover td { background: #fafbff; }
         padding: 20px 16px;
         padding-bottom: calc(16px + env(safe-area-inset-bottom));
     }
+
+    /* Expenses: single-column on mobile */
+    .exp-layout { grid-template-columns: 1fr; }
+    .exp-summary-value { font-size: 22px; }
+}
+
+/* ── Expenses ─────────────────────────────────────────── */
+.exp-filter-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.exp-summary-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.exp-summary-card {
+    flex: 1;
+    min-width: 140px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
+}
+
+.exp-summary-label {
+    font-size: 13px;
+    color: #718096;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.exp-summary-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.exp-cat-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.exp-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+.exp-breakdown-card,
+.exp-list-card {
+    margin-bottom: 0;
 }
 
 /* Extra small (≤ 380px) */

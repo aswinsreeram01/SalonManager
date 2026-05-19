@@ -257,5 +257,22 @@ const API = {
 
     updateAppointment(data) {
         return this.call('update_appointment', data);
+    },
+
+    // Expenses
+    getExpenses() {
+        return this.call('get_expenses');
+    },
+
+    saveExpense(data) {
+        return this.call('save_expense', data);
+    },
+
+    updateExpense(data) {
+        return this.call('update_expense', data);
+    },
+
+    voidExpense(expenseId) {
+        return this.call('void_expense', { expenseId });
     }
 };
