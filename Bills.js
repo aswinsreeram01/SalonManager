@@ -1,7 +1,8 @@
 const Bills = {
   save(data) {
-    const billsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
-    const itemsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('BillItems');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const billsSheet = ss.getSheetByName('Bills');
+    const itemsSheet = ss.getSheetByName('BillItems');
     if (!billsSheet) return Utils.createResponse('error', 'Bills sheet not found');
     if (!itemsSheet) return Utils.createResponse('error', 'BillItems sheet not found');
 
@@ -42,7 +43,53 @@ const Bills = {
       ]);
     });
 
+    // Auto-deduct stock for product items sold and professional products consumed
+    this._deductStock(billId, date.slice(0, 10), items);
+
     return Utils.createResponse('success', 'Bill saved successfully', { billId, grandTotal });
+  },
+
+  _deductStock(billId, date, items) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const movSheet  = ss.getSheetByName('StockMovements');
+    const prodSheet = ss.getSheetByName('Products');
+    if (!movSheet || !prodSheet) return;
+
+    const prodData = prodSheet.getDataRange().getValues();
+    const now = new Date().toISOString();
+
+    const deduct = (productId, productName, qty, unitCost) => {
+      if (!productId || qty <= 0) return;
+      const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
+      movSheet.appendRow([
+        movId, date, productId, productName, 'billing',
+        billId, -qty, unitCost || 0, 'Sold/used in bill', now
+      ]);
+      for (let i = 1; i < prodData.length; i++) {
+        if (prodData[i][0] === productId) {
+          const newStock = (Number(prodData[i][7]) || 0) - qty;
+          prodSheet.getRange(i + 1, 8).setValue(Math.max(0, newStock));
+          prodData[i][7] = Math.max(0, newStock);
+          break;
+        }
+      }
+    };
+
+    items.forEach(item => {
+      // Retail product sold
+      if (item.type === 'product' && item.itemId) {
+        deduct(item.itemId, item.itemName || '', Number(item.qty) || 1, Number(item.unitPrice) || 0);
+      }
+      // Professional product consumed during service
+      if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
+        const profQty = Number(item.profQty);
+        if (profQty > 0) {
+          deduct(item.profProductId, item.profProductName || '', profQty, 0);
+        }
+      }
+    });
+
+    Utils.clearCached('products');
   },
 
   voidBill(data) {

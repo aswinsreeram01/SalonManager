@@ -1353,3 +1353,90 @@ tr:hover td { background: #fafbff; }
     .stat-value { font-size: 16px; }
     .stat-label { font-size: 10px; }
 }
+
+/* ── Products 5-tab layout ────────────────────────────── */
+.prod-tabs {
+    display: flex;
+    gap: 4px;
+    background: #edf2f7;
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.prod-tab {
+    flex: 1;
+    min-width: 110px;
+    padding: 8px 14px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #718096;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.prod-tab:hover {
+    background: #fff;
+    color: #2d3748;
+}
+
+.prod-tab.active {
+    background: #fff;
+    color: #553c9a;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.10);
+}
+
+.prod-tab-panel {
+    display: none;
+}
+
+.prod-tab-panel.active {
+    display: block;
+}
+
+/* PO item/receive item table inputs */
+.po-item-product,
+.rcv-item-product {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+}
+
+#poItemsBody input,
+#rcvItemsBody input {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+/* Audit table physical count input */
+.audit-phys-qty {
+    padding: 5px 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+}
+
+/* Receive stock mode radio row */
+#rcvPoRow select,
+#rcvVendorRow select {
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .prod-tab {
+        font-size: 11px;
+        padding: 7px 8px;
+        min-width: 80px;
+    }
+}

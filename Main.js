@@ -23,7 +23,7 @@ function doPost(e) {
         return Auth.validateResetToken(data);
       case 'reset_password':
         return Auth.resetPassword(data);
-      
+
       // Customers
       case 'add_customer':
         return Customers.add(data);
@@ -39,7 +39,7 @@ function doPost(e) {
         return ServiceGroups.update(data);
       case 'delete_service_group':
         return ServiceGroups.remove(data);
-      
+
       // Products
       case 'get_products':
         return Products.getAll(data);
@@ -51,6 +51,32 @@ function doPost(e) {
         return Products.updateStock(data);
       case 'delete_product':
         return Products.remove(data);
+      case 'receive_stock':
+        return Products.receiveStock(data);
+      case 'get_stock_register':
+        return Products.getRegister(data);
+      case 'save_stock_audit':
+        return Products.saveAudit(data);
+
+      // Vendors
+      case 'get_vendors':
+        return Vendors.getAll();
+      case 'add_vendor':
+        return Vendors.add(data);
+      case 'update_vendor':
+        return Vendors.update(data);
+      case 'remove_vendor':
+        return Vendors.remove(data);
+
+      // Purchase Orders
+      case 'get_purchase_orders':
+        return PurchaseOrders.getAll();
+      case 'create_purchase_order':
+        return PurchaseOrders.create(data);
+      case 'update_po_status':
+        return PurchaseOrders.updateStatus(data);
+      case 'get_po_items':
+        return PurchaseOrders.getItems(data);
 
       // Services
       case 'get_services':
@@ -61,7 +87,7 @@ function doPost(e) {
         return Services.update(data);
       case 'delete_service':
         return Services.remove(data);
-      
+
       // Staff
       case 'get_staff':
         return Staff.getAll(data);
@@ -71,7 +97,7 @@ function doPost(e) {
         return Staff.update(data);
       case 'delete_staff':
         return Staff.remove(data);
-      
+
       // Price Books
       case 'get_pricebooks':
         return PriceBooks.getAll(data);
@@ -89,7 +115,7 @@ function doPost(e) {
         return PriceBooks.updateItem(data);
       case 'delete_pricebook_item':
         return PriceBooks.removeItem(data);
-      
+
       // Organizations
       case 'get_organizations':
         return Organizations.getAll(data);
@@ -99,7 +125,7 @@ function doPost(e) {
         return Organizations.update(data);
       case 'delete_organization':
         return Organizations.remove(data);
-      
+
       // Users
       case 'get_users':
         return Users.getAll(data);
@@ -109,7 +135,7 @@ function doPost(e) {
         return Users.update(data);
       case 'delete_user':
         return Users.remove(data);
-      
+
       // Roles
       case 'get_roles':
         return Roles.getAll();
@@ -119,7 +145,7 @@ function doPost(e) {
         return Roles.update(data);
       case 'delete_role':
         return Roles.remove(data);
-      
+
       // Permissions
       case 'get_permissions':
         return Permissions.getByRole(data);
@@ -127,7 +153,7 @@ function doPost(e) {
         return Permissions.getByUser(data);
       case 'update_permissions':
         return Permissions.updateBulk(data);
-      
+
       // Bills
       case 'save_bill':
         return Bills.save(data);
@@ -159,7 +185,7 @@ function doPost(e) {
       default:
         return Utils.createResponse('error', 'Invalid action');
     }
-    
+
   } catch(error) {
     return Utils.createResponse('error', error.toString());
   }

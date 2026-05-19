@@ -274,5 +274,52 @@ const API = {
 
     voidExpense(expenseId) {
         return this.call('void_expense', { expenseId });
+    },
+
+    // Vendors
+    getVendors() {
+        return this.call('get_vendors');
+    },
+
+    addVendor(data) {
+        return this.call('add_vendor', data);
+    },
+
+    updateVendor(data) {
+        return this.call('update_vendor', data);
+    },
+
+    removeVendor(vendorId) {
+        return this.call('remove_vendor', { vendorId });
+    },
+
+    // Purchase Orders
+    getPurchaseOrders() {
+        return this.call('get_purchase_orders');
+    },
+
+    createPurchaseOrder(data) {
+        return this.call('create_purchase_order', data);
+    },
+
+    updatePOStatus(poId, status, notes) {
+        return this.call('update_po_status', { poId, status, notes: notes || '' });
+    },
+
+    getPOItems(poId) {
+        return this.call('get_po_items', { poId });
+    },
+
+    // Stock operations
+    receiveStock(data) {
+        return this.call('receive_stock', data);
+    },
+
+    getStockRegister(productId) {
+        return this.call('get_stock_register', productId ? { productId } : {});
+    },
+
+    saveStockAudit(data) {
+        return this.call('save_stock_audit', data);
     }
 };
