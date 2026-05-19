@@ -244,5 +244,18 @@ const API = {
 
     getBillItems(billId) {
         return this.call('get_bill_items', { billId });
+    },
+
+    // Appointments
+    getAppointments(date) {
+        return this.call('get_appointments', { date });
+    },
+
+    saveAppointment(data) {
+        return this.call('save_appointment', data);
+    },
+
+    updateAppointment(data) {
+        return this.call('update_appointment', data);
     }
 };

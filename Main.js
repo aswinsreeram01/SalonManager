@@ -138,6 +138,14 @@ function doPost(e) {
       case 'get_bill_items':
         return Bills.getItems(data);
 
+      // Appointments
+      case 'get_appointments':
+        return Appointments.getByDate(data);
+      case 'save_appointment':
+        return Appointments.save(data);
+      case 'update_appointment':
+        return Appointments.update(data);
+
       default:
         return Utils.createResponse('error', 'Invalid action');
     }

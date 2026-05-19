@@ -808,6 +808,168 @@ tr:hover td { background: #fafbff; }
 }
 
 /* ══════════════════════════════════════════════════════════
+   APPOINTMENTS
+   ══════════════════════════════════════════════════════════ */
+
+/* Date navigator card */
+.appt-nav-card { padding: 12px 16px; margin-bottom: 12px; }
+.appt-nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.appt-nav-left { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.appt-arrow-btn { padding: 6px 14px; font-size: 18px; line-height: 1; min-height: 36px; }
+.appt-today-btn { padding: 6px 12px; font-size: 13px; min-height: 36px; }
+.appt-date-display { font-size: 15px; font-weight: 600; color: #2d3748; white-space: nowrap; }
+
+/* View toggle */
+.appt-view-toggle {
+    display: flex;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.appt-toggle-btn {
+    background: white;
+    border: none;
+    padding: 6px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #718096;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.appt-toggle-btn.active { background: #667eea; color: white; }
+.appt-toggle-btn:not(.active):hover { background: #f7fafc; }
+
+/* Loading / empty states */
+.appt-loading {
+    text-align: center;
+    padding: 48px 20px;
+    color: #a0aec0;
+    font-size: 14px;
+}
+.appt-empty {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    padding: 56px 20px;
+    text-align: center;
+}
+.appt-empty-icon  { font-size: 44px; margin-bottom: 14px; }
+.appt-empty-title { font-size: 16px; font-weight: 600; color: #2d3748; margin-bottom: 6px; }
+.appt-empty-sub   { font-size: 14px; color: #a0aec0; }
+
+/* ── Status Badges ── */
+.appt-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.appt-badge-booked    { background: #ebf8ff; color: #2b6cb0; }
+.appt-badge-confirmed { background: #e9d8fd; color: #553c9a; }
+.appt-badge-completed { background: #c6f6d5; color: #22543d; }
+.appt-badge-cancelled { background: #e2e8f0; color: #718096; }
+.appt-badge-no-show   { background: #fed7d7; color: #742a2a; }
+
+/* ── Action Buttons ── */
+.appt-action-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.appt-act-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.appt-act-btn:hover { opacity: 0.82; }
+.appt-btn-confirm  { background: #ebf8ff; color: #2b6cb0; }
+.appt-btn-complete { background: #c6f6d5; color: #22543d; }
+.appt-btn-noshow   { background: #fed7d7; color: #742a2a; }
+.appt-btn-edit     { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; }
+.appt-btn-cancel   { background: #fff5f5; color: #e53e3e; }
+.appt-btn-bill     { background: #667eea; color: white; }
+.appt-billed-tag   { font-size: 12px; color: #38a169; font-weight: 600; }
+
+/* ── List View ── */
+.appt-list { display: flex; flex-direction: column; gap: 8px; }
+.appt-list-row {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.appt-time-col { flex-shrink: 0; min-width: 64px; }
+.appt-time      { font-size: 14px; font-weight: 700; color: #2d3748; }
+.appt-dur       { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+.appt-info-col  { flex: 1; min-width: 0; }
+.appt-right-col { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.appt-customer-name { font-size: 14px; font-weight: 600; color: #2d3748; }
+.appt-detail-line   { font-size: 12px; color: #718096; margin-top: 2px; }
+.appt-notes-line    { font-size: 12px; color: #a0aec0; margin-top: 3px; font-style: italic; }
+
+/* ── Timeline / Day View ── */
+.appt-day-view { display: flex; flex-direction: column; }
+.appt-slot {
+    display: flex;
+    min-height: 48px;
+    border-bottom: 1px solid #f0f4f8;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.appt-slot:hover { background: #f7fafc; }
+.appt-slot-hour { border-bottom-color: #e2e8f0; }
+.appt-slot-time {
+    flex-shrink: 0;
+    width: 52px;
+    padding: 10px 8px 0;
+    font-size: 12px;
+    color: #a0aec0;
+    font-weight: 600;
+    text-align: right;
+    user-select: none;
+}
+.appt-slot-hour .appt-slot-time { color: #718096; }
+.appt-slot-body {
+    flex: 1;
+    padding: 4px 8px 4px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Day-view appointment card */
+.appt-day-card {
+    border-radius: 8px;
+    padding: 8px 12px;
+    border-left: 3px solid transparent;
+    cursor: default;
+}
+.appt-day-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.appt-card-booked    { background: #ebf8ff; border-left-color: #4299e1; }
+.appt-card-confirmed { background: #f3e8ff; border-left-color: #805ad5; }
+.appt-card-completed { background: #f0fff4; border-left-color: #48bb78; }
+.appt-card-cancelled { background: #f7fafc; border-left-color: #a0aec0; }
+.appt-card-no-show   { background: #fff5f5; border-left-color: #fc8181; }
+
+/* ══════════════════════════════════════════════════════════
    DESKTOP (≥ 768px)
    ══════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
@@ -1074,6 +1236,24 @@ tr:hover td { background: #fafbff; }
 
     /* Save bill button: full width */
     #saveBillBtn { width: 100%; font-size: 15px; padding: 14px; }
+
+    /* Appointments: mobile tweaks */
+    .appt-nav-card { padding: 10px 12px; }
+    .appt-date-display { font-size: 14px; }
+    .appt-list-row { padding: 12px 12px; gap: 10px; }
+    .appt-time-col { min-width: 54px; }
+    .appt-time { font-size: 13px; }
+    .appt-right-col { align-items: flex-start; }
+    .appt-action-row { margin-top: 6px; }
+
+    /* Booking modal: bottom sheet on mobile */
+    #apptBookingModal { align-items: flex-end !important; padding: 0 !important; }
+    #apptBookingModal .modal-box {
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 16px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
 }
 
 /* Extra small (≤ 380px) */

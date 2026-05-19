@@ -13,6 +13,7 @@ const Billing = {
     selectedPriceBookId: null,
     _phoneDebounce: null,
     _invoiceCloseCallback: null,
+    _apptPrefill: null,
 
     init() {
         document.getElementById('billingPhone').addEventListener('input', e => {
@@ -60,11 +61,45 @@ const Billing = {
             pbSelect.innerHTML = '<option value="">No Price Book (use defaults)</option>' +
                 this.priceBooks.map(pb => `<option value="${pb.id}">${pb.name}</option>`).join('');
             this.resetBill();
+            if (this._apptPrefill) {
+                this.prefillFromAppointment(this._apptPrefill);
+                this._apptPrefill = null;
+            }
         } catch(e) {
             UI.showMessage('billingMessage', 'Error loading billing data. Please refresh.', 'error');
         } finally {
             UI.hideLoading();
         }
+    },
+
+    prefillFromAppointment(appt) {
+        // Set customer phone and trigger lookup
+        const phoneEl = document.getElementById('billingPhone');
+        if (phoneEl && appt.customerPhone) {
+            phoneEl.value = appt.customerPhone;
+            this.lookupCustomer(appt.customerPhone);
+        }
+        // Populate the first row with the appointment service + staff
+        if (!this.rows.length) this.addRow();
+        const row = this.rows[0];
+        row.type = 'service';
+        const svc = this.services.find(s => s.id === appt.serviceId);
+        if (svc) {
+            row.itemId    = svc.id;
+            row.itemName  = svc.name;
+            row.unitPrice = this.getPriceForService(svc.id);
+            row.gstPct    = svc.gstPct || 0;
+        } else if (appt.serviceName) {
+            row.itemName  = appt.serviceName;
+        }
+        const staffMem = this.staff.find(s => s.id === appt.staffId);
+        if (staffMem) {
+            row.staffId   = staffMem.id;
+            row.staffName = staffMem.name;
+        }
+        this.recalcRow(row);
+        this.renderRows();
+        this.recalcTotals();
     },
 
     resetBill() {
