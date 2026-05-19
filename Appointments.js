@@ -6,6 +6,14 @@ const Appointments = {
     billId: 12, createdAt: 13, createdBy: 14
   },
 
+  // Sheets may auto-convert ISO strings to Date objects — always normalise to ISO
+  _toIso(v) {
+    if (v instanceof Date) {
+      return Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+    }
+    return String(v);
+  },
+
   _rowToObj(r) {
     return {
       appointmentId: r[0],
@@ -16,12 +24,12 @@ const Appointments = {
       staffName:     r[5],
       serviceId:     r[6],
       serviceName:   r[7],
-      startTime:     String(r[8]),
+      startTime:     this._toIso(r[8]),
       durationMins:  Number(r[9]) || 60,
       status:        r[10],
       notes:         r[11] || '',
       billId:        r[12] || '',
-      createdAt:     String(r[13]),
+      createdAt:     this._toIso(r[13]),
       createdBy:     r[14] || ''
     };
   },
@@ -36,7 +44,7 @@ const Appointments = {
     const rows = sheet.getDataRange().getValues();
     const appointments = [];
     for (let i = 1; i < rows.length; i++) {
-      const startTime = String(rows[i][8]);
+      const startTime = this._toIso(rows[i][8]);
       if (startTime.startsWith(date)) {
         appointments.push(this._rowToObj(rows[i]));
       }

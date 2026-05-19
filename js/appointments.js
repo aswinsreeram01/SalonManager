@@ -7,22 +7,52 @@ const Appointments = {
     customers: [],
     _dataLoaded: false,
     _editingId: null,
+    _custPhone: '',
+    _custId: null,
+    _custName: '',
+    _custTimer: null,
 
     init() {
         this.currentDate = this._todayStr();
+
         document.getElementById('apptPrevDay').addEventListener('click', () => this.changeDay(-1));
         document.getElementById('apptNextDay').addEventListener('click', () => this.changeDay(1));
         document.getElementById('apptTodayBtn').addEventListener('click', () => this.gotoToday());
         document.getElementById('apptNewBtn').addEventListener('click', () => this.openModal());
         document.getElementById('apptViewList').addEventListener('click', () => this.setView('list'));
         document.getElementById('apptViewDay').addEventListener('click', () => this.setView('day'));
-        document.getElementById('apptBookingForm').addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('apptBookingForm').addEventListener('submit', e => this.handleSubmit(e));
         document.getElementById('apptModalClose').addEventListener('click', () => this.closeModal());
         document.getElementById('apptCancelFormBtn').addEventListener('click', () => this.closeModal());
-        document.getElementById('apptService').addEventListener('change', (e) => this._onServiceChange(e.target.value));
-        document.getElementById('apptBookingModal').addEventListener('click', (e) => {
+        document.getElementById('apptService').addEventListener('change', e => this._onServiceChange(e.target.value));
+        document.getElementById('apptBookingModal').addEventListener('click', e => {
             if (e.target === document.getElementById('apptBookingModal')) this.closeModal();
         });
+
+        // Phone lookup
+        document.getElementById('apptCustPhone').addEventListener('input', e => {
+            clearTimeout(this._custTimer);
+            this._custTimer = setTimeout(() => this._lookupCust(e.target.value.trim()), 400);
+        });
+
+        // Inline new-customer form
+        document.getElementById('apptSaveNewCust').addEventListener('click', () => this._saveNewCust());
+        document.getElementById('apptCancelNewCust').addEventListener('click', () => this._hideNewCust());
+
+        this._buildHourSelect();
+    },
+
+    _buildHourSelect() {
+        const sel = document.getElementById('apptHour');
+        sel.innerHTML = '';
+        for (let h = 7; h <= 21; h++) {
+            const opt = document.createElement('option');
+            opt.value = String(h).padStart(2, '0');
+            const ampm   = h < 12 ? 'AM' : 'PM';
+            const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+            opt.textContent = `${display} ${ampm}`;
+            sel.appendChild(opt);
+        }
     },
 
     async load() {
@@ -38,23 +68,22 @@ const Appointments = {
             const [staffRes, svcRes, custRes] = await Promise.all([
                 API.getStaff(), API.getServices(), API.getCustomers()
             ]);
-            this.staff     = (staffRes.staff      || []).filter(s => s.status === 'active');
-            this.services  = (svcRes.services      || []).filter(s => s.status === 'active');
-            this.customers = custRes.customers     || [];
-        } catch (e) {
+            this.staff     = (staffRes.staff    || []).filter(s => s.status === 'active');
+            this.services  = (svcRes.services   || []).filter(s => s.status === 'active');
+            this.customers = custRes.customers  || [];
+        } catch(e) {
             console.error('Appointments: failed to load reference data', e);
         }
     },
 
     async _fetchAndRender() {
         document.getElementById('apptDateDisplay').textContent = this._fmtDateDisplay(this.currentDate);
-        document.getElementById('apptContent').innerHTML =
-            '<div class="appt-loading">Loading…</div>';
+        document.getElementById('apptContent').innerHTML = '<div class="appt-loading">Loading…</div>';
         try {
             const res = await API.getAppointments(this.currentDate);
             this.appointments = res.appointments || [];
             this._render();
-        } catch (e) {
+        } catch(e) {
             document.getElementById('apptContent').innerHTML =
                 '<div class="appt-loading" style="color:#fc8181;">Failed to load appointments.</div>';
         }
@@ -67,8 +96,7 @@ const Appointments = {
     // ── List View ──────────────────────────────────────────────────────────────
 
     _renderListView() {
-        const appts = this.appointments;
-        if (appts.length === 0) {
+        if (!this.appointments.length) {
             document.getElementById('apptContent').innerHTML = `
                 <div class="appt-empty">
                     <div class="appt-empty-icon">📅</div>
@@ -77,7 +105,7 @@ const Appointments = {
                 </div>`;
             return;
         }
-        const rows = appts.map(a => this._listRow(a)).join('');
+        const rows = this.appointments.map(a => this._listRow(a)).join('');
         document.getElementById('apptContent').innerHTML = `<div class="appt-list">${rows}</div>`;
     },
 
@@ -111,19 +139,18 @@ const Appointments = {
         });
 
         const slotHtml = slots.map(slot => {
-            const cards = (bySlot[slot] || []).map(a => this._dayCard(a)).join('');
+            const cards  = (bySlot[slot] || []).map(a => this._dayCard(a)).join('');
             const isHour = slot.endsWith(':00');
             return `
             <div class="appt-slot${isHour ? ' appt-slot-hour' : ''}"
                  data-slot="${slot}"
-                 onclick="Appointments._onSlotClick(event, '${slot}')">
+                 onclick="Appointments._onSlotClick(event,'${slot}')">
                 <div class="appt-slot-time">${slot}</div>
                 <div class="appt-slot-body">${cards}</div>
             </div>`;
         }).join('');
 
-        document.getElementById('apptContent').innerHTML =
-            `<div class="appt-day-view">${slotHtml}</div>`;
+        document.getElementById('apptContent').innerHTML = `<div class="appt-day-view">${slotHtml}</div>`;
     },
 
     _dayCard(a) {
@@ -155,11 +182,11 @@ const Appointments = {
     },
 
     _actions(a) {
-        const id = a.appointmentId;
+        const id  = a.appointmentId;
         const btn = (cls, label, fn) =>
             `<button class="appt-act-btn ${cls}" onclick="event.stopPropagation();${fn}">${label}</button>`;
 
-        switch (a.status) {
+        switch(a.status) {
             case 'booked':
                 return [
                     btn('appt-btn-confirm',  'Confirm',  `Appointments.setStatus('${id}','confirmed')`),
@@ -182,12 +209,105 @@ const Appointments = {
         }
     },
 
+    // ── Customer Phone Lookup ──────────────────────────────────────────────────
+
+    _lookupCust(phone, knownName) {
+        const infoEl = document.getElementById('apptCustInfo');
+        this._custPhone = phone;
+        this._custId    = null;
+        this._custName  = '';
+
+        if (!phone) {
+            infoEl.textContent = '';
+            infoEl.style.color = '';
+            this._hideNewCust();
+            return;
+        }
+
+        // Edit path: caller already knows the name — skip API round-trip
+        if (knownName) {
+            this._custId   = phone;
+            this._custName = knownName;
+            infoEl.textContent = knownName;
+            infoEl.style.color = '#38a169';
+            this._hideNewCust();
+            return;
+        }
+
+        const match = this.customers.find(c => String(c.phone).trim() === String(phone).trim());
+        if (match) {
+            this._custId   = String(match.phone).trim();
+            this._custName = match.name;
+            infoEl.textContent = match.name;
+            infoEl.style.color = '#38a169';
+            this._hideNewCust();
+        } else if (phone.length >= 10) {
+            infoEl.innerHTML = 'Customer not found — <a href="#" style="color:#667eea;" id="apptAddCustLink">Add new customer</a>';
+            infoEl.style.color = '#e53e3e';
+            const link = document.getElementById('apptAddCustLink');
+            if (link) link.addEventListener('click', e => { e.preventDefault(); this._showNewCust(); });
+        } else {
+            infoEl.textContent = '';
+            infoEl.style.color = '';
+            this._hideNewCust();
+        }
+    },
+
+    _showNewCust() {
+        document.getElementById('apptNewCustBox').style.display = 'block';
+        document.getElementById('apptNewCustName').value = '';
+        setTimeout(() => document.getElementById('apptNewCustName').focus(), 50);
+    },
+
+    _hideNewCust() {
+        document.getElementById('apptNewCustBox').style.display = 'none';
+        document.getElementById('apptNewCustName').value = '';
+    },
+
+    async _saveNewCust() {
+        const name  = document.getElementById('apptNewCustName').value.trim();
+        const phone = document.getElementById('apptCustPhone').value.trim();
+        if (!name || !phone) return;
+
+        const btn = document.getElementById('apptSaveNewCust');
+        btn.disabled    = true;
+        btn.textContent = '…';
+        try {
+            const res = await API.addCustomer({ name, phone });
+            if (res.status === 'success') {
+                this.customers.push({ name, phone });
+                this._custId   = String(phone).trim();
+                this._custName = name;
+                this._custPhone = phone;
+                const infoEl = document.getElementById('apptCustInfo');
+                infoEl.textContent = name;
+                infoEl.style.color = '#38a169';
+                this._hideNewCust();
+            } else {
+                alert(res.message || 'Error saving customer');
+            }
+        } catch(err) {
+            alert('Error saving customer. Please try again.');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = 'Add';
+        }
+    },
+
     // ── Modal ──────────────────────────────────────────────────────────────────
 
     openModal(appointmentId = null, prefillTime = null) {
         this._editingId = appointmentId;
+        this._custPhone = '';
+        this._custId    = null;
+        this._custName  = '';
+
         document.getElementById('apptBookingForm').reset();
         document.getElementById('apptModalMsg').innerHTML = '';
+        document.getElementById('apptCustInfo').textContent = '';
+        document.getElementById('apptCustInfo').style.color = '';
+        this._hideNewCust();
+
         document.getElementById('apptModalTitle').textContent =
             appointmentId ? 'Edit Appointment' : 'New Appointment';
         document.getElementById('apptSaveBtn').textContent =
@@ -198,20 +318,36 @@ const Appointments = {
         if (appointmentId) {
             const a = this.appointments.find(x => x.appointmentId === appointmentId);
             if (a) {
-                document.getElementById('apptCustomer').value  = a.customerId;
-                document.getElementById('apptService').value   = a.serviceId;
-                document.getElementById('apptStaff').value     = a.staffId;
+                const phone = a.customerPhone || a.customerId;
+                document.getElementById('apptCustPhone').value = phone;
+                this._lookupCust(phone, a.customerName);
+
+                document.getElementById('apptService').value  = a.serviceId;
+                document.getElementById('apptStaff').value    = a.staffId;
+                document.getElementById('apptDuration').value = a.durationMins;
+                document.getElementById('apptNotes').value    = a.notes || '';
+
                 const [d, t] = a.startTime.split('T');
-                document.getElementById('apptDate').value      = d || '';
-                document.getElementById('apptTime').value      = t ? t.substring(0, 5) : '';
-                document.getElementById('apptDuration').value  = a.durationMins;
-                document.getElementById('apptNotes').value     = a.notes || '';
+                document.getElementById('apptDate').value = d || '';
+                if (t) {
+                    const [hh, mm] = t.split(':');
+                    document.getElementById('apptHour').value   = hh;
+                    document.getElementById('apptMinute').value = (mm || '00').substring(0, 2);
+                }
             }
         } else {
             document.getElementById('apptDate').value = this.currentDate;
             if (prefillTime) {
                 const t = prefillTime.split('T')[1];
-                if (t) document.getElementById('apptTime').value = t.substring(0, 5);
+                if (t) {
+                    const [hh, mm] = t.split(':');
+                    document.getElementById('apptHour').value   = hh;
+                    document.getElementById('apptMinute').value = (mm || '00').substring(0, 2);
+                }
+            } else {
+                const dt = this._defaultTime();
+                document.getElementById('apptHour').value   = dt.hour;
+                document.getElementById('apptMinute').value = dt.minute;
             }
         }
 
@@ -221,15 +357,11 @@ const Appointments = {
     closeModal() {
         document.getElementById('apptBookingModal').style.display = 'none';
         this._editingId = null;
+        this._custId    = null;
+        this._custName  = '';
     },
 
     _fillDropdowns() {
-        const custSel = document.getElementById('apptCustomer');
-        custSel.innerHTML = '<option value="">Select customer…</option>' +
-            this.customers.map(c =>
-                `<option value="${this._esc(c.phone)}">${this._esc(c.name)}${c.phone ? ' (' + c.phone + ')' : ''}</option>`
-            ).join('');
-
         const svcSel = document.getElementById('apptService');
         svcSel.innerHTML = '<option value="">Select service…</option>' +
             this.services.map(s =>
@@ -250,35 +382,50 @@ const Appointments = {
         }
     },
 
+    _defaultTime() {
+        const now = new Date();
+        let h = now.getHours();
+        let m = Math.ceil(now.getMinutes() / 15) * 15;
+        if (m >= 60) { h += 1; m = 0; }
+        h = Math.max(7, Math.min(h, 21));
+        return { hour: String(h).padStart(2, '0'), minute: String(m).padStart(2, '0') };
+    },
+
     // ── Form Submit ────────────────────────────────────────────────────────────
 
     async handleSubmit(e) {
         e.preventDefault();
-        const saveBtn = document.getElementById('apptSaveBtn');
-        saveBtn.disabled = true;
-        saveBtn.innerHTML = '<span class="spinner"></span> Saving…';
 
-        const customerId   = document.getElementById('apptCustomer').value;
+        if (!this._custId) {
+            UI.showMessage('apptModalMsg', 'Please enter a valid customer phone number.', 'error');
+            document.getElementById('apptCustPhone').focus();
+            return;
+        }
+
+        const saveBtn = document.getElementById('apptSaveBtn');
+        saveBtn.disabled    = true;
+        saveBtn.textContent = 'Saving…';
+
         const serviceId    = document.getElementById('apptService').value;
         const staffId      = document.getElementById('apptStaff').value;
         const date         = document.getElementById('apptDate').value;
-        const time         = document.getElementById('apptTime').value;
+        const hour         = document.getElementById('apptHour').value;
+        const minute       = document.getElementById('apptMinute').value;
         const durationMins = Number(document.getElementById('apptDuration').value) || 60;
         const notes        = document.getElementById('apptNotes').value.trim();
 
-        const customer = this.customers.find(c => c.phone === customerId);
         const service  = this.services.find(s => s.id === serviceId);
         const staffMem = this.staff.find(s => s.id === staffId);
 
         const payload = {
-            customerId,
-            customerName:  customer?.name  || '',
-            customerPhone: customer?.phone || customerId,
+            customerId:    this._custId,
+            customerName:  this._custName,
+            customerPhone: this._custPhone || this._custId,
             serviceId,
-            serviceName:   service?.name   || '',
+            serviceName:   service?.name  || '',
             staffId,
-            staffName:     staffMem?.name  || '',
-            startTime:     `${date}T${time}:00`,
+            staffName:     staffMem?.name || '',
+            startTime:     `${date}T${hour}:${minute}:00`,
             durationMins,
             notes,
             createdBy:     Auth.currentUser?.fullName || ''
@@ -297,10 +444,10 @@ const Appointments = {
             } else {
                 UI.showMessage('apptModalMsg', res.message || 'Failed to save.', 'error');
             }
-        } catch (err) {
+        } catch(err) {
             UI.showMessage('apptModalMsg', 'Network error. Please try again.', 'error');
         } finally {
-            saveBtn.disabled = false;
+            saveBtn.disabled    = false;
             saveBtn.textContent = this._editingId ? 'Save Changes' : 'Book Appointment';
         }
     },
@@ -308,10 +455,26 @@ const Appointments = {
     // ── Status Actions ─────────────────────────────────────────────────────────
 
     async setStatus(appointmentId, status) {
+        UI.showLoading();
         try {
             const res = await API.updateAppointment({ appointmentId, status });
-            if (res.status === 'success') await this._fetchAndRender();
-        } catch (e) { console.error('setStatus failed', e); }
+            if (res.status === 'success') {
+                await this._fetchAndRender();
+                const msgs = {
+                    confirmed:  'Appointment confirmed.',
+                    completed:  'Appointment completed.',
+                    'no-show':  'Marked as no-show.',
+                    cancelled:  'Appointment cancelled.'
+                };
+                UI.showMessage('apptPageMsg', msgs[status] || 'Status updated.', 'success');
+            } else {
+                UI.showMessage('apptPageMsg', res.message || 'Failed to update status.', 'error');
+            }
+        } catch(e) {
+            UI.showMessage('apptPageMsg', 'Network error. Please try again.', 'error');
+        } finally {
+            UI.hideLoading();
+        }
     },
 
     async doCancel(appointmentId) {
@@ -322,13 +485,14 @@ const Appointments = {
     convertToBill(appointmentId) {
         const a = this.appointments.find(x => x.appointmentId === appointmentId);
         if (!a) return;
+        // Check BEFORE switchPage — switchPage adds 'billing' to _loaded immediately
+        const alreadyLoaded = Navigation._loaded.has('billing');
         Navigation.switchPage('billing');
-        if (Navigation._loaded.has('billing')) {
+        if (alreadyLoaded) {
             Billing.prefillFromAppointment(a);
         } else {
             Billing._apptPrefill = a;
         }
-        // Mark completed (fire-and-forget)
         API.updateAppointment({ appointmentId, status: 'completed' }).catch(() => {});
     },
 
@@ -356,7 +520,6 @@ const Appointments = {
     // ── Helpers ────────────────────────────────────────────────────────────────
 
     _todayStr() { return this._dateStr(new Date()); },
-
     _dateStr(d) { return d.toISOString().split('T')[0]; },
 
     _fmtDateDisplay(ds) {
@@ -371,27 +534,40 @@ const Appointments = {
         return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
     },
 
+    // Parse time directly from ISO string — avoids timezone shifting via new Date()
     _fmtTime(iso) {
         if (!iso) return '—';
-        const d = new Date(iso);
-        return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        const t = iso.split('T')[1];
+        if (!t) return '—';
+        const [hh, mm] = t.split(':');
+        const h      = parseInt(hh, 10);
+        const suffix = h < 12 ? 'AM' : 'PM';
+        const disp   = h === 0 ? 12 : h > 12 ? h - 12 : h;
+        return `${disp}:${mm || '00'} ${suffix}`;
     },
 
+    // 15-minute slot resolution (8:00 → 21:00)
     _timeSlots() {
         const slots = [];
         for (let h = 8; h <= 21; h++) {
-            slots.push(`${String(h).padStart(2, '0')}:00`);
-            if (h < 21) slots.push(`${String(h).padStart(2, '0')}:30`);
+            for (const m of ['00', '15', '30', '45']) {
+                if (h === 21 && m !== '00') continue;
+                slots.push(`${String(h).padStart(2, '0')}:${m}`);
+            }
         }
         return slots;
     },
 
+    // Snap appointment time to nearest 15-min boundary for timeline placement
     _slotKey(iso) {
         if (!iso) return '08:00';
-        const d = new Date(iso);
-        const h = d.getHours();
-        const m = d.getMinutes() < 30 ? '00' : '30';
-        return `${String(h).padStart(2, '0')}:${m}`;
+        const t = iso.split('T')[1];
+        if (!t) return '08:00';
+        const [hh, mmStr] = t.split(':');
+        const h    = parseInt(hh, 10) || 8;
+        const mm   = parseInt(mmStr, 10) || 0;
+        const snap = Math.floor(mm / 15) * 15;
+        return `${String(h).padStart(2, '0')}:${String(snap).padStart(2, '0')}`;
     },
 
     _esc(str) {
