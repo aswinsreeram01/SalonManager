@@ -98,22 +98,6 @@ const Expenses = {
     const total = expenses.reduce((s, e) => s + e.amount, 0);
     document.getElementById('expSummaryTotal').textContent = this._fmt(total);
     document.getElementById('expSummaryCount').textContent = expenses.length;
-
-    const byCategory = {};
-    expenses.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount; });
-    const sorted = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
-
-    document.getElementById('expBreakdownBody').innerHTML = sorted.length
-      ? sorted.map(([cat, amt]) => {
-          const pct   = total > 0 ? ((amt / total) * 100).toFixed(1) : '0.0';
-          const color = this.CAT_COLORS[cat] || '#718096';
-          return `<tr>
-            <td><span class="exp-cat-badge" style="background:${color}20;color:${color}">${cat}</span></td>
-            <td style="text-align:right;font-weight:600;">${this._fmt(amt)}</td>
-            <td style="text-align:right;color:#718096;">${pct}%</td>
-          </tr>`;
-        }).join('')
-      : '<tr><td colspan="3" style="text-align:center;color:#a0aec0;padding:16px;">No data</td></tr>';
   },
 
   _renderList(expenses) {
@@ -196,9 +180,21 @@ const Expenses = {
         : await API.saveExpense(data);
 
       if (res.status === 'success') {
-        UI.showMessage('expMessage', this._editingId ? 'Expense updated.' : 'Expense saved.', 'success');
+        // Update local array — no second API call needed
+        if (this._editingId) {
+          const idx = this._expenses.findIndex(x => x.expenseId === this._editingId);
+          if (idx >= 0) this._expenses[idx] = { ...this._expenses[idx], ...data };
+        } else {
+          this._expenses.push({
+            ...data,
+            expenseId: res.expenseId || ('EXP' + Date.now()),
+            createdAt: new Date().toISOString(),
+            status: 'active'
+          });
+        }
         this.closeForm();
-        await this.load();
+        this._applyAndRender();
+        UI.showMessage('expMessage', this._editingId ? 'Expense updated.' : 'Expense saved.', 'success');
       } else {
         UI.showMessage('expMessage', res.message || 'Error saving expense', 'error');
       }
@@ -216,19 +212,20 @@ const Expenses = {
 
   async doVoid(expenseId) {
     if (!confirm('Delete this expense? This cannot be undone.')) return;
-    UI.showLoading();
+    // Remove from local array immediately — no reload needed
+    this._expenses = this._expenses.filter(x => x.expenseId !== expenseId);
+    this._applyAndRender();
     try {
       const res = await API.voidExpense(expenseId);
       if (res.status === 'success') {
         UI.showMessage('expMessage', 'Expense deleted.', 'success');
-        await this.load();
       } else {
         UI.showMessage('expMessage', res.message || 'Error deleting expense', 'error');
+        await this.load(); // revert on failure
       }
     } catch(err) {
       UI.showMessage('expMessage', 'Error deleting expense', 'error');
-    } finally {
-      UI.hideLoading();
+      await this.load(); // revert on failure
     }
   },
 

@@ -1295,8 +1295,7 @@ tr:hover td { background: #fafbff; }
         padding-bottom: calc(16px + env(safe-area-inset-bottom));
     }
 
-    /* Expenses: single-column on mobile */
-    .exp-layout { grid-template-columns: 1fr; }
+    /* Expenses */
     .exp-summary-value { font-size: 22px; }
 }
 
@@ -1347,17 +1346,6 @@ tr:hover td { background: #fafbff; }
     white-space: nowrap;
 }
 
-.exp-layout {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 20px;
-    align-items: start;
-}
-
-.exp-breakdown-card,
-.exp-list-card {
-    margin-bottom: 0;
-}
 
 /* Extra small (≤ 380px) */
 @media (max-width: 380px) {
