@@ -1609,3 +1609,62 @@ code.diff-wrong {
     padding: 1px 4px;
     font-size: 11px;
 }
+
+/* ── Sheet column drill-down ────────────────────────────────────────────── */
+.sheet-link {
+    display: inline-block;
+    font-size: 12px;
+    color: #667eea;
+    text-decoration: none;
+    margin-bottom: 8px;
+}
+.sheet-link:hover { text-decoration: underline; }
+
+.dc-wrap { margin-top: 8px; overflow-x: auto; }
+
+.dc-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    width: 100%;
+    min-width: 280px;
+}
+.dc-table th {
+    text-align: left;
+    padding: 4px 10px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #4a5568;
+    font-weight: 600;
+}
+.dc-table td {
+    padding: 4px 10px;
+    border-bottom: 1px solid #f0f4f8;
+    vertical-align: middle;
+}
+.dc-table tr:last-child td { border-bottom: none; }
+
+.dc-num { color: #a0aec0; font-size: 11px; width: 28px; text-align: right; padding-right: 8px; }
+
+code.dc-schema {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+}
+code.dc-schema.dc-missing {
+    background: #fff5f5;
+    color: #c53030;
+}
+code.dc-sheet {
+    background: #f0fff4;
+    color: #276749;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+}
+.dc-absent { color: #cbd5e0; font-size: 12px; }
+
+/* Row states */
+.dc-row-missing td { background: #fffaf0; }
+.dc-row-extra   td { background: #faf5ff; }

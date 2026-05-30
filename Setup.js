@@ -140,24 +140,25 @@ const Setup = {
           .filter(h => h !== '');
       }
 
+      const sheetId = sheet.getSheetId();
       if (existing.length >= expected.length) {
-        // Sheet has at least as many columns as the schema requires — OK.
-        // (May have extra user-added cols at the end; that's fine.)
         results.push({
           sheet: name, group: groupOf[name] || 'Other',
-          status: 'ok', expected, existing, missingCols: [], canFix: true
+          status: 'ok', expected, existing, missingCols: [], canFix: true, sheetId
         });
       } else {
-        // Fewer columns than schema — append the missing tail columns.
         const missingCols = expected.slice(existing.length);
         results.push({
           sheet: name, group: groupOf[name] || 'Other',
-          status: 'missing_columns', expected, existing, missingCols, canFix: true
+          status: 'missing_columns', expected, existing, missingCols, canFix: true, sheetId
         });
       }
     });
 
-    return Utils.createResponse('success', 'Setup status retrieved', { results, groups: Object.keys(SHEET_GROUPS) });
+    const spreadsheetUrl = ss.getUrl();
+    return Utils.createResponse('success', 'Setup status retrieved', {
+      results, groups: Object.keys(SHEET_GROUPS), spreadsheetUrl
+    });
   },
 
   // Executes the requested repairs.
