@@ -238,8 +238,13 @@ const API = {
         return this.call('void_bill', { billId });
     },
 
-    getBills() {
-        return this.call('get_bills');
+    // GAP 6 fix: pass optional date range so GAS can filter the sheet instead of reading everything.
+    // fromDate / toDate: 'YYYY-MM-DD' strings. GAS defaults to last 90 days when omitted.
+    getBills(fromDate, toDate) {
+        const params = {};
+        if (fromDate) params.fromDate = fromDate;
+        if (toDate)   params.toDate   = toDate;
+        return this.call('get_bills', params);
     },
 
     getBillItems(billId) {

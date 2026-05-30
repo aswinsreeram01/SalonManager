@@ -66,6 +66,9 @@ const Billing = {
                 this._apptPrefill = null;
             }
         } catch(e) {
+            // GAP 4 fix: discard any pending appointment prefill — if data never loaded,
+            // the prefill would silently fire on the next successful load with stale data.
+            this._apptPrefill = null;
             UI.showMessage('billingMessage', 'Error loading billing data. Please refresh.', 'error');
         } finally {
             UI.hideLoading();
@@ -441,7 +444,15 @@ const Billing = {
         const checks = [];
         checks.push({ ok: !!this.selectedCustomerId, msg: 'Select a customer by phone number' });
         const filledRows = this.rows.filter(r => r.itemId);
-        checks.push({ ok: filledRows.length > 0, msg: 'Add at least one service or product' });
+        // GAP 5 fix: rows that have a name but no itemId come from appointment prefill where
+        // the service has been deactivated. Detect them and show a specific, actionable message
+        // instead of the confusing generic "Add at least one service or product".
+        const orphanRows = this.rows.filter(r => !r.itemId && r.itemName);
+        orphanRows.forEach(row => {
+            const n = this.rows.indexOf(row) + 1;
+            checks.push({ ok: false, msg: `Row ${n}: "${row.itemName}" is no longer active — please select a different service or product` });
+        });
+        checks.push({ ok: filledRows.length > 0 && orphanRows.length === 0, msg: 'Add at least one service or product' });
         filledRows.forEach(row => {
             const n = this.rows.indexOf(row) + 1;
             if (!row.staffId)       checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): Select a staff member` });

@@ -97,6 +97,9 @@ const Products = {
     return Utils.createResponse('error', 'Product not found');
   },
 
+  // GAP 3 fix: soft-delete (set status = 'deleted') instead of hard-deleting the row.
+  // Hard deletion orphans StockMovements and POItems rows that reference this productId,
+  // and prevents receiving stock against open PO items for the deleted product.
   remove(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Products');
     if (!sheet) return Utils.createResponse('error', 'Products sheet not found');
@@ -104,7 +107,7 @@ const Products = {
     const sheetData = sheet.getDataRange().getValues();
     for (let i = 1; i < sheetData.length; i++) {
       if (sheetData[i][0] === data.id) {
-        sheet.deleteRow(i + 1);
+        sheet.getRange(i + 1, 13).setValue('deleted');
         Utils.clearCached('products');
         return Utils.createResponse('success', 'Product deleted successfully');
       }

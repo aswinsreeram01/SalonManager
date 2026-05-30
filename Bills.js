@@ -106,13 +106,34 @@ const Bills = {
     return Utils.createResponse('error', 'Bill not found');
   },
 
+  // GAP 6 fix: accept optional fromDate / toDate to avoid reading the whole sheet on large datasets.
+  // Defaults to the last 90 days when no dates are supplied.
   getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
     if (!sheet) return Utils.createResponse('success', 'Bills retrieved', { bills: [] });
 
+    // Build the date window
+    const now = new Date();
+    const defaultFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    defaultFrom.setHours(0, 0, 0, 0);
+
+    const fromDate = (data && data.fromDate)
+      ? new Date(data.fromDate + 'T00:00:00')
+      : defaultFrom;
+    const toDate = (data && data.toDate)
+      ? new Date(data.toDate + 'T23:59:59')
+      : null;   // null = no upper bound
+
     const billData = sheet.getDataRange().getValues();
     const bills = [];
     for (let i = 1; i < billData.length; i++) {
+      if (!billData[i][0]) continue;   // skip empty rows
+      // Column 4 (index 4) is the ISO date string written by Bills.save()
+      const rawDate = String(billData[i][4]).slice(0, 10);   // "YYYY-MM-DD"
+      const billDate = new Date(rawDate + 'T00:00:00');
+      if (billDate < fromDate) continue;
+      if (toDate && billDate > toDate) continue;
+
       bills.push({
         billId: billData[i][0], customerId: billData[i][1], customerName: billData[i][2],
         priceBookId: billData[i][3], date: String(billData[i][4]),

@@ -30,8 +30,7 @@ const Products = {
     document.getElementById('poAddItemBtn').addEventListener('click', () => this._addPOItem());
     document.getElementById('poSmartSuggestBtn').addEventListener('click', () => this._smartSuggestPO());
 
-    // Receive Stock tab
-    document.getElementById('rcvModeToggle').addEventListener('change', () => this._onRcvModeChange());
+    // Receive Stock tab  (GAP 1 fix: listener is on the radio inputs, not the wrapper div — see below)
     document.getElementById('rcvPoSelect').addEventListener('change', () => this._loadPOItems());
     document.getElementById('rcvAddItemBtn').addEventListener('click', () => this._addRcvItem());
     document.getElementById('rcvForm').addEventListener('submit', e => this._handleRcvSubmit(e));
@@ -45,6 +44,11 @@ const Products = {
     // Stock Audit tab
     document.getElementById('auditLoadBtn').addEventListener('click', () => this._loadAuditTable());
     document.getElementById('auditForm').addEventListener('submit', e => this._handleAuditSubmit(e));
+
+    // Receive Stock mode radio buttons (GAP 1 fix — wire to actual radio inputs, not the wrapper div)
+    document.querySelectorAll('input[name="rcvMode"]').forEach(r =>
+      r.addEventListener('change', () => this._onRcvModeChange())
+    );
 
     // Set default dates
     const today = new Date().toISOString().slice(0, 10);
@@ -743,7 +747,23 @@ const Products = {
 
   // ─── STOCK AUDIT TAB ─────────────────────────────────────────────────────────
 
-  _loadAuditTable() {
+  // GAP 2 fix: always fetch fresh product data before building the audit table so
+  // System Qty reflects actual current stock, not the stale page-load snapshot.
+  async _loadAuditTable() {
+    const btn = document.getElementById('auditLoadBtn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    try {
+      const res = await API.getProducts();
+      if (res.status === 'success') this._products = res.products || [];
+    } catch(e) {
+      // fall through — use cached data and warn the user
+      UI.showMessage('prodMessage', 'Could not refresh stock data — showing cached values.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Load Products';
+    }
+
     const tbody = document.getElementById('auditTableBody');
     const active = this._products.filter(p => p.status === 'active');
     if (!active.length) {
