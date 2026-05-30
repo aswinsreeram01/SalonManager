@@ -1528,3 +1528,84 @@ tr:hover td { background: #fafbff; }
     font-size: 11px;
     word-break: break-all;
 }
+
+/* ── Order-mismatch diff drill-down ────────────────────────────────────── */
+.diff-details { margin-top: 2px; }
+.diff-summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: #667eea;
+    user-select: none;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.diff-summary::-webkit-details-marker { display: none; }
+.diff-summary::before { content: ''25B6''; font-size: 9px; transition: transform .15s; }
+details[open] .diff-summary::before { transform: rotate(90deg); }
+
+.diff-wrap {
+    margin-top: 8px;
+    overflow-x: auto;
+}
+.diff-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 360px;
+    width: 100%;
+}
+.diff-table th {
+    text-align: left;
+    padding: 4px 8px;
+    background: #f7fafc;
+    border-bottom: 1px solid #e2e8f0;
+    color: #4a5568;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.diff-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+.diff-pos { color: #a0aec0; font-size: 11px; width: 28px; }
+.diff-icon { text-align: center; width: 28px; }
+
+code.diff-match {
+    background: #f0fff4;
+    color: #276749;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+}
+code.diff-wrong {
+    background: #fff5f5;
+    color: #c53030;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 11px;
+}
+.diff-note {
+    font-size: 11px;
+    color: #718096;
+    margin-left: 4px;
+}
+.diff-note-absent { color: #c05621; }
+.diff-note-extra  { color: #6b46c1; }
+
+.diff-extras {
+    margin: 8px 0 0;
+    font-size: 12px;
+    color: #6b46c1;
+    padding: 6px 8px;
+    background: #faf5ff;
+    border-radius: 6px;
+    border: 1px solid #d6bcfa;
+}
+.diff-extras code {
+    background: #ede9fe;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+}
