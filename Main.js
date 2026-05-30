@@ -182,6 +182,48 @@ function doPost(e) {
       case 'void_expense':
         return Expenses.voidExpense(data);
 
+      // Product Groups
+      case 'get_product_groups': return ProductGroups.getAll(data);
+      case 'add_product_group': return ProductGroups.add(data);
+      case 'update_product_group': return ProductGroups.update(data);
+      case 'delete_product_group': return ProductGroups.remove(data);
+
+      // Incentive Profiles
+      case 'get_incentive_profiles': return IncentiveProfiles.getAll(data);
+      case 'add_incentive_profile': return IncentiveProfiles.add(data);
+      case 'update_incentive_profile': return IncentiveProfiles.update(data);
+      case 'delete_incentive_profile': return IncentiveProfiles.remove(data);
+
+      // Org Settings
+      case 'get_org_settings': return OrgSettings.get();
+      case 'update_org_settings': return OrgSettings.update(data);
+
+      // Shifts & Attendance
+      case 'get_shifts': return Attendance.getShifts();
+      case 'save_shift': return Attendance.saveShift(data);
+      case 'get_allocations': return Attendance.getAllocations(data);
+      case 'save_allocation': return Attendance.saveAllocation(data);
+      case 'get_attendance': return Attendance.getAttendance(data);
+      case 'save_attendance': return Attendance.saveAttendance(data);
+
+      // Advances
+      case 'get_advances': return Attendance.getAdvances(data);
+      case 'add_advance': return Attendance.addAdvance(data);
+
+      // Weekly Incentive
+      case 'save_weekly_incentive': return Attendance.saveWeeklyIncentive(data);
+      case 'get_weekly_incentives': return Attendance.getWeeklyIncentives(data);
+
+      // Payroll
+      case 'calculate_payroll': return Payroll.calculate(data);
+      case 'save_payroll': return Payroll.save(data);
+      case 'get_payroll': return Payroll.getAll(data);
+      case 'update_payroll_status': return Payroll.updateStatus(data);
+
+      // Setup / Sheet Scaffolding
+      case 'get_setup_status': return Setup.getStatus();
+      case 'run_setup':        return Setup.run(data);
+
       default:
         return Utils.createResponse('error', 'Invalid action');
     }

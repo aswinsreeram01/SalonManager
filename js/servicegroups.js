@@ -30,15 +30,20 @@ const ServiceGroups = {
 
     async load() {
         const tbody = document.getElementById('serviceGroupsTableBody');
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
         try {
             const result = await API.getServiceGroups();
             if (result.status === 'success' && result.serviceGroups.length > 0) {
-                tbody.innerHTML = result.serviceGroups.map(g => `
+                tbody.innerHTML = result.serviceGroups.map(g => {
+                    const gstVal = g.gstPct ?? g.gst ?? null;
+                    return `
                     <tr>
                         <td style="font-weight:500;">${g.name}</td>
-                        <td>${g.description || '-'}</td>
-                        <td>${g.gst != null ? g.gst + '%' : '-'}</td>
+                        <td>${g.sacCode || '-'}</td>
+                        <td>${gstVal != null ? gstVal + '%' : '-'}</td>
+                        <td style="text-align:center;">${g.countForTarget ? '&#10003;' : '&mdash;'}</td>
+                        <td>${g.directIncentivePct != null ? g.directIncentivePct + '%' : '-'}</td>
+                        <td>${g.sortOrder != null ? g.sortOrder : '-'}</td>
                         <td><span class="status-badge status-${g.status}">${g.status}</span></td>
                         <td>
                             <div class="action-btns">
@@ -47,22 +52,27 @@ const ServiceGroups = {
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                `}).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;">No service groups found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;">No service groups found</td></tr>';
             }
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#fc8181;">Error loading service groups</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#fc8181;">Error loading service groups</td></tr>';
         }
     },
 
     async handleSubmit(e) {
         e.preventDefault();
         const saveBtn = document.getElementById('saveServiceGroupBtn');
+        const gstInput = document.getElementById('serviceGroupGstPct') || document.getElementById('serviceGroupGst');
         const data = {
             name: document.getElementById('serviceGroupName').value,
             description: document.getElementById('serviceGroupDescription').value,
-            gst: document.getElementById('serviceGroupGst').value,
+            gstPct: parseFloat(gstInput ? gstInput.value : 0) || 0,
+            sacCode: (document.getElementById('serviceGroupSacCode') || {}).value || '',
+            countForTarget: !!(document.getElementById('serviceGroupCountForTarget') || {}).checked,
+            directIncentivePct: parseFloat((document.getElementById('serviceGroupDirectIncentivePct') || {}).value) || 0,
+            sortOrder: parseInt((document.getElementById('serviceGroupSortOrder') || {}).value, 10) || 0,
             status: document.getElementById('serviceGroupStatus').value
         };
         if (this.editingId) data.id = this.editingId;
@@ -98,7 +108,16 @@ const ServiceGroups = {
                 this.editingId = id;
                 document.getElementById('serviceGroupName').value = group.name;
                 document.getElementById('serviceGroupDescription').value = group.description || '';
-                document.getElementById('serviceGroupGst').value = group.gst || 0;
+                const gstInput = document.getElementById('serviceGroupGstPct') || document.getElementById('serviceGroupGst');
+                if (gstInput) gstInput.value = group.gstPct ?? group.gst ?? 0;
+                const sacCodeEl = document.getElementById('serviceGroupSacCode');
+                if (sacCodeEl) sacCodeEl.value = group.sacCode || '';
+                const countForTargetEl = document.getElementById('serviceGroupCountForTarget');
+                if (countForTargetEl) countForTargetEl.checked = !!group.countForTarget;
+                const directIncentivePctEl = document.getElementById('serviceGroupDirectIncentivePct');
+                if (directIncentivePctEl) directIncentivePctEl.value = group.directIncentivePct != null ? group.directIncentivePct : 0;
+                const sortOrderEl = document.getElementById('serviceGroupSortOrder');
+                if (sortOrderEl) sortOrderEl.value = group.sortOrder != null ? group.sortOrder : 0;
                 document.getElementById('serviceGroupStatus').value = group.status;
                 document.getElementById('saveServiceGroupBtn').textContent = 'Update Group';
                 document.getElementById('serviceGroupForm').style.display = 'block';

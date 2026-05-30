@@ -114,11 +114,13 @@ const Navigation = {
                     if (page === 'dashboard')      Dashboard.load();
                     if (page === 'billing')        Billing.load();
                     if (page === 'products')       Products.load();
-                    if (page === 'servicegroups')  ServiceGroups.load();
-                    if (page === 'services')       Services.load();
+                    if (page === 'services') {
+                        ServiceGroups.load();
+                        Services.load();
+                        PriceBooks.load();
+                    }
                     if (page === 'staff')          Staff.load();
                     if (page === 'customers')      Customers.load();
-                    if (page === 'pricebooks')     PriceBooks.load();
                     if (page === 'organizations')  Organizations.load();
                     if (page === 'users')          Users.load();
                     if (page === 'roles')          Roles.load();
@@ -127,6 +129,7 @@ const Navigation = {
                     if (page === 'appointments')   Appointments.load();
                     if (page === 'expenses')       Expenses.load();
                     if (page === 'vendors')        Vendors.load();
+                    if (page === 'settings')       Settings.load();
                 }
             } else {
                 section.classList.remove('active');
@@ -142,7 +145,7 @@ const Navigation = {
         const queue = [
             'billing',
             'history',
-            'servicegroups', 'services', 'pricebooks', 'products', 'staff', 'customers',
+            'services', 'products', 'staff', 'customers',
             'users', 'roles', 'permissions', 'organizations'
         ];
         for (const page of queue) {
@@ -168,9 +171,7 @@ const Navigation = {
             appointments:  () => Appointments.load(),
             expenses:      () => Expenses.load(),
             vendors:       () => Vendors.load(),
-            servicegroups: () => ServiceGroups.load(),
-            services:      () => Services.load(),
-            pricebooks:    () => PriceBooks.load(),
+            services:      () => Promise.all([ServiceGroups.load(), Services.load(), PriceBooks.load()]),
             products:      () => Products.load(),
             staff:         () => Staff.load(),
             customers:     () => Customers.load(),
@@ -203,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Customers.init();
     PriceBooks.init();
     Products.init();
+    ProductGroups.init();
     ServiceGroups.init();
     Organizations.init();
     Users.init();
@@ -211,4 +213,16 @@ document.addEventListener('DOMContentLoaded', () => {
     Appointments.init();
     Expenses.init();
     Vendors.init();
+    Settings.init();
+
+    // ── Services section tab switching ──────────────────────
+    document.querySelectorAll('#services .prod-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            document.querySelectorAll('#services .prod-tab').forEach(b =>
+                b.classList.toggle('active', b === btn));
+            document.querySelectorAll('#services .prod-tab-panel').forEach(p =>
+                p.classList.toggle('active', p.id === `prod-tab-${tab}`));
+        });
+    });
 });

@@ -10,8 +10,8 @@ const Products = {
   // ─── Init ────────────────────────────────────────────────────────────────────
 
   init() {
-    // Tab switching
-    document.querySelectorAll('.prod-tab').forEach(btn => {
+    // Tab switching (scoped to #products so other sections can reuse same CSS classes)
+    document.querySelectorAll('#products .prod-tab').forEach(btn => {
       btn.addEventListener('click', () => this._switchTab(btn.dataset.tab));
     });
 
@@ -88,9 +88,9 @@ const Products = {
 
   _switchTab(tab) {
     this._activeTab = tab;
-    document.querySelectorAll('.prod-tab').forEach(b =>
+    document.querySelectorAll('#products .prod-tab').forEach(b =>
       b.classList.toggle('active', b.dataset.tab === tab));
-    document.querySelectorAll('.prod-tab-panel').forEach(p =>
+    document.querySelectorAll('#products .prod-tab-panel').forEach(p =>
       p.classList.toggle('active', p.id === 'prod-tab-' + tab));
     if (tab === 'receive-stock') this._setupRcvTab();
     if (tab === 'stock-register') this._renderRegister();

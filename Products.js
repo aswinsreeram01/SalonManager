@@ -1,7 +1,7 @@
 // Products sheet columns (0-based):
 // id(0), name(1), category(2), uom(3), unitCost(4), retailPrice(5), gst(6),
 // currentStock(7), baseStock(8), manufacturer(9), vendorName(10), vendorContact(11),
-// status(12), vendorId(13)
+// status(12), vendorId(13), groupId(14)
 //
 // StockMovements sheet columns:
 // movementId(0), date(1), productId(2), productName(3), type(4), refId(5),
@@ -31,7 +31,8 @@ const Products = {
         unitCost: data[i][4], retailPrice: data[i][5], gst: data[i][6],
         currentStock: data[i][7], baseStock: data[i][8], manufacturer: data[i][9],
         vendorName: data[i][10], vendorContact: data[i][11], status: data[i][12],
-        vendorId: data[i][13] || ''
+        vendorId: data[i][13] || '',
+        groupId:  data[i][14] || ''
       });
     }
 
@@ -49,7 +50,7 @@ const Products = {
       Number(data.unitCost) || 0, Number(data.retailPrice) || 0, Number(data.gst) || 0,
       Number(data.currentStock) || 0, Number(data.baseStock) || 0,
       data.manufacturer || '', data.vendorName || '', data.vendorContact || '',
-      data.status || 'active', data.vendorId || ''
+      data.status || 'active', data.vendorId || '', data.groupId || ''
     ]);
     Utils.clearCached('products');
     return Utils.createResponse('success', 'Product added successfully', { id });
@@ -75,6 +76,7 @@ const Products = {
         sheet.getRange(i + 1, 12).setValue(data.vendorContact || '');
         sheet.getRange(i + 1, 13).setValue(data.status);
         sheet.getRange(i + 1, 14).setValue(data.vendorId || '');
+        sheet.getRange(i + 1, 15).setValue(data.groupId  || '');
         Utils.clearCached('products');
         return Utils.createResponse('success', 'Product updated successfully');
       }

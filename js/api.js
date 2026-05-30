@@ -326,5 +326,51 @@ const API = {
 
     saveStockAudit(data) {
         return this.call('save_stock_audit', data);
-    }
+    },
+
+    // Product Groups
+    getProductGroups() { return this.call('get_product_groups'); },
+    addProductGroup(data) { return this.call('add_product_group', data); },
+    updateProductGroup(data) { return this.call('update_product_group', data); },
+    deleteProductGroup(id) { return this.call('delete_product_group', { id }); },
+
+    // Incentive Profiles
+    getIncentiveProfiles() { return this.call('get_incentive_profiles'); },
+    addIncentiveProfile(data) { return this.call('add_incentive_profile', data); },
+    updateIncentiveProfile(data) { return this.call('update_incentive_profile', data); },
+    deleteIncentiveProfile(id) { return this.call('delete_incentive_profile', { id }); },
+
+    // Org Settings
+    getOrgSettings() { return this.call('get_org_settings'); },
+    updateOrgSettings(data) { return this.call('update_org_settings', data); },
+
+    // Shifts
+    getShifts() { return this.call('get_shifts'); },
+    saveShift(data) { return this.call('save_shift', data); },
+
+    // Allocations
+    getAllocations(staffId) { return this.call('get_allocations', staffId ? { staffId } : {}); },
+    saveAllocation(data) { return this.call('save_allocation', data); },
+
+    // Attendance
+    getAttendance(params) { return this.call('get_attendance', params || {}); },
+    saveAttendance(records) { return this.call('save_attendance', { records }); },
+
+    // Advances
+    getAdvances(staffId) { return this.call('get_advances', { staffId }); },
+    addAdvance(data) { return this.call('add_advance', data); },
+
+    // Weekly Incentives
+    saveWeeklyIncentive(data) { return this.call('save_weekly_incentive', data); },
+    getWeeklyIncentives(params) { return this.call('get_weekly_incentives', params || {}); },
+
+    // Payroll
+    calculatePayroll(data) { return this.call('calculate_payroll', data); },
+    savePayroll(data) { return this.call('save_payroll', data); },
+    getPayroll(params) { return this.call('get_payroll', params || {}); },
+    updatePayrollStatus(data) { return this.call('update_payroll_status', data); },
+
+    // Setup / Sheet Scaffolding
+    getSetupStatus() { return this.call('get_setup_status'); },
+    runSetup(actions) { return this.call('run_setup', { actions }); }
 };

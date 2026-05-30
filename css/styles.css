@@ -1440,3 +1440,91 @@ tr:hover td { background: #fafbff; }
         min-width: 80px;
     }
 }
+
+/* ── Utility classes ────────────────────────────────────────────────────── */
+.muted       { color: #718096; font-size: 13px; }
+.error-text  { color: #e53e3e; }
+
+.btn-sm { padding: 5px 12px; font-size: 13px; }
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+@media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.badge-success { background:#c6f6d5; color:#22543d; }
+.badge-warning { background:#fefcbf; color:#744210; }
+.badge-danger  { background:#fed7d7; color:#742a2a; }
+.badge-error   { background:#fed7d7; color:#742a2a; }
+.badge-info    { background:#bee3f8; color:#2a4365; }
+
+/* ── Setup page ─────────────────────────────────────────────────────────── */
+.setup-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.setup-all-ok {
+    color: #276749;
+    background: #f0fff4;
+    border: 1px solid #9ae6b4;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 0;
+}
+.setup-notice {
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+.setup-notice-warn { background:#fffbeb; border:1px solid #fbd38d; color:#744210; }
+
+.setup-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.setup-table-wrap { overflow-x: auto; }
+.setup-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.setup-table th {
+    text-align: left;
+    padding: 8px 10px;
+    background: #f7fafc;
+    border-bottom: 2px solid #e2e8f0;
+    font-weight: 600;
+    color: #4a5568;
+}
+.setup-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #edf2f7;
+    vertical-align: middle;
+}
+.setup-table tr:last-child td { border-bottom: none; }
+.setup-row-ok td { color: #a0aec0; }
+.setup-row-ok strong { font-weight: 500; color: #a0aec0; }
+.setup-detail { font-size: 12px; color: #718096; max-width: 380px; }
+.setup-detail code {
+    background: #edf2f7;
+    border-radius: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+    word-break: break-all;
+}

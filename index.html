@@ -92,24 +92,12 @@
             
             <div class="nav-section">
                 <div class="nav-section-title">Master Data</div>
-                <div class="nav-item" data-page="servicegroups">
-                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                    </svg>
-                    Service Groups
-                </div>
                 <div class="nav-item" data-page="services">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                     </svg>
-                    Service Catalog
+                    Services
                 </div>
-				<div class="nav-item" data-page="pricebooks">
-					<svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-					</svg>
-					Price Books
-				</div>
                 <div class="nav-item" data-page="products">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
@@ -190,6 +178,12 @@
                     </svg>
                     Organizations
                 </div>
+                <div class="nav-item" data-page="settings">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Settings
+                </div>
             </div>
         </div>
         
@@ -233,266 +227,691 @@
                 </div>
             </div>
             
-            <!-- Service Groups -->
-            <div class="content-section" id="servicegroups">
-                <div class="page-header">
-                    <h1 class="page-title">Service Groups</h1>
-                    <p class="page-subtitle">Group services by category and set GST rates</p>
-                </div>
+            <!-- Services (multi-tab: Service Groups | Service Catalog | Price Books) -->
+<div class="content-section" id="services">
+    <div class="page-header">
+        <h1 class="page-title">Services</h1>
+        <p class="page-subtitle">Manage service groups, catalog, and pricing</p>
+    </div>
 
-                <div id="serviceGroupMessage" class="message"></div>
+    <div class="prod-tabs">
+        <button class="prod-tab active" data-tab="svc-groups">Service Groups</button>
+        <button class="prod-tab" data-tab="svc-catalog">Service Catalog</button>
+        <button class="prod-tab" data-tab="svc-pricebooks">Price Books</button>
+    </div>
 
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #2d3748;">Add New Service Group</h3>
-                        <button class="btn btn-secondary" id="toggleServiceGroupForm">
-                            <span id="serviceGroupFormToggleText">Show Form</span>
-                        </button>
+    <!-- ═══ TAB: SERVICE GROUPS ═══ -->
+    <div id="prod-tab-svc-groups" class="prod-tab-panel active">
+        <div id="serviceGroupMessage" class="message"></div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3 style="color:#2d3748;">Service Groups</h3>
+                <button class="btn btn-secondary" id="toggleServiceGroupForm">
+                    <span id="serviceGroupFormToggleText">Add Group</span>
+                </button>
+            </div>
+            <form id="serviceGroupForm" style="display:none;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="serviceGroupName">Group Name*</label>
+                        <input type="text" id="serviceGroupName" required>
                     </div>
+                    <div class="form-group">
+                        <label for="serviceGroupGstPct">GST (%)*</label>
+                        <input type="number" id="serviceGroupGstPct" min="0" max="100" step="0.01" placeholder="18" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupSacCode">SAC Code</label>
+                        <input type="text" id="serviceGroupSacCode" placeholder="e.g. 999721">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupDirectIncentivePct">Direct Incentive (%)</label>
+                        <input type="number" id="serviceGroupDirectIncentivePct" min="0" max="100" step="0.01" value="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupSortOrder">Sort Order</label>
+                        <input type="number" id="serviceGroupSortOrder" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupStatus">Status</label>
+                        <select id="serviceGroupStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="serviceGroupCountForTarget" style="margin-right:6px;">
+                        Counts towards staff target revenue
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="serviceGroupDescription">Description</label>
+                    <textarea id="serviceGroupDescription" placeholder="Optional"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" id="saveServiceGroupBtn">Save Group</button>
+                    <button type="button" class="btn btn-secondary" id="cancelServiceGroupBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>SAC Code</th><th>GST%</th>
+                        <th>Target?</th><th>Direct%</th><th>Sort</th>
+                        <th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="serviceGroupsTableBody">
+                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-                    <form id="serviceGroupForm" style="display: none;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                            <div class="form-group">
-                                <label for="serviceGroupName">Group Name*</label>
-                                <input type="text" id="serviceGroupName" placeholder="e.g., Hair, Skin, Nails" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="serviceGroupGst">GST (%)*</label>
-                                <input type="number" id="serviceGroupGst" min="0" max="100" step="0.01" placeholder="e.g., 18" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="serviceGroupStatus">Status</label>
-                                <select id="serviceGroupStatus">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
+    <!-- ═══ TAB: SERVICE CATALOG ═══ -->
+    <div id="prod-tab-svc-catalog" class="prod-tab-panel">
+        <div id="serviceMessage" class="message"></div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3 style="color:#2d3748;">Add New Service</h3>
+                <button class="btn btn-secondary" id="toggleServiceForm">
+                    <span id="serviceFormToggleText">Show Form</span>
+                </button>
+            </div>
+            <form id="serviceForm" style="display:none;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="serviceName">Service Name*</label>
+                        <input type="text" id="serviceName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupId">Service Group*</label>
+                        <select id="serviceGroupId" required>
+                            <option value="">Select Service Group</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceDefaultPrice">Default Price*</label>
+                        <input type="number" id="serviceDefaultPrice" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceDuration">Duration (mins)*</label>
+                        <input type="number" id="serviceDuration" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceStatus">Status</label>
+                        <select id="serviceStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="serviceDescription">Description</label>
+                    <textarea id="serviceDescription"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" id="saveServiceBtn">Save Service</button>
+                    <button type="button" class="btn btn-secondary" id="cancelServiceBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:16px;color:#2d3748;">Services List</h3>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Service Name</th><th>Service Group</th>
+                        <th>Duration</th><th>Default Price</th>
+                        <th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="servicesTableBody">
+                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading services...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PRICE BOOKS ═══ -->
+    <div id="prod-tab-svc-pricebooks" class="prod-tab-panel">
+        <div id="priceBooksList">
+            <div id="priceBookMessage" class="message"></div>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 style="color:#2d3748;">Add New Price Book</h3>
+                    <button class="btn btn-secondary" id="togglePriceBookForm">
+                        <span id="priceBookFormToggleText">Show Form</span>
+                    </button>
+                </div>
+                <form id="priceBookForm" style="display:none;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+                        <div class="form-group">
+                            <label for="priceBookName">Price Book Name*</label>
+                            <input type="text" id="priceBookName" placeholder="e.g., Standard Pricing" required>
                         </div>
                         <div class="form-group">
-                            <label for="serviceGroupDescription">Description</label>
-                            <textarea id="serviceGroupDescription" placeholder="Optional description"></textarea>
+                            <label for="priceBookStatus">Status</label>
+                            <select id="priceBookStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
                         </div>
-                        <div class="btn-group">
-                            <button type="submit" class="btn btn-primary" id="saveServiceGroupBtn">Save Group</button>
-                            <button type="button" class="btn btn-secondary" id="cancelServiceGroupBtn">Cancel</button>
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card">
-                    <h3 style="margin-bottom: 16px; color: #2d3748;">Service Groups List</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Description</th>
-                                    <th>GST</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="serviceGroupsTableBody">
-                                <tr>
-                                    <td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td>
-                                </tr>
-                            </tbody>
-                        </table>
                     </div>
+                    <div class="form-group">
+                        <label for="priceBookDescription">Description</label>
+                        <textarea id="priceBookDescription"></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary" id="savePriceBookBtn">Save Price Book</button>
+                        <button type="button" class="btn btn-secondary" id="cancelPriceBookBtn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Price Books List</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr>
+                            <th>Name</th><th>Description</th><th>Status</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="priceBooksTableBody">
+                            <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading price books...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-			<!-- Service Catalog -->
-			<div class="content-section" id="services">
-				<div class="page-header">
-					<h1 class="page-title">Service Catalog</h1>
-					<p class="page-subtitle">Manage your salon services</p>
-				</div>
-				
-				<div id="serviceMessage" class="message"></div>
-				
-				<div class="card">
-					<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-						<h3 style="color: #2d3748;">Add New Service</h3>
-						<button class="btn btn-secondary" id="toggleServiceForm">
-							<span id="serviceFormToggleText">Show Form</span>
-						</button>
-					</div>
-					
-					<form id="serviceForm" style="display: none;">
-						<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-							<div class="form-group">
-								<label for="serviceName">Service Name*</label>
-								<input type="text" id="serviceName" required>
-							</div>
-							<div class="form-group">
-								<label for="serviceGroupId">Service Group*</label>
-								<select id="serviceGroupId" required>
-									<option value="">Select Service Group</option>
-								</select>
-							</div>
-							<div class="form-group">
-								<label for="serviceDefaultPrice">Default Price*</label>
-  								<input type="number" id="serviceDefaultPrice" step="0.01" required>
-							</div>
-							<div class="form-group">
-								<label for="serviceDuration">Duration (mins)*</label>
-								<input type="number" id="serviceDuration" required>
-							</div>
-							<div class="form-group">
-								<label for="serviceStatus">Status</label>
-								<select id="serviceStatus">
-									<option value="active">Active</option>
-									<option value="inactive">Inactive</option>
-								</select>
-							</div>
-						</div>
-						<div class="form-group">
-							<label for="serviceDescription">Description</label>
-							<textarea id="serviceDescription"></textarea>
-						</div>
-						<div class="btn-group">
-							<button type="submit" class="btn btn-primary" id="saveServiceBtn">Save Service</button>
-							<button type="button" class="btn btn-secondary" id="cancelServiceBtn">Cancel</button>
-						</div>
-					</form>
-				</div>
-				
-				<div class="card">
-					<h3 style="margin-bottom: 16px; color: #2d3748;">Services List</h3>
-					<div class="table-container">
-						<table>
-							<thead>
-								<tr>
-									<th>Service Name</th>
-									<th>Service Group</th>
-									<th>Duration</th>
-									<th>Default Price</th>
-									<th>Status</th>
-									<th>Actions</th>
-								</tr>
-							</thead>
-							<tbody id="servicesTableBody">
-								<tr>
-									<td colspan="6" style="text-align: center; color: #a0aec0;">Loading services...</td>
-								</tr>
-							</tbody>
-						</table>
-					</div>
-				</div>
-			</div>
+        </div>
+        <!-- Price Book Items View -->
+        <div id="priceBookItems" style="display:none;">
+            <div class="page-header">
+                <button class="btn btn-secondary" onclick="PriceBooks.backToPriceBooks()">← Back to Price Books</button>
+                <h1 class="page-title" id="priceBookItemsTitle">Service Prices</h1>
+            </div>
+            <div id="priceBookItemMessage" class="message"></div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Add Service Price</h3>
+                <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:16px;align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="priceBookItemService">Service</label>
+                        <select id="priceBookItemService"><option value="">Select Service</option></select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="priceBookItemPrice">Price</label>
+                        <input type="number" id="priceBookItemPrice" step="0.01" placeholder="0.00">
+                    </div>
+                    <button class="btn btn-primary" onclick="PriceBooks.addItemToCurrentPriceBook()">Add Price</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Service Prices</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Service</th><th>Category</th><th>Price</th><th>Actions</th></tr></thead>
+                        <tbody id="priceBookItemsTableBody">
+                            <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading prices...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
             
-            <!-- Staff -->
-            <div class="content-section" id="staff">
-                <div class="page-header">
-                    <h1 class="page-title">Staff Management</h1>
-                    <p class="page-subtitle">Manage your salon team members</p>
-                </div>
-                
-                <div id="staffMessage" class="message"></div>
-                
-                <div class="card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #2d3748;">Add New Staff Member</h3>
-                        <button class="btn btn-secondary" id="toggleStaffForm">
-                            <span id="staffFormToggleText">Show Form</span>
-                        </button>
+            <!-- Staff HR Management -->
+<div class="content-section" id="staff">
+    <div class="page-header">
+        <h1 class="page-title">Staff & HR</h1>
+        <p class="page-subtitle">Manage staff, incentive profiles, shifts, attendance, and payroll</p>
+    </div>
+
+    <div id="staffMessage" class="message"></div>
+
+    <div class="prod-tabs">
+        <button class="prod-tab active" data-tab="hr-staff">Staff</button>
+        <button class="prod-tab" data-tab="hr-profiles">Incentive Profiles</button>
+        <button class="prod-tab" data-tab="hr-shifts">Shifts</button>
+        <button class="prod-tab" data-tab="hr-attendance">Attendance</button>
+        <button class="prod-tab" data-tab="hr-payroll">Payroll</button>
+    </div>
+
+    <!-- ═══ TAB: STAFF ═══ -->
+    <div id="prod-tab-hr-staff" class="prod-tab-panel active">
+        <div id="hrStaffFormCard" class="card" style="display:none;">
+            <h3 id="hrStaffFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Staff Member</h3>
+            <form id="hrStaffForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrStaffName">Name*</label>
+                        <input type="text" id="hrStaffName" required>
                     </div>
-                    
-                    <form id="staffForm" style="display: none;">
-                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-                            <div class="form-group">
-                                <label for="staffName">Name*</label>
-                                <input type="text" id="staffName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="staffPhone">Phone*</label>
-                                <input type="tel" id="staffPhone" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="staffEmail">Email*</label>
-                                <input type="email" id="staffEmail" required>
-                            </div>
-							<div class="form-group">
-  								<label for="staffAadhar">Aadhar Number</label>
-								  <input type="text" id="staffAadhar" placeholder="1234-5678-9012">
-							</div>
-							<div class="form-group">
-								<label for="staffUpi">UPI ID</label>
-  								<input type="text" id="staffUpi" placeholder="user@upi">
-							</div>
-							<div class="form-group">
-  								<label for="staffStartDate">Start Date*</label>
-  								<input type="date" id="staffStartDate" required>
-							</div>
-                            <div class="form-group">
-                                <label for="staffRole">Role*</label>
-                                <select id="staffRole" required>
-                                    <option value="">Select Role</option>
-                                    <option value="Stylist">Stylist</option>
-                                    <option value="Colorist">Colorist</option>
-                                    <option value="Manager">Manager</option>
-                                    <option value="Receptionist">Receptionist</option>
-                                    <option value="Trainee">Trainee</option>
-                                </select>
-                            </div>
-							<div class="form-group">
-  								<label for="staffSalary">Salary</label>
-  								<input type="number" id="staffSalary" step="0.01" placeholder="3000">
-							</div>
-							<div class="form-group">
-  								<label for="staffAllowance">Allowance</label>
-  								<input type="number" id="staffAllowance" step="0.01" placeholder="500">
-							</div>
-							<div class="form-group">
-  								<label for="staffIncentive">Incentive Structure</label>
-  								<textarea id="staffIncentive" placeholder="e.g., 10% of sales"></textarea>
-							</div>
-                            <div class="form-group">
-                                <label for="staffSpecialization">Specialization</label>
-                                <input type="text" id="staffSpecialization" placeholder="e.g., Hair Coloring, Bridal Makeup">
-                            </div>
-                            <div class="form-group">
-                                <label for="staffStatus">Status</label>
-                                <select id="staffStatus">
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="btn-group">
-                            <button type="submit" class="btn btn-primary" id="saveStaffBtn">Save Staff Member</button>
-                            <button type="button" class="btn btn-secondary" id="cancelStaffBtn">Cancel</button>
-                        </div>
-                    </form>
-                </div>
-                
-                <div class="card">
-                    <h3 style="margin-bottom: 16px; color: #2d3748;">Staff List</h3>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-									<th>Name</th>
-   									<th>Phone</th>
-    								<th>Email</th>
-    								<th>Role</th>
-   									<th>Start Date</th>
-   									<th>Salary</th>
-    								<th>Specialization</th>
-    								<th>Status</th>
-    								<th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="staffTableBody">
-                                <tr>
-                                    <td colspan="7" style="text-align: center; color: #a0aec0;">Loading staff...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="form-group">
+                        <label for="hrStaffPhone">Phone*</label>
+                        <input type="tel" id="hrStaffPhone" required>
                     </div>
+                    <div class="form-group">
+                        <label for="hrStaffEmail">Email</label>
+                        <input type="email" id="hrStaffEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffAadhar">Aadhar Number</label>
+                        <input type="text" id="hrStaffAadhar" placeholder="1234-5678-9012">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffUpi">UPI / GPay ID</label>
+                        <input type="text" id="hrStaffUpi" placeholder="user@upi">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffStartDate">Start Date*</label>
+                        <input type="date" id="hrStaffStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffRole">Role*</label>
+                        <select id="hrStaffRole" required>
+                            <option value="">Select Role</option>
+                            <option value="Stylist">Stylist</option>
+                            <option value="Colorist">Colorist</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Receptionist">Receptionist</option>
+                            <option value="Housekeeping">Housekeeping</option>
+                            <option value="Trainee">Trainee</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffType">Staff Type*</label>
+                        <select id="hrStaffType" required>
+                            <option value="service_provider">Service Provider</option>
+                            <option value="manager">Manager</option>
+                            <option value="housekeeping">Housekeeping</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffSalary">Base Salary (₹)</label>
+                        <input type="number" id="hrStaffSalary" step="0.01" placeholder="15000">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffAllowance">Allowances (₹)</label>
+                        <input type="number" id="hrStaffAllowance" step="0.01" placeholder="500">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffSpecialization">Specialization</label>
+                        <input type="text" id="hrStaffSpecialization" placeholder="e.g., Hair Coloring">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffProfileId">Incentive Profile</label>
+                        <select id="hrStaffProfileId">
+                            <option value="">No Profile</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffTargetPeriod">Target Period</label>
+                        <select id="hrStaffTargetPeriod">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffStatus">Status</label>
+                        <select id="hrStaffStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrStaffSaveBtn">Save Staff Member</button>
+                    <button type="button" class="btn btn-secondary" id="hrStaffCancelBtn">Cancel</button>
+                </div>
+            </form>
+            <!-- Advance Ledger (shown when editing) -->
+            <div id="hrAdvanceSection" style="display:none;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:20px;">
+                <h4 style="color:#2d3748;margin-bottom:4px;">Advance Ledger — <span id="hrAdvanceName" style="color:#667eea;"></span></h4>
+                <p style="color:#718096;font-size:13px;margin-bottom:12px;">Outstanding balance: <strong id="hrAdvanceBalance">₹0.00</strong></p>
+                <div class="table-container" style="margin-bottom:16px;">
+                    <table>
+                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Balance</th></tr></thead>
+                        <tbody id="hrAdvanceTableBody">
+                            <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No entries</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Date</label>
+                        <input type="date" id="hrAdvDate">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Type</label>
+                        <select id="hrAdvType">
+                            <option value="advance">Advance (give)</option>
+                            <option value="repayment">Repayment (recover)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="hrAdvAmount" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Notes</label>
+                        <input type="text" id="hrAdvNotes" placeholder="Optional">
+                    </div>
+                    <button class="btn btn-secondary" id="hrAdvSaveBtn" type="button" style="align-self:flex-end;">Add Entry</button>
                 </div>
             </div>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
+                <div style="display:flex;gap:10px;">
+                    <input type="search" id="hrStaffSearch" placeholder="Search staff…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
+                    <button class="btn btn-primary" id="hrStaffAddBtn">+ Add Staff</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
+                        <th>Profile</th><th>Salary</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrStaffTableBody">
+                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: INCENTIVE PROFILES ═══ -->
+    <div id="prod-tab-hr-profiles" class="prod-tab-panel">
+        <div id="hrProfFormCard" class="card" style="display:none;">
+            <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Incentive Profile</h3>
+            <form id="hrProfForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrProfName">Profile Name*</label>
+                        <input type="text" id="hrProfName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfType">Profile Type</label>
+                        <select id="hrProfType">
+                            <option value="service_provider">Service Provider</option>
+                            <option value="manager">Manager</option>
+                            <option value="housekeeping">Housekeeping</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfRevenueBase">Revenue Base</label>
+                        <select id="hrProfRevenueBase">
+                            <option value="individual">Individual (own revenue)</option>
+                            <option value="org">Org (total salon revenue)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfOtRate">OT Hourly Rate (₹)</label>
+                        <input type="number" id="hrProfOtRate" min="0" step="0.01" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL1Type">L1 Target Type</label>
+                        <select id="hrProfL1Type">
+                            <option value="fixed">Fixed Amount (₹)</option>
+                            <option value="salary_pct">% of Base Salary</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL1Value">L1 Value</label>
+                        <input type="number" id="hrProfL1Value" min="0" step="0.01" placeholder="e.g. 10000 or 150">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL2Type">L2 Target Type</label>
+                        <select id="hrProfL2Type">
+                            <option value="fixed">Fixed Amount (₹)</option>
+                            <option value="salary_pct">% of Base Salary</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL2Value">L2 Value</label>
+                        <input type="number" id="hrProfL2Value" min="0" step="0.01" placeholder="e.g. 35000 or 350">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfXPct">X% (0 → L1)</label>
+                        <input type="number" id="hrProfXPct" min="0" max="100" step="0.01" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfYPct">Y% (L1 → L2)</label>
+                        <input type="number" id="hrProfYPct" min="0" max="100" step="0.01" value="1.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfZPct">Z% (above L2)</label>
+                        <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfStatus">Status</label>
+                        <select id="hrProfStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Profile</button>
+                    <button type="button" class="btn btn-secondary" id="hrProfCancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Incentive Profiles</h3>
+                <button class="btn btn-primary" id="hrProfAddBtn">+ Add Profile</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Type</th><th>Revenue Base</th>
+                        <th>OT Rate</th><th>L1</th><th>L2</th>
+                        <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrProfTableBody">
+                        <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: SHIFTS ═══ -->
+    <div id="prod-tab-hr-shifts" class="prod-tab-panel">
+        <div id="hrShiftFormCard" class="card" style="display:none;">
+            <h3 id="hrShiftFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Shift</h3>
+            <form id="hrShiftForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrShiftName">Shift Name*</label>
+                        <input type="text" id="hrShiftName" placeholder="e.g. Morning" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftStart">Start Time*</label>
+                        <input type="time" id="hrShiftStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftEnd">End Time*</label>
+                        <input type="time" id="hrShiftEnd" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftBreak">Break (mins)</label>
+                        <input type="number" id="hrShiftBreak" min="0" value="30">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftStatus">Status</label>
+                        <select id="hrShiftStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrShiftSaveBtn">Save Shift</button>
+                    <button type="button" class="btn btn-secondary" id="hrShiftCancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Shift Definitions</h3>
+                <button class="btn btn-primary" id="hrShiftAddBtn">+ Add Shift</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Start</th><th>End</th><th>Break (mins)</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrShiftTableBody">
+                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h3 style="color:#2d3748;margin-bottom:16px;">Assign Shift to Staff</h3>
+            <div id="hrAllocMessage" class="message"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;align-items:end;margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAllocStaff">Staff*</label>
+                    <select id="hrAllocStaff"><option value="">Select Staff</option></select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAllocShift">Shift*</label>
+                    <select id="hrAllocShift"><option value="">Select Shift</option></select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAllocFrom">Effective From*</label>
+                    <input type="date" id="hrAllocFrom">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAllocTo">Effective To (blank = current)</label>
+                    <input type="date" id="hrAllocTo">
+                </div>
+                <button class="btn btn-primary" id="hrAllocSaveBtn" type="button" style="align-self:flex-end;">Assign</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Staff</th><th>Shift</th><th>From</th><th>To</th></tr></thead>
+                    <tbody id="hrAllocTableBody">
+                        <tr><td colspan="4" style="text-align:center;color:#a0aec0;">—</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: ATTENDANCE ═══ -->
+    <div id="prod-tab-hr-attendance" class="prod-tab-panel">
+        <div class="card">
+            <div id="hrAttMessage" class="message"></div>
+            <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttMonth">Month</label>
+                    <input type="month" id="hrAttMonth">
+                </div>
+                <button class="btn btn-primary" id="hrAttLoadBtn">Load Grid</button>
+            </div>
+            <div id="hrAttGridWrap" style="overflow-x:auto;">
+                <p style="color:#a0aec0;text-align:center;padding:24px;">Select a month and click Load Grid</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PAYROLL ═══ -->
+    <div id="prod-tab-hr-payroll" class="prod-tab-panel">
+        <div class="card">
+            <h3 style="color:#2d3748;margin-bottom:16px;">Generate Payroll</h3>
+            <div id="hrPayMessage" class="message"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayPeriod">Month*</label>
+                    <input type="month" id="hrPayPeriod">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayPayableDays">Payable Days</label>
+                    <input type="number" id="hrPayPayableDays" value="26" min="1" max="31">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayEligibleOffs">Eligible Offs (free)</label>
+                    <input type="number" id="hrPayEligibleOffs" value="4" min="0">
+                </div>
+                <button class="btn btn-primary" id="hrPayCalcBtn" type="button" style="align-self:flex-end;">Calculate for All Staff</button>
+            </div>
+            <div id="hrPayCalcWrap" style="display:none;">
+                <div class="table-container" style="margin-bottom:16px;">
+                    <table>
+                        <thead><tr>
+                            <th>Staff</th><th>Base</th><th>Days Off</th><th>Excess</th>
+                            <th>Leave Deduct</th><th>Adj. Base</th><th>OT Pay</th>
+                            <th>Incentives</th><th>Advance Deduct</th><th>Net Pay</th>
+                        </tr></thead>
+                        <tbody id="hrPayCalcBody"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-primary" id="hrPaySaveBtn" type="button">Save Payroll</button>
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Payroll History</h3>
+                <input type="month" id="hrPayHistFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Staff</th><th>Period</th><th>Net Pay</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrPayHistBody">
+                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No payroll records</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Edit Modal -->
+    <div id="hrAttModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div class="modal-box" style="max-width:420px;width:100%;">
+            <h3 id="hrAttModalTitle" style="color:#2d3748;margin-bottom:16px;">Edit Attendance</h3>
+            <div id="hrAttModalMsg" class="message"></div>
+            <div style="display:grid;gap:12px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttClockIn">Clock In</label>
+                    <input type="time" id="hrAttClockIn">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttClockOut">Clock Out</label>
+                    <input type="time" id="hrAttClockOut">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttStatus">Status</label>
+                    <select id="hrAttStatus">
+                        <option value="present">Present</option>
+                        <option value="absent">Absent</option>
+                        <option value="half-day">Half Day</option>
+                        <option value="leave">Leave</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttNotes">Notes</label>
+                    <input type="text" id="hrAttNotes" placeholder="Optional">
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top:20px;">
+                <button class="btn btn-primary" id="hrAttModalSaveBtn">Save</button>
+                <button class="btn btn-secondary" id="hrAttModalCancelBtn">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
             
             <!-- Customers -->
             <div class="content-section" id="customers">
@@ -542,120 +961,6 @@
                 </div>
             </div>
             
-			<!-- Price Books -->
-			<div class="content-section" id="pricebooks">
-				<div id="priceBooksList">
-					<div class="page-header">
-						<h1 class="page-title">Price Books</h1>
-						<p class="page-subtitle">Manage different pricing structures</p>
-					</div>
-					
-					<div id="priceBookMessage" class="message"></div>
-					
-					<div class="card">
-						<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-							<h3 style="color: #2d3748;">Add New Price Book</h3>
-							<button class="btn btn-secondary" id="togglePriceBookForm">
-								<span id="priceBookFormToggleText">Show Form</span>
-							</button>
-						</div>
-						
-						<form id="priceBookForm" style="display: none;">
-							<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-								<div class="form-group">
-									<label for="priceBookName">Price Book Name*</label>
-									<input type="text" id="priceBookName" placeholder="e.g., Standard Pricing" required>
-								</div>
-								<div class="form-group">
-									<label for="priceBookStatus">Status</label>
-									<select id="priceBookStatus">
-										<option value="active">Active</option>
-										<option value="inactive">Inactive</option>
-									</select>
-								</div>
-							</div>
-							<div class="form-group">
-								<label for="priceBookDescription">Description</label>
-								<textarea id="priceBookDescription" placeholder="e.g., Regular customer pricing"></textarea>
-							</div>
-							<div class="btn-group">
-								<button type="submit" class="btn btn-primary" id="savePriceBookBtn">Save Price Book</button>
-								<button type="button" class="btn btn-secondary" id="cancelPriceBookBtn">Cancel</button>
-							</div>
-						</form>
-					</div>
-					
-					<div class="card">
-						<h3 style="margin-bottom: 16px; color: #2d3748;">Price Books List</h3>
-						<div class="table-container">
-							<table>
-								<thead>
-									<tr>
-										<th>Name</th>
-										<th>Description</th>
-										<th>Status</th>
-										<th>Actions</th>
-									</tr>
-								</thead>
-								<tbody id="priceBooksTableBody">
-									<tr>
-										<td colspan="4" style="text-align: center; color: #a0aec0;">Loading price books...</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-				</div>
-				
-				<!-- Price Book Items View -->
-				<div id="priceBookItems" style="display: none;">
-					<div class="page-header">
-						<button class="btn btn-secondary" onclick="PriceBooks.backToPriceBooks()">← Back to Price Books</button>
-						<h1 class="page-title" id="priceBookItemsTitle">Service Prices</h1>
-					</div>
-					
-					<div id="priceBookItemMessage" class="message"></div>
-					
-					<div class="card">
-						<h3 style="margin-bottom: 16px; color: #2d3748;">Add Service Price</h3>
-						<div style="display: grid; grid-template-columns: 2fr 1fr auto; gap: 16px; align-items: end;">
-							<div class="form-group" style="margin-bottom: 0;">
-								<label for="priceBookItemService">Service</label>
-								<select id="priceBookItemService">
-									<option value="">Select Service</option>
-								</select>
-							</div>
-							<div class="form-group" style="margin-bottom: 0;">
-								<label for="priceBookItemPrice">Price</label>
-								<input type="number" id="priceBookItemPrice" step="0.01" placeholder="0.00">
-							</div>
-							<button class="btn btn-primary" onclick="PriceBooks.addItemToCurrentPriceBook()">Add Price</button>
-						</div>
-					</div>
-					
-					<div class="card">
-						<h3 style="margin-bottom: 16px; color: #2d3748;">Service Prices</h3>
-						<div class="table-container">
-							<table>
-								<thead>
-									<tr>
-										<th>Service</th>
-										<th>Category</th>
-										<th>Price</th>
-										<th>Actions</th>
-									</tr>
-								</thead>
-								<tbody id="priceBookItemsTableBody">
-									<tr>
-										<td colspan="4" style="text-align: center; color: #a0aec0;">Loading prices...</td>
-									</tr>
-								</tbody>
-							</table>
-						</div>
-					</div>
-				</div>
-			</div>
-			
             <!-- Placeholder Pages -->
             <!-- Products Inventory -->
             <div class="content-section" id="products">
@@ -668,12 +973,76 @@
 
                 <!-- Tab Bar -->
                 <div class="prod-tabs">
+                    <button class="prod-tab" data-tab="product-groups">Product Groups</button>
                     <button class="prod-tab active" data-tab="products">Products</button>
                     <button class="prod-tab" data-tab="purchase-orders">Purchase Orders</button>
                     <button class="prod-tab" data-tab="receive-stock">Receive Stock</button>
                     <button class="prod-tab" data-tab="stock-register">Stock Register</button>
                     <button class="prod-tab" data-tab="stock-audit">Stock Audit</button>
                 </div>
+
+                <!-- ═══════════ TAB: PRODUCT GROUPS ═══════════ -->
+<div id="prod-tab-product-groups" class="prod-tab-panel">
+    <div id="pgMessage" class="message"></div>
+    <div id="pgFormCard" class="card" style="display:none;">
+        <h3 id="pgFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Product Group</h3>
+        <form id="pgForm">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
+                <div class="form-group">
+                    <label for="pgName">Group Name*</label>
+                    <input type="text" id="pgName" required>
+                </div>
+                <div class="form-group">
+                    <label for="pgGstPct">GST (%)*</label>
+                    <input type="number" id="pgGstPct" min="0" max="100" step="0.01" placeholder="18" required>
+                </div>
+                <div class="form-group">
+                    <label for="pgHsnCode">HSN Code</label>
+                    <input type="text" id="pgHsnCode" placeholder="e.g. 33059090">
+                </div>
+                <div class="form-group">
+                    <label for="pgUnitIncentive">Unit Incentive (₹/unit)</label>
+                    <input type="number" id="pgUnitIncentive" min="0" step="0.01" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="pgSortOrder">Sort Order</label>
+                    <input type="number" id="pgSortOrder" min="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="pgStatus">Status</label>
+                    <select id="pgStatus">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top:20px;">
+                <button type="submit" class="btn btn-primary" id="pgSaveBtn">Save Group</button>
+                <button type="button" class="btn btn-secondary" id="pgCancelBtn">Cancel</button>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <h3 style="color:#2d3748;margin:0;">Product Groups</h3>
+            <div style="display:flex;gap:10px;">
+                <input type="search" id="pgSearch" placeholder="Search groups…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
+                <button class="btn btn-primary" id="pgAddBtn">+ Add Group</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead><tr>
+                    <th>Name</th><th>GST%</th><th>HSN Code</th>
+                    <th>Unit Incentive</th><th>Sort</th><th>Status</th><th>Actions</th>
+                </tr></thead>
+                <tbody id="pgTableBody">
+                    <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
                 <!-- ═══════════ TAB: PRODUCTS ═══════════ -->
                 <div id="prod-tab-products" class="prod-tab-panel active">
@@ -1930,6 +2299,69 @@
         </div>
     </div>
 
+    <!-- Settings -->
+    <div class="content-section" id="settings">
+        <div class="page-header">
+            <h1 class="page-title">Settings</h1>
+            <p class="page-subtitle">Org configuration and sheet setup</p>
+        </div>
+
+        <div id="settingsMessage" class="message"></div>
+
+        <!-- ── Sheet Setup ──────────────────────────────────────────────── -->
+        <div class="card" style="margin-bottom:24px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                <div>
+                    <h3 style="margin:0; color:#2d3748;">Sheet Setup &amp; Verification</h3>
+                    <p class="muted" style="margin:4px 0 0;">Checks all required Google Sheets and lets you create or repair them in one click.</p>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="setupRefreshBtn">↻ Re-check</button>
+            </div>
+            <div id="setupStatusCard"><p class="muted">Loading…</p></div>
+        </div>
+
+        <!-- ── Org Settings ─────────────────────────────────────────────── -->
+        <div class="card">
+            <h3 style="margin-bottom:16px; color:#2d3748;">Organisation Settings</h3>
+            <form id="orgSettingsForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgSalonName">Salon Name</label>
+                        <input type="text" id="orgSalonName" placeholder="e.g. Glamour Studio">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgGstNumber">GST Number</label>
+                        <input type="text" id="orgGstNumber" placeholder="e.g. 29ABCDE1234F1Z5">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgCurrencySymbol">Currency Symbol</label>
+                        <input type="text" id="orgCurrencySymbol" value="₹" maxlength="4">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgDefaultTargetPeriod">Default Target Period</label>
+                        <select id="orgDefaultTargetPeriod">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="orgSalaryPayDay">Salary Pay Day (day of month)</label>
+                        <input type="number" id="orgSalaryPayDay" min="1" max="28" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label for="orgDefaultOffs">Default Eligible Offs / Month</label>
+                        <input type="number" id="orgDefaultOffs" min="0" max="30" value="4">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="orgSettingsSaveBtn">Save Settings</button>
+            </form>
+        </div>
+    </div>
+
     <script src="js/config.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
@@ -1950,6 +2382,8 @@
     <script src="js/expenses.js"></script>
     <script src="js/vendors.js"></script>
     <script src="js/app.js"></script>
-    
+    <script src="js/productgroups.js"></script>
+    <script src="js/settings.js"></script>
+
 </body>
 </html>

@@ -14,7 +14,8 @@ const Staff = {
         phone: staffData[i][3], email: staffData[i][4], aadharNumber: staffData[i][5],
         upiId: staffData[i][6], startDate: staffData[i][7], role: staffData[i][8],
         salary: staffData[i][9], allowance: staffData[i][10],
-        incentiveStructure: staffData[i][11], specialization: staffData[i][12], status: staffData[i][13]
+        incentiveStructure: staffData[i][11], specialization: staffData[i][12], status: staffData[i][13],
+        staffType: staffData[i][14] || 'service_provider', profileId: staffData[i][15] || '', targetPeriod: staffData[i][16] || 'monthly'
       });
     }
 
@@ -30,7 +31,8 @@ const Staff = {
     sheet.appendRow([staffId, data.userId || '', data.name, data.phone, data.email,
                      data.aadharNumber, data.upiId, data.startDate, data.role,
                      data.salary, data.allowance, data.incentiveStructure,
-                     data.specialization, data.status || 'active']);
+                     data.specialization, data.status || 'active',
+                     data.staffType || 'service_provider', data.profileId || '', data.targetPeriod || 'monthly']);
     Utils.clearCached('staff');
     return Utils.createResponse('success', 'Staff member added successfully');
   },
@@ -55,6 +57,9 @@ const Staff = {
         sheet.getRange(i + 1, 12).setValue(data.incentiveStructure);
         sheet.getRange(i + 1, 13).setValue(data.specialization);
         sheet.getRange(i + 1, 14).setValue(data.status);
+        sheet.getRange(i + 1, 15).setValue(data.staffType    || 'service_provider');
+        sheet.getRange(i + 1, 16).setValue(data.profileId    || '');
+        sheet.getRange(i + 1, 17).setValue(data.targetPeriod || 'monthly');
         Utils.clearCached('staff');
         return Utils.createResponse('success', 'Staff member updated successfully');
       }
