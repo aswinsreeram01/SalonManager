@@ -37,11 +37,10 @@ const Settings = {
         if (!card) return;
         const results = this._statusData || [];
 
-        const counts = { ok: 0, missing: 0, missing_columns: 0, order_mismatch: 0 };
+        const counts = { ok: 0, missing: 0, missing_columns: 0 };
         results.forEach(r => { if (counts[r.status] !== undefined) counts[r.status]++; });
 
-        const fixable = results.filter(r => r.canFix && r.status !== 'ok');
-        const hasIssues = fixable.length > 0 || counts.order_mismatch > 0;
+        const hasIssues = counts.missing > 0 || counts.missing_columns > 0;
 
         // Summary badges
         const summary = `
@@ -49,7 +48,6 @@ const Settings = {
                 <span class="badge badge-success">✅ ${counts.ok} OK</span>
                 <span class="badge badge-danger">❌ ${counts.missing} Missing</span>
                 <span class="badge badge-warning">⚠️ ${counts.missing_columns} Missing columns</span>
-                <span class="badge badge-error">🔴 ${counts.order_mismatch} Order mismatch</span>
             </div>`;
 
         if (!hasIssues) {
@@ -65,13 +63,6 @@ const Settings = {
         });
 
         let html = summary;
-        if (counts.order_mismatch > 0) {
-            html += `<div class="setup-notice setup-notice-warn">
-                <strong>⚠️ Order-mismatch sheets cannot be auto-fixed</strong> — the column
-                sequence in the spreadsheet doesn't match the expected schema. Backup and
-                manually reorder the columns, then re-run the check.
-            </div>`;
-        }
 
         html += `
             <div class="setup-actions-bar">
@@ -98,10 +89,9 @@ const Settings = {
                     : '';
 
                 const statusBadge = {
-                    ok:               '<span class="badge badge-success">OK</span>',
-                    missing:          '<span class="badge badge-danger">Missing</span>',
-                    missing_columns:  '<span class="badge badge-warning">Missing columns</span>',
-                    order_mismatch:   '<span class="badge badge-error">Order mismatch</span>'
+                    ok:              '<span class="badge badge-success">OK</span>',
+                    missing:         '<span class="badge badge-danger">Missing</span>',
+                    missing_columns: '<span class="badge badge-warning">Missing columns</span>'
                 }[r.status] || r.status;
 
                 let detail = '';
@@ -109,8 +99,6 @@ const Settings = {
                     detail = `Will create with ${r.expected.length} columns`;
                 } else if (r.status === 'missing_columns') {
                     detail = `Will append: <code>${r.missingCols.join(', ')}</code>`;
-                } else if (r.status === 'order_mismatch') {
-                    detail = this._buildMismatchDiff(r);
                 }
 
                 html += `<tr class="${r.status === 'ok' ? 'setup-row-ok' : ''}">
@@ -222,74 +210,6 @@ const Settings = {
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = 'Save Settings'; }
         }
-    },
-
-    // Builds the <details> drill-down for an order_mismatch sheet.
-    // Shows a position-by-position diff table plus a "columns not found"
-    // summary so the user knows exactly which columns to move in Sheets.
-    _buildMismatchDiff(r) {
-        const exp = r.expected || [];
-        const act = r.existing || [];
-        const len = Math.max(exp.length, act.length);
-
-        // Build a set for quick "is this column present anywhere?" lookup
-        const actSet  = new Set(act);
-        const expSet  = new Set(exp);
-
-        // Position-by-position rows
-        let rows = '';
-        for (let i = 0; i < len; i++) {
-            const e = exp[i] || '';
-            const a = act[i] || '';
-            const match = e === a;
-
-            let eCell, aCell;
-            if (match) {
-                eCell = `<code class="diff-match">${this._esc(e)}</code>`;
-                aCell = `<code class="diff-match">${this._esc(a)}</code>`;
-            } else {
-                // Expected column: note if it appears elsewhere in sheet
-                const eNote = (!e) ? '' : actSet.has(e)
-                    ? `<span class="diff-note">(col ${act.indexOf(e) + 1} in sheet)</span>`
-                    : `<span class="diff-note diff-note-absent">not in sheet</span>`;
-                // Actual column: note if it appears in expected schema
-                const aNote = (!a) ? '' : expSet.has(a)
-                    ? `<span class="diff-note">(expected at col ${exp.indexOf(a) + 1})</span>`
-                    : `<span class="diff-note diff-note-extra">not in schema</span>`;
-
-                eCell = e ? `<code class="diff-wrong">${this._esc(e)}</code> ${eNote}` : '<span class="diff-note">—</span>';
-                aCell = a ? `<code class="diff-wrong">${this._esc(a)}</code> ${aNote}` : '<span class="diff-note">—</span>';
-            }
-
-            rows += `<tr>
-                <td class="diff-pos">${i + 1}</td>
-                <td>${eCell}</td>
-                <td>${aCell}</td>
-                <td class="diff-icon">${match ? '✅' : '❌'}</td>
-            </tr>`;
-        }
-
-        // Columns present in sheet but completely absent from schema
-        const extras = act.filter(c => !expSet.has(c));
-        const extrasNote = extras.length
-            ? `<p class="diff-extras">Extra columns in sheet (not in schema): ${extras.map(c => `<code>${this._esc(c)}</code>`).join(', ')}</p>`
-            : '';
-
-        return `<details class="diff-details">
-            <summary class="diff-summary">View column diff (${exp.length} expected / ${act.length} in sheet)</summary>
-            <div class="diff-wrap">
-                <table class="diff-table">
-                    <thead><tr>
-                        <th>#</th>
-                        <th>Expected</th>
-                        <th>In Sheet</th>
-                        <th></th>
-                    </tr></thead>
-                    <tbody>${rows}</tbody>
-                </table>
-                ${extrasNote}
-            </div>
-        </details>`;
     },
 
     _esc(s) {

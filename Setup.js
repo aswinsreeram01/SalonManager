@@ -102,7 +102,16 @@ const Setup = {
 
   // Returns the audit result for every sheet in SCHEMA.
   // Each entry: { sheet, group, status, expected, existing, missingCols, canFix }
-  // status: 'ok' | 'missing_columns' | 'order_mismatch' | 'missing'
+  // status: 'ok' | 'missing_columns' | 'missing'
+  //
+  // NOTE: GAS reads all sheets by column INDEX, not by header name.
+  // Therefore verification is purely count-based:
+  //   - existing.length >= expected.length → ok  (we trust column order)
+  //   - existing.length <  expected.length → missing_columns (safe to append tail)
+  //   - sheet absent                        → missing
+  // Header names in the schema are used only when CREATING new sheets.
+  // Sheets that were set up with human-readable headers ("User ID" vs "id")
+  // are correctly treated as ok — no false order_mismatch flags.
   getStatus() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const results = [];
@@ -131,27 +140,15 @@ const Setup = {
           .filter(h => h !== '');
       }
 
-      // Compare: check that existing headers match expected in order (prefix check)
-      const matchLen = Math.min(expected.length, existing.length);
-      let orderOk = true;
-      for (let i = 0; i < matchLen; i++) {
-        if (existing[i] !== expected[i]) { orderOk = false; break; }
-      }
-
-      if (!orderOk) {
-        // Columns present but in wrong order — cannot auto-fix without data migration
-        results.push({
-          sheet: name, group: groupOf[name] || 'Other',
-          status: 'order_mismatch', expected, existing, missingCols: [], canFix: false
-        });
-      } else if (existing.length >= expected.length) {
-        // All expected columns present and in correct order (may have extra user cols at end)
+      if (existing.length >= expected.length) {
+        // Sheet has at least as many columns as the schema requires — OK.
+        // (May have extra user-added cols at the end; that's fine.)
         results.push({
           sheet: name, group: groupOf[name] || 'Other',
           status: 'ok', expected, existing, missingCols: [], canFix: true
         });
       } else {
-        // Existing is a valid prefix — safe to append the missing tail columns
+        // Fewer columns than schema — append the missing tail columns.
         const missingCols = expected.slice(existing.length);
         results.push({
           sheet: name, group: groupOf[name] || 'Other',
