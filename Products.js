@@ -131,14 +131,20 @@ const Products = {
     const date = data.date || now.slice(0, 10);
     const prodData = prodSheet.getDataRange().getValues();
 
+    // GAP 8 fix: include vendorId / vendorName so receipt movements are traceable to a supplier
+    const vendorId   = data.vendorId   || '';
+    const vendorName = data.vendorName || '';
+
     items.forEach(item => {
       const qty = Number(item.qty) || 0;
       if (qty <= 0) return;
       const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
+      // StockMovements cols: movementId(0), date(1), productId(2), productName(3), type(4),
+      //   refId(5), qty(6), unitCost(7), notes(8), createdAt(9), vendorId(10), vendorName(11)
       movSheet.appendRow([
         movId, date, item.productId, item.productName, 'receipt',
         receiptGroupId, qty, Number(item.unitCost) || 0,
-        data.notes || '', now
+        data.notes || '', now, vendorId, vendorName
       ]);
 
       // Update currentStock in Products sheet
@@ -176,7 +182,8 @@ const Products = {
       movements.push({
         movementId: rows[i][0], date: rows[i][1], productId: rows[i][2],
         productName: rows[i][3], type: rows[i][4], refId: rows[i][5],
-        qty: rows[i][6], unitCost: rows[i][7], notes: rows[i][8], createdAt: rows[i][9]
+        qty: rows[i][6], unitCost: rows[i][7], notes: rows[i][8], createdAt: rows[i][9],
+        vendorId: rows[i][10] || '', vendorName: rows[i][11] || ''  // GAP 8
       });
     }
     return Utils.createResponse('success', 'Register retrieved', { movements });
@@ -214,10 +221,11 @@ const Products = {
 
       if (variance !== 0) {
         const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
+        // Audit adjustments have no vendor — pass empty strings for cols 10–11 (GAP 8 schema)
         movSheet.appendRow([
           movId, data.auditDate || now.slice(0, 10), item.productId, item.productName,
           'audit', auditId, variance, Number(item.unitCost) || 0,
-          'Stock audit adjustment', now
+          'Stock audit adjustment', now, '', ''
         ]);
 
         // Update currentStock

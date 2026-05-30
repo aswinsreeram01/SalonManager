@@ -7,6 +7,7 @@ const Vendors = {
     document.getElementById('venCancelBtn').addEventListener('click', () => this.closeForm());
     document.getElementById('vendorForm').addEventListener('submit', e => this.handleSubmit(e));
     document.getElementById('venSearch').addEventListener('input', () => this._render());
+    document.getElementById('venStatusFilter').addEventListener('change', () => this._render()); // GAP 12
   },
 
   async load() {
@@ -27,10 +28,11 @@ const Vendors = {
   },
 
   _render() {
-    const q = (document.getElementById('venSearch').value || '').toLowerCase();
-    const list = q
-      ? this._vendors.filter(v => v.name.toLowerCase().includes(q) || (v.phone || '').includes(q))
-      : this._vendors;
+    // GAP 12 fix: apply status filter (defaults to 'active') before search
+    const statusF = document.getElementById('venStatusFilter').value; // '' | 'active' | 'inactive'
+    const q       = (document.getElementById('venSearch').value || '').toLowerCase();
+    let list = statusF ? this._vendors.filter(v => v.status === statusF) : this._vendors;
+    if (q) list = list.filter(v => v.name.toLowerCase().includes(q) || (v.phone || '').includes(q));
 
     const tbody = document.getElementById('venTableBody');
     if (!list.length) {
@@ -111,6 +113,7 @@ const Vendors = {
         }
         this.closeForm();
         this._render();
+        this._syncToProducts(); // GAP 11
         UI.showMessage('venMessage', this._editingId ? 'Vendor updated.' : 'Vendor added.', 'success');
       } else {
         UI.showMessage('venMessage', res.message || 'Error saving vendor', 'error');
@@ -127,6 +130,7 @@ const Vendors = {
     if (!confirm('Remove this vendor? This cannot be undone.')) return;
     this._vendors = this._vendors.filter(v => v.vendorId !== vendorId);
     this._render();
+    this._syncToProducts(); // GAP 11
     try {
       const res = await API.removeVendor(vendorId);
       if (res.status === 'success') {
@@ -134,10 +138,21 @@ const Vendors = {
       } else {
         UI.showMessage('venMessage', res.message || 'Error removing vendor', 'error');
         await this.load();
+        this._syncToProducts();
       }
     } catch(err) {
       UI.showMessage('venMessage', 'Error removing vendor', 'error');
       await this.load();
+      this._syncToProducts();
+    }
+  },
+
+  // GAP 11 fix: push the latest vendor list into Products so the PO vendor dropdown
+  // and the product-form vendor dropdown stay current without a full page reload.
+  _syncToProducts() {
+    if (typeof Products !== 'undefined' && Navigation._loaded && Navigation._loaded.has('products')) {
+      Products._vendors = this._vendors.slice();
+      Products._populateVendorDropdowns();
     }
   },
 

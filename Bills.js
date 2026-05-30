@@ -58,29 +58,41 @@ const Bills = {
     const prodData = prodSheet.getDataRange().getValues();
     const now = new Date().toISOString();
 
+    // Build a fast lookup: productId → row index in prodData
+    const prodIdx = {};
+    for (let i = 1; i < prodData.length; i++) {
+      if (prodData[i][0]) prodIdx[prodData[i][0]] = i;
+    }
+
+    // GAP 8 schema: StockMovements cols now include vendorId(10) / vendorName(11).
+    // Billing movements have no vendor — write empty strings.
+    // GAP 9 fix: use the product's unitCost (col 4 of Products sheet) as the recorded cost
+    //   for deductions rather than the retail unitPrice. Pass unitCost in from the caller.
+    // GAP 10 fix: allow currentStock to go negative instead of flooring at 0.
+    //   This keeps currentStock in sync with the running balance in StockMovements.
     const deduct = (productId, productName, qty, unitCost) => {
       if (!productId || qty <= 0) return;
       const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
       movSheet.appendRow([
         movId, date, productId, productName, 'billing',
-        billId, -qty, unitCost || 0, 'Sold/used in bill', now
+        billId, -qty, unitCost || 0, 'Sold/used in bill', now, '', ''
       ]);
-      for (let i = 1; i < prodData.length; i++) {
-        if (prodData[i][0] === productId) {
-          const newStock = (Number(prodData[i][7]) || 0) - qty;
-          prodSheet.getRange(i + 1, 8).setValue(Math.max(0, newStock));
-          prodData[i][7] = Math.max(0, newStock);
-          break;
-        }
+      const i = prodIdx[productId];
+      if (i !== undefined) {
+        const newStock = (Number(prodData[i][7]) || 0) - qty;  // no floor — can go negative
+        prodSheet.getRange(i + 1, 8).setValue(newStock);
+        prodData[i][7] = newStock;
       }
     };
 
     items.forEach(item => {
-      // Retail product sold
+      // Retail product sold — use the product's purchase unitCost, not the retail unitPrice
       if (item.type === 'product' && item.itemId) {
-        deduct(item.itemId, item.itemName || '', Number(item.qty) || 1, Number(item.unitPrice) || 0);
+        const i = prodIdx[item.itemId];
+        const unitCost = i !== undefined ? (Number(prodData[i][4]) || 0) : 0;  // col 4 = unitCost
+        deduct(item.itemId, item.itemName || '', Number(item.qty) || 1, unitCost);
       }
-      // Professional product consumed during service
+      // Professional product consumed during service — cost is 0 (it's a usage record, not a sale)
       if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
         const profQty = Number(item.profQty);
         if (profQty > 0) {

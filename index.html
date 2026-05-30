@@ -1092,6 +1092,14 @@
                     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                         <h3 style="color:#2d3748;margin:0;">Vendors</h3>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <!-- GAP 12 fix: status filter defaults to Active so inactive/removed vendors
+                                 don't clutter the list; user can switch to All or Inactive to find and
+                                 reactivate a vendor via the Edit form. -->
+                            <select id="venStatusFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+                                <option value="active">Active</option>
+                                <option value="">All</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
                             <input type="search" id="venSearch" placeholder="Search vendors…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:180px;">
                             <button class="btn btn-primary" id="venAddBtn">+ Add Vendor</button>
                         </div>

@@ -493,7 +493,14 @@ const Appointments = {
         } else {
             Billing._apptPrefill = a;
         }
-        API.updateAppointment({ appointmentId, status: 'completed' }).catch(() => {});
+        // GAP 13 fix: don't swallow the error silently. If the status update fails the
+        // appointment stays in its old state (e.g. 'confirmed') while billing proceeds.
+        // Show a soft warning on the billing page so the user knows to fix it manually.
+        API.updateAppointment({ appointmentId, status: 'completed' }).catch(() => {
+            setTimeout(() => UI.showMessage('billingMessage',
+                'Note: appointment status could not be updated — please mark it complete manually.',
+                'error'), 600);
+        });
     },
 
     // ── Navigation ─────────────────────────────────────────────────────────────

@@ -611,12 +611,21 @@ const Products = {
 
     if (!items.length) { UI.showMessage('prodMessage', 'No valid items to receive.', 'error'); return; }
 
+    // GAP 8 fix: capture vendor for direct receipts so StockMovements rows are traceable
+    let vendorId = '', vendorName = '';
+    if (mode === 'direct') {
+      const sel = document.getElementById('rcvVendorSelect');
+      vendorId = sel ? sel.value : '';
+      const vendor = this._vendors.find(v => v.vendorId === vendorId);
+      vendorName = vendor ? vendor.name : '';
+    }
+
     const btn = document.getElementById('rcvSaveBtn');
     btn.disabled = true;
     btn.textContent = 'Saving…';
 
     try {
-      const res = await API.receiveStock({ poId, date, notes, items });
+      const res = await API.receiveStock({ poId, date, notes, items, vendorId, vendorName });
       if (res.status === 'success') {
         // Update local product stocks
         items.forEach(item => {
