@@ -1,6 +1,8 @@
 const Services = {
   getAll(data) {
-    const cached = Utils.getCached('services');
+    const orgId = (data && data.orgId) || '';
+    const cacheKey = 'services_' + orgId;
+    const cached = Utils.getCached(cacheKey);
     if (cached) return Utils.createResponse('success', 'Services retrieved', { services: cached });
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Services');
@@ -9,6 +11,9 @@ const Services = {
     const serviceData = sheet.getDataRange().getValues();
     const services = [];
     for (let i = 1; i < serviceData.length; i++) {
+      if (!serviceData[i][0]) continue;
+      const rowOrg = serviceData[i][7] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
       services.push({
         id:             serviceData[i][0],
         name:           serviceData[i][1],
@@ -16,11 +21,12 @@ const Services = {
         duration:       serviceData[i][3],
         serviceGroupId: serviceData[i][4],
         defaultPrice:   serviceData[i][5],
-        status:         serviceData[i][6]
+        status:         serviceData[i][6],
+        orgId:          rowOrg
       });
     }
 
-    Utils.setCached('services', services);
+    Utils.setCached(cacheKey, services);
     return Utils.createResponse('success', 'Services retrieved', { services });
   },
 
@@ -30,8 +36,9 @@ const Services = {
 
     const serviceId = 'SRV' + Date.now();
     sheet.appendRow([serviceId, data.name, data.description || '', data.duration,
-                     data.serviceGroupId || '', data.defaultPrice, data.status || 'active']);
-    Utils.clearCached('services');
+                     data.serviceGroupId || '', data.defaultPrice, data.status || 'active',
+                     data.orgId || '']);
+    Utils.clearCached('services_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Service added successfully');
   },
 
@@ -48,7 +55,7 @@ const Services = {
         sheet.getRange(i + 1, 5).setValue(data.serviceGroupId || '');
         sheet.getRange(i + 1, 6).setValue(data.defaultPrice);
         sheet.getRange(i + 1, 7).setValue(data.status);
-        Utils.clearCached('services');
+        Utils.clearCached('services_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Service updated successfully');
       }
     }
@@ -63,7 +70,7 @@ const Services = {
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.deleteRow(i + 1);
-        Utils.clearCached('services');
+        Utils.clearCached('services_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Service deleted successfully');
       }
     }

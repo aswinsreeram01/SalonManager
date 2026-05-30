@@ -20,28 +20,33 @@ const Attendance = {
 
   // ── Shifts ────────────────────────────────────────────────────────────────
 
-  getShifts() {
-    const cached = Utils.getCached('shifts');
+  getShifts(data) {
+    const orgId = (data && data.orgId) || '';
+    const cacheKey = 'shifts_' + orgId;
+    const cached = Utils.getCached(cacheKey);
     if (cached) return Utils.createResponse('success', 'Shifts retrieved', { shifts: cached });
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shifts');
     if (!sheet) return Utils.createResponse('success', 'Shifts retrieved', { shifts: [] });
 
-    const data = sheet.getDataRange().getValues();
+    const rows = sheet.getDataRange().getValues();
     const shifts = [];
-    for (let i = 1; i < data.length; i++) {
-      if (!data[i][0]) continue;
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      const rowOrg = rows[i][6] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
       shifts.push({
-        shiftId:    data[i][0],
-        name:       data[i][1],
-        startTime:  data[i][2],
-        endTime:    data[i][3],
-        breakMins:  Number(data[i][4]) || 0,
-        status:     data[i][5]
+        shiftId:    rows[i][0],
+        name:       rows[i][1],
+        startTime:  rows[i][2],
+        endTime:    rows[i][3],
+        breakMins:  Number(rows[i][4]) || 0,
+        status:     rows[i][5],
+        orgId:      rowOrg
       });
     }
 
-    Utils.setCached('shifts', shifts);
+    Utils.setCached(cacheKey, shifts);
     return Utils.createResponse('success', 'Shifts retrieved', { shifts });
   },
 
@@ -58,7 +63,7 @@ const Attendance = {
           sheet.getRange(i + 1, 4).setValue(data.endTime);
           sheet.getRange(i + 1, 5).setValue(Number(data.breakMins) || 0);
           sheet.getRange(i + 1, 6).setValue(data.status || 'active');
-          Utils.clearCached('shifts');
+          Utils.clearCached('shifts_' + (data.orgId || ''));
           return Utils.createResponse('success', 'Shift updated successfully', { shiftId: data.shiftId });
         }
       }
@@ -72,9 +77,10 @@ const Attendance = {
       data.startTime,
       data.endTime,
       Number(data.breakMins) || 0,
-      data.status || 'active'
+      data.status || 'active',
+      data.orgId || ''
     ]);
-    Utils.clearCached('shifts');
+    Utils.clearCached('shifts_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Shift saved successfully', { shiftId });
   },
 
@@ -127,7 +133,9 @@ const Attendance = {
       data.staffId,
       data.shiftId,
       data.effectiveFrom || '',
-      data.effectiveTo   || ''
+      data.effectiveTo   || '',
+      '',
+      data.orgId         || ''
     ]);
     return Utils.createResponse('success', 'Allocation saved successfully', { allocationId });
   },
@@ -252,7 +260,8 @@ const Attendance = {
           otHours,
           rec.dayStatus  || '',
           rec.notes      || '',
-          now
+          now,
+          data.orgId     || ''
         ]);
       }
       saved++;
@@ -326,7 +335,8 @@ const Attendance = {
       amount,
       data.notes || '',
       newBalance,
-      now
+      now,
+      data.orgId || ''
     ]);
 
     return Utils.createResponse('success', 'Advance recorded successfully', { advanceId, runningBalance: newBalance });
@@ -374,7 +384,8 @@ const Attendance = {
       productIncentive,
       totalIncentive,
       data.status          || 'draft',
-      now
+      now,
+      data.orgId           || ''
     ]);
 
     return Utils.createResponse('success', 'Weekly incentive saved', { snapshotId });

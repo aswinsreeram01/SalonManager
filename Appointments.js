@@ -1,9 +1,15 @@
+// Appointments sheet columns (0-based):
+// appointmentId(0), customerId(1), customerName(2), customerPhone(3),
+// staffId(4), staffName(5), serviceId(6), serviceName(7),
+// startTime(8), durationMins(9), status(10), notes(11),
+// billId(12), createdAt(13), createdBy(14), orgId(15)
+
 const Appointments = {
   _cols: {
     appointmentId: 0, customerId: 1, customerName: 2, customerPhone: 3,
     staffId: 4, staffName: 5, serviceId: 6, serviceName: 7,
     startTime: 8, durationMins: 9, status: 10, notes: 11,
-    billId: 12, createdAt: 13, createdBy: 14
+    billId: 12, createdAt: 13, createdBy: 14, orgId: 15
   },
 
   // Sheets may auto-convert ISO strings to Date objects — always normalise to ISO
@@ -30,7 +36,8 @@ const Appointments = {
       notes:         r[11] || '',
       billId:        r[12] || '',
       createdAt:     this._toIso(r[13]),
-      createdBy:     r[14] || ''
+      createdBy:     r[14] || '',
+      orgId:         r[15] || ''
     };
   },
 
@@ -41,13 +48,15 @@ const Appointments = {
     const date = data.date; // expected 'YYYY-MM-DD'
     if (!date) return Utils.createResponse('error', 'date parameter required');
 
+    const orgId = data.orgId || '';
     const rows = sheet.getDataRange().getValues();
     const appointments = [];
     for (let i = 1; i < rows.length; i++) {
       const startTime = this._toIso(rows[i][8]);
-      if (startTime.startsWith(date)) {
-        appointments.push(this._rowToObj(rows[i]));
-      }
+      if (!startTime.startsWith(date)) continue;
+      const rowOrg = rows[i][15] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      appointments.push(this._rowToObj(rows[i]));
     }
     appointments.sort((a, b) => a.startTime.localeCompare(b.startTime));
     return Utils.createResponse('success', 'Appointments retrieved', { appointments });
@@ -75,7 +84,8 @@ const Appointments = {
       data.notes         || '',
       '',
       createdAt,
-      data.createdBy     || ''
+      data.userId        || data.createdBy || '',
+      data.orgId         || ''
     ]);
 
     return Utils.createResponse('success', 'Appointment booked successfully', { appointmentId });

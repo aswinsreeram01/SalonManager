@@ -1,3 +1,15 @@
+// Bills sheet columns (0-based):
+// billId(0), customerId(1), customerName(2), priceBookId(3), createdAt(4),
+// servicesSubtotal(5), servicesGst(6), retailSubtotal(7), retailGst(8),
+// discount(9), tip(10), grandTotal(11), paymentMode(12),
+// cashAmt(13), cardAmt(14), upiAmt(15), status(16), discountType(17),
+// createdBy(18), orgId(19)
+//
+// BillItems sheet columns (0-based):
+// billItemId(0), billId(1), type(2), refId(3), itemName(4), staffId(5), staffName(6),
+// qty(7), unitPrice(8), gstPct(9), lineSubtotal(10), lineGst(11), lineTotal(12),
+// profProductId(13), profProductName(14), profQty(15), profUom(16), orgId(17)
+
 const Bills = {
   save(data) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -9,6 +21,8 @@ const Bills = {
     const billId = 'BILL' + Date.now();
     const date = new Date().toISOString();
     const items = data.items || [];
+    const orgId  = data.orgId  || '';
+    const userId = data.userId || '';
 
     const svcItems = items.filter(i => i.type === 'service');
     const prdItems = items.filter(i => i.type === 'product');
@@ -26,7 +40,8 @@ const Bills = {
       discount, tip, grandTotal,
       data.paymentMode || 'Cash',
       Number(data.cashAmt) || 0, Number(data.cardAmt) || 0, Number(data.upiAmt) || 0,
-      'active', data.discountType || 'value'
+      'active', data.discountType || 'value',
+      userId, orgId
     ]);
 
     items.forEach(item => {
@@ -39,17 +54,16 @@ const Bills = {
         Number(item.lineSubtotal) || 0, Number(item.lineGst) || 0, Number(item.lineTotal) || 0,
         item.profProductId || '', item.profProductName || '',
         item.profQty !== '' && item.profQty !== undefined ? Number(item.profQty) : '',
-        item.profUom || ''
+        item.profUom || '', orgId
       ]);
     });
 
-    // Auto-deduct stock for product items sold and professional products consumed
-    this._deductStock(billId, date.slice(0, 10), items);
+    this._deductStock(billId, date.slice(0, 10), items, userId, orgId);
 
     return Utils.createResponse('success', 'Bill saved successfully', { billId, grandTotal });
   },
 
-  _deductStock(billId, date, items) {
+  _deductStock(billId, date, items, userId, orgId) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const movSheet  = ss.getSheetByName('StockMovements');
     const prodSheet = ss.getSheetByName('Products');
@@ -58,41 +72,34 @@ const Bills = {
     const prodData = prodSheet.getDataRange().getValues();
     const now = new Date().toISOString();
 
-    // Build a fast lookup: productId → row index in prodData
     const prodIdx = {};
     for (let i = 1; i < prodData.length; i++) {
       if (prodData[i][0]) prodIdx[prodData[i][0]] = i;
     }
 
-    // GAP 8 schema: StockMovements cols now include vendorId(10) / vendorName(11).
-    // Billing movements have no vendor — write empty strings.
-    // GAP 9 fix: use the product's unitCost (col 4 of Products sheet) as the recorded cost
-    //   for deductions rather than the retail unitPrice. Pass unitCost in from the caller.
-    // GAP 10 fix: allow currentStock to go negative instead of flooring at 0.
-    //   This keeps currentStock in sync with the running balance in StockMovements.
+    // GAP 10 fix: allow currentStock to go negative — keeps it in sync with StockMovements running balance
     const deduct = (productId, productName, qty, unitCost) => {
       if (!productId || qty <= 0) return;
       const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
       movSheet.appendRow([
         movId, date, productId, productName, 'billing',
-        billId, -qty, unitCost || 0, 'Sold/used in bill', now, '', ''
+        billId, -qty, unitCost || 0, 'Sold/used in bill', now, '', '',
+        userId || '', orgId || ''
       ]);
       const i = prodIdx[productId];
       if (i !== undefined) {
-        const newStock = (Number(prodData[i][7]) || 0) - qty;  // no floor — can go negative
+        const newStock = (Number(prodData[i][7]) || 0) - qty;
         prodSheet.getRange(i + 1, 8).setValue(newStock);
         prodData[i][7] = newStock;
       }
     };
 
     items.forEach(item => {
-      // Retail product sold — use the product's purchase unitCost, not the retail unitPrice
       if (item.type === 'product' && item.itemId) {
         const i = prodIdx[item.itemId];
-        const unitCost = i !== undefined ? (Number(prodData[i][4]) || 0) : 0;  // col 4 = unitCost
+        const unitCost = i !== undefined ? (Number(prodData[i][4]) || 0) : 0;
         deduct(item.itemId, item.itemName || '', Number(item.qty) || 1, unitCost);
       }
-      // Professional product consumed during service — cost is 0 (it's a usage record, not a sale)
       if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
         const profQty = Number(item.profQty);
         if (profQty > 0) {
@@ -101,7 +108,7 @@ const Bills = {
       }
     });
 
-    Utils.clearCached('products');
+    Utils.clearCached('products_' + (orgId || ''));
   },
 
   voidBill(data) {
@@ -118,13 +125,11 @@ const Bills = {
     return Utils.createResponse('error', 'Bill not found');
   },
 
-  // GAP 6 fix: accept optional fromDate / toDate to avoid reading the whole sheet on large datasets.
-  // Defaults to the last 90 days when no dates are supplied.
+  // GAP 6 fix: accept optional fromDate / toDate; defaults to last 90 days when omitted.
   getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
     if (!sheet) return Utils.createResponse('success', 'Bills retrieved', { bills: [] });
 
-    // Build the date window
     const now = new Date();
     const defaultFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
     defaultFrom.setHours(0, 0, 0, 0);
@@ -134,17 +139,19 @@ const Bills = {
       : defaultFrom;
     const toDate = (data && data.toDate)
       ? new Date(data.toDate + 'T23:59:59')
-      : null;   // null = no upper bound
+      : null;
 
+    const orgId = (data && data.orgId) || '';
     const billData = sheet.getDataRange().getValues();
     const bills = [];
     for (let i = 1; i < billData.length; i++) {
-      if (!billData[i][0]) continue;   // skip empty rows
-      // Column 4 (index 4) is the ISO date string written by Bills.save()
-      const rawDate = String(billData[i][4]).slice(0, 10);   // "YYYY-MM-DD"
+      if (!billData[i][0]) continue;
+      const rawDate = String(billData[i][4]).slice(0, 10);
       const billDate = new Date(rawDate + 'T00:00:00');
       if (billDate < fromDate) continue;
       if (toDate && billDate > toDate) continue;
+      const rowOrg = billData[i][19] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
 
       bills.push({
         billId: billData[i][0], customerId: billData[i][1], customerName: billData[i][2],
@@ -154,7 +161,8 @@ const Bills = {
         discount: billData[i][9], tip: billData[i][10], grandTotal: billData[i][11],
         paymentMode: billData[i][12], cashAmt: billData[i][13],
         cardAmt: billData[i][14], upiAmt: billData[i][15],
-        status: billData[i][16], discountType: billData[i][17] || 'value'
+        status: billData[i][16], discountType: billData[i][17] || 'value',
+        createdBy: billData[i][18] || '', orgId: rowOrg
       });
     }
     return Utils.createResponse('success', 'Bills retrieved', { bills });

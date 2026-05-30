@@ -15,7 +15,7 @@ const Auth = {
       if (email === data.email && password === Utils.hashPassword(data.password)) {
         if (status && status.toString().toLowerCase() === 'active') {
           const permissions = Permissions.getByRole({ roleId: roleId });
-          const sessionToken = Utils.createSession(userId);
+          const sessionToken = Utils.createSession(userId, orgId);
 
           return Utils.createResponse('success', 'Login successful', {
             sessionToken: sessionToken,

@@ -5,10 +5,12 @@ function doPost(e) {
 
     const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password'];
     if (!publicActions.includes(action)) {
-      const userId = Utils.validateSession(data.sessionToken);
-      if (!userId) {
+      const session = Utils.validateSession(data.sessionToken);
+      if (!session) {
         return Utils.createResponse('error', 'Session expired. Please login again.');
       }
+      data.orgId  = session.orgId  || '';
+      data.userId = session.userId || '';
     }
 
     switch(action) {

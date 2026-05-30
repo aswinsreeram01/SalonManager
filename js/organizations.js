@@ -1,12 +1,13 @@
 // Organizations Module
 const Organizations = {
   editingId: null,
-  
+  _orgSettings: null,
+
   init() {
     const form = document.getElementById('organizationForm');
     const toggleBtn = document.getElementById('toggleOrganizationForm');
     const cancelBtn = document.getElementById('cancelOrganizationBtn');
-    
+
     if (form) {
       form.addEventListener('submit', (e) => this.handleSubmit(e));
     }
@@ -16,6 +17,11 @@ const Organizations = {
     if (cancelBtn) {
       cancelBtn.addEventListener('click', () => this.hideForm());
     }
+
+    document.getElementById('orgSettingsForm')?.addEventListener('submit', e => {
+      e.preventDefault();
+      this.saveOrgSettings();
+    });
   },
   
   toggleForm() {
@@ -82,18 +88,21 @@ const Organizations = {
   },
   
   async load() {
+    await Promise.all([this._loadOrgList(), this.loadOrgSettings()]);
+  },
+
+  async _loadOrgList() {
     const tbody = document.getElementById('organizationsTableBody');
     if (!tbody) return;
     
     tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Loading...</td></tr>';
     
     try {
-      const result = await API.getOrganizations(Auth.currentUser.orgId);
-      
+      const result = await API.getOrganizations(Auth.currentUser?.orgId);
+
       if (result.status === 'success' && result.organizations.length > 0) {
-        // Also populate parent dropdown
         await this.populateParentDropdown(result.organizations);
-        
+
         tbody.innerHTML = result.organizations.map(org => `
           <tr>
             <td>${org.name}</td>
@@ -161,14 +170,14 @@ const Organizations = {
   
   async delete(id) {
     if (!confirm('Are you sure you want to delete this organization? This will fail if it has child organizations.')) return;
-    
+
     UI.showLoading();
     try {
       const result = await API.deleteOrganization(id);
-      
+
       if (result.status === 'success') {
         UI.showMessage('organizationMessage', result.message, 'success');
-        await this.load();
+        await this._loadOrgList();
       } else {
         UI.showMessage('organizationMessage', result.message, 'error');
       }
@@ -176,6 +185,55 @@ const Organizations = {
       UI.showMessage('organizationMessage', 'Network error', 'error');
     } finally {
       UI.hideLoading();
+    }
+  },
+
+  // ── Org Settings ─────────────────────────────────────────────────────────────
+
+  async loadOrgSettings() {
+    try {
+      const res = await API.getOrgSettings();
+      if (res.status !== 'success') return;
+      this._orgSettings = res.settings || {};
+      this._renderOrgSettings();
+    } catch (err) {
+      console.error('Failed to load org settings:', err);
+    }
+  },
+
+  _renderOrgSettings() {
+    const s = this._orgSettings || {};
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
+    setVal('orgSalonName',      s.salonName           || '');
+    setVal('orgGstNumber',      s.gstNumber           || '');
+    setVal('orgCurrencySymbol', s.currencySymbol      || '₹');
+    setVal('orgSalaryPayDay',   s.salaryPayDay        ?? 10);
+    setVal('orgDefaultOffs',    s.defaultEligibleOffs ?? 4);
+    const tpEl = document.getElementById('orgDefaultTargetPeriod');
+    if (tpEl) tpEl.value = s.defaultTargetPeriod || 'weekly';
+  },
+
+  async saveOrgSettings() {
+    const payload = {
+      salonName:           document.getElementById('orgSalonName')?.value.trim()      || '',
+      gstNumber:           document.getElementById('orgGstNumber')?.value.trim()      || '',
+      currencySymbol:      document.getElementById('orgCurrencySymbol')?.value.trim() || '₹',
+      salaryPayDay:        Number(document.getElementById('orgSalaryPayDay')?.value)  || 10,
+      defaultEligibleOffs: Number(document.getElementById('orgDefaultOffs')?.value)   || 4,
+      defaultTargetPeriod: document.getElementById('orgDefaultTargetPeriod')?.value   || 'weekly'
+    };
+
+    const btn = document.getElementById('orgSettingsSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const res = await API.updateOrgSettings(payload);
+      if (res.status !== 'success') throw new Error(res.message);
+      this._orgSettings = { ...this._orgSettings, ...payload };
+      UI.showMessage('organizationMessage', 'Organisation settings saved.', 'success');
+    } catch (err) {
+      UI.showMessage('organizationMessage', 'Save failed: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Settings'; }
     }
   }
 };

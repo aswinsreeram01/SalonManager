@@ -1,6 +1,8 @@
 const Staff = {
   getAll(data) {
-    const cached = Utils.getCached('staff');
+    const orgId = (data && data.orgId) || '';
+    const cacheKey = 'staff_' + orgId;
+    const cached = Utils.getCached(cacheKey);
     if (cached) return Utils.createResponse('success', 'Staff retrieved', { staff: cached });
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
@@ -9,17 +11,21 @@ const Staff = {
     const staffData = sheet.getDataRange().getValues();
     const staff = [];
     for (let i = 1; i < staffData.length; i++) {
+      if (!staffData[i][0]) continue;
+      const rowOrg = staffData[i][17] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
       staff.push({
         id: staffData[i][0], userId: staffData[i][1], name: staffData[i][2],
         phone: staffData[i][3], email: staffData[i][4], aadharNumber: staffData[i][5],
         upiId: staffData[i][6], startDate: staffData[i][7], role: staffData[i][8],
         salary: staffData[i][9], allowance: staffData[i][10],
         incentiveStructure: staffData[i][11], specialization: staffData[i][12], status: staffData[i][13],
-        staffType: staffData[i][14] || 'service_provider', profileId: staffData[i][15] || '', targetPeriod: staffData[i][16] || 'monthly'
+        staffType: staffData[i][14] || 'service_provider', profileId: staffData[i][15] || '',
+        targetPeriod: staffData[i][16] || 'monthly', orgId: rowOrg
       });
     }
 
-    Utils.setCached('staff', staff);
+    Utils.setCached(cacheKey, staff);
     return Utils.createResponse('success', 'Staff retrieved', { staff });
   },
 
@@ -32,8 +38,9 @@ const Staff = {
                      data.aadharNumber, data.upiId, data.startDate, data.role,
                      data.salary, data.allowance, data.incentiveStructure,
                      data.specialization, data.status || 'active',
-                     data.staffType || 'service_provider', data.profileId || '', data.targetPeriod || 'monthly']);
-    Utils.clearCached('staff');
+                     data.staffType || 'service_provider', data.profileId || '',
+                     data.targetPeriod || 'monthly', data.orgId || '']);
+    Utils.clearCached('staff_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Staff member added successfully');
   },
 
@@ -60,7 +67,7 @@ const Staff = {
         sheet.getRange(i + 1, 15).setValue(data.staffType    || 'service_provider');
         sheet.getRange(i + 1, 16).setValue(data.profileId    || '');
         sheet.getRange(i + 1, 17).setValue(data.targetPeriod || 'monthly');
-        Utils.clearCached('staff');
+        Utils.clearCached('staff_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Staff member updated successfully');
       }
     }
@@ -75,7 +82,7 @@ const Staff = {
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
         sheet.deleteRow(i + 1);
-        Utils.clearCached('staff');
+        Utils.clearCached('staff_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Staff member deleted successfully');
       }
     }

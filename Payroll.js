@@ -3,7 +3,8 @@
 // eligibleOffs(6), totalDaysOff(7), excessLeaves(8), leaveDeduction(9),
 // adjustedBaseSalary(10), allowances(11), otHours(12), otPay(13),
 // serviceIncentive(14), productIncentive(15), makeupIncentive(16), targetIncentive(17),
-// totalIncentive(18), advanceDeducted(19), netPay(20), status(21), notes(22), createdAt(23)
+// totalIncentive(18), advanceDeducted(19), netPay(20), status(21), notes(22), createdAt(23),
+// orgId(24)
 
 const Payroll = {
 
@@ -328,7 +329,8 @@ const Payroll = {
       Number(data.netPay)            || 0,
       data.status                    || 'draft',
       data.notes                     || '',
-      data.createdAt                 || now
+      data.createdAt                 || now,
+      data.orgId                     || ''
     ]);
 
     return Utils.createResponse('success', 'Payroll saved successfully', { payrollId });
@@ -341,12 +343,15 @@ const Payroll = {
     const rows = sheet.getDataRange().getValues();
     const filterPeriod  = (data && data.period)  ? data.period  : null;
     const filterStaffId = (data && data.staffId) ? data.staffId : null;
+    const orgId         = (data && data.orgId)   ? data.orgId   : '';
     const payroll = [];
 
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
       if (filterPeriod  && rows[i][3] !== filterPeriod)  continue;
+      const rowOrg = rows[i][24] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
 
       const createdAt = rows[i][23];
       payroll.push({
@@ -373,7 +378,8 @@ const Payroll = {
         netPay:              Number(rows[i][20]) || 0,
         status:              rows[i][21],
         notes:               rows[i][22],
-        createdAt:           createdAt instanceof Date ? createdAt.toISOString() : String(createdAt)
+        createdAt:           createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
+        orgId:               rowOrg
       });
     }
 

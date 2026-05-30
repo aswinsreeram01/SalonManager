@@ -1,19 +1,14 @@
-// Settings page — Sheet setup/verification + Org Settings
+// Settings page — Sheet setup/verification
 const Settings = {
     _statusData: null,
     _spreadsheetUrl: null,
-    _orgSettings: null,
 
     init() {
         document.getElementById('setupRefreshBtn')?.addEventListener('click', () => this.loadSetupStatus());
-        document.getElementById('orgSettingsForm')?.addEventListener('submit', e => {
-            e.preventDefault();
-            this.saveOrgSettings();
-        });
     },
 
     async load() {
-        await Promise.all([this.loadSetupStatus(), this.loadOrgSettings()]);
+        await this.loadSetupStatus();
     },
 
     // ── Sheet Setup ──────────────────────────────────────────────────────────────
@@ -208,55 +203,6 @@ const Settings = {
             UI.showMessage('settingsMessage', 'Setup failed: ' + err.message, 'error');
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = 'Run Setup'; }
-        }
-    },
-
-    // ── Org Settings ─────────────────────────────────────────────────────────────
-
-    async loadOrgSettings() {
-        try {
-            const res = await API.getOrgSettings();
-            if (res.status !== 'success') return;
-            this._orgSettings = res.settings || {};
-            this._renderOrgSettings();
-        } catch (err) {
-            console.error('Failed to load org settings:', err);
-        }
-    },
-
-    _renderOrgSettings() {
-        const s = this._orgSettings || {};
-        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
-        setVal('orgSalonName',      s.salonName            || '');
-        setVal('orgGstNumber',      s.gstNumber            || '');
-        setVal('orgCurrencySymbol', s.currencySymbol       || '₹');
-        setVal('orgSalaryPayDay',   s.salaryPayDay         ?? 10);
-        setVal('orgDefaultOffs',    s.defaultEligibleOffs  ?? 4);
-        const tpEl = document.getElementById('orgDefaultTargetPeriod');
-        if (tpEl) tpEl.value = s.defaultTargetPeriod || 'weekly';
-    },
-
-    async saveOrgSettings() {
-        const payload = {
-            salonName:           document.getElementById('orgSalonName')?.value.trim()      || '',
-            gstNumber:           document.getElementById('orgGstNumber')?.value.trim()       || '',
-            currencySymbol:      document.getElementById('orgCurrencySymbol')?.value.trim() || '₹',
-            salaryPayDay:        Number(document.getElementById('orgSalaryPayDay')?.value)   || 10,
-            defaultEligibleOffs: Number(document.getElementById('orgDefaultOffs')?.value)    || 4,
-            defaultTargetPeriod: document.getElementById('orgDefaultTargetPeriod')?.value    || 'weekly'
-        };
-
-        const btn = document.getElementById('orgSettingsSaveBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-        try {
-            const res = await API.updateOrgSettings(payload);
-            if (res.status !== 'success') throw new Error(res.message);
-            this._orgSettings = { ...this._orgSettings, ...payload };
-            UI.showMessage('settingsMessage', 'Organisation settings saved.', 'success');
-        } catch (err) {
-            UI.showMessage('settingsMessage', 'Save failed: ' + err.message, 'error');
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save Settings'; }
         }
     },
 

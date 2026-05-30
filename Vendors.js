@@ -1,15 +1,22 @@
+// Vendors sheet columns (0-based):
+// vendorId(0), name(1), contactPerson(2), phone(3), email(4), address(5),
+// notes(6), status(7), orgId(8)
+
 const Vendors = {
-  getAll() {
+  getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Vendors');
     if (!sheet) return Utils.createResponse('success', 'Vendors retrieved', { vendors: [] });
-    const data = sheet.getDataRange().getValues();
+    const orgId = (data && data.orgId) || '';
+    const rows = sheet.getDataRange().getValues();
     const vendors = [];
-    for (let i = 1; i < data.length; i++) {
-      if (!data[i][0]) continue;
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      const rowOrg = rows[i][8] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
       vendors.push({
-        vendorId: data[i][0], name: data[i][1], contactPerson: data[i][2],
-        phone: data[i][3], email: data[i][4], address: data[i][5],
-        notes: data[i][6], status: data[i][7]
+        vendorId: rows[i][0], name: rows[i][1], contactPerson: rows[i][2],
+        phone: rows[i][3], email: rows[i][4], address: rows[i][5],
+        notes: rows[i][6], status: rows[i][7], orgId: rowOrg
       });
     }
     return Utils.createResponse('success', 'Vendors retrieved', { vendors });
@@ -21,7 +28,8 @@ const Vendors = {
     const id = 'VEN' + Date.now();
     sheet.appendRow([
       id, data.name, data.contactPerson || '', data.phone || '',
-      data.email || '', data.address || '', data.notes || '', 'active'
+      data.email || '', data.address || '', data.notes || '', 'active',
+      data.orgId || ''
     ]);
     return Utils.createResponse('success', 'Vendor added', { vendorId: id });
   },

@@ -1,21 +1,27 @@
-// Sheet schemas:
-// PurchaseOrders: poId(0), vendorId(1), vendorName(2), poDate(3), expectedDate(4),
-//                 status(5), notes(6), createdAt(7)
-// POItems: itemId(0), poId(1), productId(2), productName(3), uom(4),
-//          qtyOrdered(5), qtyReceived(6), unitCost(7)
+// PurchaseOrders sheet columns (0-based):
+// poId(0), vendorId(1), vendorName(2), poDate(3), expectedDate(4),
+// status(5), notes(6), createdAt(7), createdBy(8), orgId(9)
+//
+// POItems sheet columns (0-based):
+// itemId(0), poId(1), productId(2), productName(3), uom(4),
+// qtyOrdered(5), qtyReceived(6), unitCost(7), orgId(8)
 
 const PurchaseOrders = {
-  getAll() {
+  getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PurchaseOrders');
     if (!sheet) return Utils.createResponse('success', 'POs retrieved', { pos: [] });
+    const orgId = (data && data.orgId) || '';
     const rows = sheet.getDataRange().getValues();
     const pos = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
+      const rowOrg = rows[i][9] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
       pos.push({
         poId: rows[i][0], vendorId: rows[i][1], vendorName: rows[i][2],
         poDate: rows[i][3], expectedDate: rows[i][4], status: rows[i][5],
-        notes: rows[i][6], createdAt: rows[i][7]
+        notes: rows[i][6], createdAt: rows[i][7],
+        createdBy: rows[i][8] || '', orgId: rowOrg
       });
     }
     return Utils.createResponse('success', 'POs retrieved', { pos });
@@ -47,17 +53,20 @@ const PurchaseOrders = {
 
     const poId = 'PO' + Date.now();
     const now = new Date().toISOString();
+    const orgId  = data.orgId  || '';
+    const userId = data.userId || '';
+
     poSheet.appendRow([
       poId, data.vendorId || '', data.vendorName || '',
       data.poDate || now.slice(0, 10), data.expectedDate || '',
-      'draft', data.notes || '', now
+      'draft', data.notes || '', now, userId, orgId
     ]);
 
     (data.items || []).forEach(item => {
       const itemId = 'POI' + Date.now() + Math.random().toString(36).substr(2, 4);
       itemsSheet.appendRow([
         itemId, poId, item.productId || '', item.productName || '', item.uom || '',
-        Number(item.qtyOrdered) || 0, 0, Number(item.unitCost) || 0
+        Number(item.qtyOrdered) || 0, 0, Number(item.unitCost) || 0, orgId
       ]);
     });
 
@@ -95,13 +104,11 @@ const PurchaseOrders = {
       }
     }
 
-    // Check if PO is fully received
     const poSheet = ss.getSheetByName('PurchaseOrders');
     if (!poSheet) return;
     const poRows = poSheet.getDataRange().getValues();
     for (let i = 1; i < poRows.length; i++) {
       if (poRows[i][0] === poId) {
-        // Re-read items to check
         const updatedItems = itemsSheet.getDataRange().getValues();
         let fullyReceived = true;
         let anyReceived = false;

@@ -13,12 +13,12 @@ const Utils = {
     return digest.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
   },
 
-  createSession(userId) {
+  createSession(userId, orgId) {
     const token = Utilities.getUuid();
     const expiry = Date.now() + (8 * 60 * 60 * 1000); // 8 hours in ms
     CacheService.getScriptCache().put(
       token,
-      JSON.stringify({ userId, expiry }),
+      JSON.stringify({ userId, orgId: orgId || '', expiry }),
       28800 // 8 hours in seconds
     );
     return token;
@@ -33,7 +33,7 @@ const Utils = {
       CacheService.getScriptCache().remove(token);
       return null;
     }
-    return session.userId;
+    return { userId: session.userId, orgId: session.orgId || '' };
   },
 
   invalidateSession(token) {

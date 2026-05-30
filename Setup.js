@@ -13,69 +13,69 @@ const SHEET_SCHEMA = {
   Permissions:         ['id','roleId','menuItem','canAccess'],
 
   // ── Customers ───────────────────────────────────────────────────────────────
-  Customers:           ['timestamp','name','phone','addedBy'],
+  Customers:           ['timestamp','name','phone','addedBy','orgId'],
 
   // ── Service catalogue ───────────────────────────────────────────────────────
   ServiceGroups:       ['id','name','description','gstPct','sacCode','countForTarget',
-                        'directIncentivePct','sortOrder','status'],
-  Services:            ['id','name','description','duration','serviceGroupId','defaultPrice','status'],
-  PriceBooks:          ['id','name','description','status'],
-  PriceBookItems:      ['itemId','priceBookId','serviceId','price'],
+                        'directIncentivePct','sortOrder','status','orgId'],
+  Services:            ['id','name','description','duration','serviceGroupId','defaultPrice','status','orgId'],
+  PriceBooks:          ['id','name','description','status','orgId'],
+  PriceBookItems:      ['itemId','priceBookId','serviceId','price','orgId'],
 
   // ── Product catalogue ───────────────────────────────────────────────────────
   Products:            ['id','name','category','uom','unitCost','retailPrice','gst',
                         'currentStock','baseStock','manufacturer','vendorName','vendorContact',
-                        'status','vendorId','groupId'],
-  ProductGroups:       ['id','name','gstPct','hsnCode','unitIncentive','sortOrder','status'],
+                        'status','vendorId','groupId','orgId'],
+  ProductGroups:       ['id','name','gstPct','hsnCode','unitIncentive','sortOrder','status','orgId'],
   StockMovements:      ['movementId','date','productId','productName','type','refId','qty',
-                        'unitCost','notes','createdAt','vendorId','vendorName'],
-  StockAudits:         ['auditId','auditDate','notes','createdAt'],
+                        'unitCost','notes','createdAt','vendorId','vendorName','createdBy','orgId'],
+  StockAudits:         ['auditId','auditDate','notes','createdAt','createdBy','orgId'],
   AuditItems:          ['itemId','auditId','productId','productName','systemQty',
-                        'physicalQty','variance','unitCost','notes'],
+                        'physicalQty','variance','unitCost','notes','orgId'],
 
   // ── Vendors & Purchasing ─────────────────────────────────────────────────────
-  Vendors:             ['vendorId','name','contactPerson','phone','email','address','notes','status'],
-  PurchaseOrders:      ['poId','vendorId','vendorName','poDate','expectedDate','status','notes','createdAt'],
-  POItems:             ['itemId','poId','productId','productName','uom','qtyOrdered','qtyReceived','unitCost'],
+  Vendors:             ['vendorId','name','contactPerson','phone','email','address','notes','status','orgId'],
+  PurchaseOrders:      ['poId','vendorId','vendorName','poDate','expectedDate','status','notes','createdAt','createdBy','orgId'],
+  POItems:             ['itemId','poId','productId','productName','uom','qtyOrdered','qtyReceived','unitCost','orgId'],
 
   // ── Billing ──────────────────────────────────────────────────────────────────
   Bills:               ['billId','customerId','customerName','priceBookId','createdAt',
                         'servicesSubtotal','servicesGst','retailSubtotal','retailGst',
                         'discount','tip','grandTotal','paymentMode',
-                        'cashAmt','cardAmt','upiAmt','status','discountType'],
+                        'cashAmt','cardAmt','upiAmt','status','discountType','createdBy','orgId'],
   BillItems:           ['billItemId','billId','type','refId','itemName','staffId','staffName',
                         'qty','unitPrice','gstPct','lineSubtotal','lineGst','lineTotal',
-                        'profProductId','profProductName','profQty','profUom'],
+                        'profProductId','profProductName','profQty','profUom','orgId'],
 
   // ── Appointments ─────────────────────────────────────────────────────────────
   Appointments:        ['appointmentId','customerId','customerName','customerPhone',
                         'staffId','staffName','serviceId','serviceName',
-                        'startTime','durationMins','status','notes','billId','createdAt','createdBy'],
+                        'startTime','durationMins','status','notes','billId','createdAt','createdBy','orgId'],
 
   // ── Expenses ─────────────────────────────────────────────────────────────────
   Expenses:            ['expenseId','date','category','vendor','description','amount',
-                        'paymentMode','referenceNo','notes','createdAt','createdBy','status'],
+                        'paymentMode','referenceNo','notes','createdAt','createdBy','status','orgId'],
 
   // ── HR ───────────────────────────────────────────────────────────────────────
   Staff:               ['id','userId','name','phone','email','aadharNumber','upiId',
                         'startDate','role','salary','allowance','incentiveStructure',
-                        'specialization','status','staffType','profileId','targetPeriod'],
+                        'specialization','status','staffType','profileId','targetPeriod','orgId'],
   IncentiveProfiles:   ['profileId','profileName','profileType','revenueBase','otHourlyRate',
-                        'l1Type','l1Value','l2Type','l2Value','xPct','yPct','zPct','status'],
-  Shifts:              ['shiftId','name','startTime','endTime','breakMins','status'],
-  StaffShiftAllocation:['allocationId','staffId','shiftId','fromDate','toDate','createdAt'],
+                        'l1Type','l1Value','l2Type','l2Value','xPct','yPct','zPct','status','orgId'],
+  Shifts:              ['shiftId','name','startTime','endTime','breakMins','status','orgId'],
+  StaffShiftAllocation:['allocationId','staffId','shiftId','fromDate','toDate','createdAt','orgId'],
   StaffAttendance:     ['attendanceId','staffId','date','shiftId','clockIn','clockOut',
-                        'hoursWorked','otHours','dayStatus','notes','createdAt'],
-  StaffAdvance:        ['advanceId','staffId','date','type','amount','notes','runningBalance','createdAt'],
+                        'hoursWorked','otHours','dayStatus','notes','createdAt','orgId'],
+  StaffAdvance:        ['advanceId','staffId','date','type','amount','notes','runningBalance','createdAt','orgId'],
   WeeklyIncentive:     ['snapshotId','staffId','weekStart','weekEnd','revenueBase',
                         'targetIncentive','directIncentive','productIncentive',
-                        'totalIncentive','status','calculatedAt'],
+                        'totalIncentive','status','calculatedAt','orgId'],
   Payroll:             ['payrollId','staffId','staffName','period','baseSalary',
                         'payableDays','eligibleOffs','totalDaysOff','excessLeaves',
                         'leaveDeduction','adjustedBaseSalary','allowances','otHours','otPay',
                         'serviceIncentive','productIncentive','makeupIncentive',
                         'targetIncentive','totalIncentive','advanceDeducted',
-                        'netPay','status','notes','createdAt'],
+                        'netPay','status','notes','createdAt','orgId'],
 
   // ── Settings ─────────────────────────────────────────────────────────────────
   OrgSettings:         ['key','value']

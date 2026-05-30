@@ -1,6 +1,14 @@
+// PriceBooks sheet columns (0-based):
+// id(0), name(1), description(2), status(3), orgId(4)
+//
+// PriceBookItems sheet columns (0-based):
+// itemId(0), priceBookId(1), serviceId(2), price(3), orgId(4)
+
 const PriceBooks = {
   getAll(data) {
-    const cached = Utils.getCached('pricebooks');
+    const orgId = (data && data.orgId) || '';
+    const cacheKey = 'pricebooks_' + orgId;
+    const cached = Utils.getCached(cacheKey);
     if (cached) return Utils.createResponse('success', 'Price books retrieved', { priceBooks: cached });
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PriceBooks');
@@ -9,10 +17,13 @@ const PriceBooks = {
     const pbData = sheet.getDataRange().getValues();
     const priceBooks = [];
     for (let i = 1; i < pbData.length; i++) {
-      priceBooks.push({ id: pbData[i][0], name: pbData[i][1], description: pbData[i][2], status: pbData[i][3] });
+      if (!pbData[i][0]) continue;
+      const rowOrg = pbData[i][4] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      priceBooks.push({ id: pbData[i][0], name: pbData[i][1], description: pbData[i][2], status: pbData[i][3], orgId: rowOrg });
     }
 
-    Utils.setCached('pricebooks', priceBooks);
+    Utils.setCached(cacheKey, priceBooks);
     return Utils.createResponse('success', 'Price books retrieved', { priceBooks });
   },
 
@@ -21,8 +32,8 @@ const PriceBooks = {
     if (!sheet) return Utils.createResponse('error', 'PriceBooks sheet not found');
 
     const priceBookId = 'PB' + Date.now();
-    sheet.appendRow([priceBookId, data.name, data.description, data.status || 'active']);
-    Utils.clearCached('pricebooks');
+    sheet.appendRow([priceBookId, data.name, data.description, data.status || 'active', data.orgId || '']);
+    Utils.clearCached('pricebooks_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Price book added successfully', { id: priceBookId });
   },
 
@@ -36,7 +47,7 @@ const PriceBooks = {
         sheet.getRange(i + 1, 2).setValue(data.name);
         sheet.getRange(i + 1, 3).setValue(data.description);
         sheet.getRange(i + 1, 4).setValue(data.status);
-        Utils.clearCached('pricebooks');
+        Utils.clearCached('pricebooks_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Price book updated successfully');
       }
     }
@@ -52,7 +63,7 @@ const PriceBooks = {
       if (dataRange[i][0] === data.id) {
         sheet.deleteRow(i + 1);
         this.deleteAllItems(data.id);
-        Utils.clearCached('pricebooks');
+        Utils.clearCached('pricebooks_' + (data.orgId || ''));
         Utils.clearCached('pb_items_' + data.id);
         return Utils.createResponse('success', 'Price book deleted successfully');
       }
@@ -77,9 +88,10 @@ const PriceBooks = {
     const itemsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PriceBookItems');
     if (!itemsSheet) return Utils.createResponse('success', 'Price book items retrieved', { items: [] });
 
-    // Use cached services if available to avoid a second sheet read
+    const orgId = (data && data.orgId) || '';
+
     let servicesMap = {};
-    const cachedServices = Utils.getCached('services');
+    const cachedServices = Utils.getCached('services_' + orgId);
     if (cachedServices) {
       cachedServices.forEach(s => {
         servicesMap[s.id] = { name: s.name, serviceGroupId: s.serviceGroupId, defaultPrice: s.defaultPrice };
@@ -89,6 +101,8 @@ const PriceBooks = {
       if (servicesSheet) {
         const servicesData = servicesSheet.getDataRange().getValues();
         for (let i = 1; i < servicesData.length; i++) {
+          const rowOrg = servicesData[i][7] || '';
+          if (orgId && rowOrg && rowOrg !== orgId) continue;
           servicesMap[servicesData[i][0]] = {
             name: servicesData[i][1], serviceGroupId: servicesData[i][4], defaultPrice: servicesData[i][5]
           };
@@ -130,7 +144,7 @@ const PriceBooks = {
     if (!sheet) return Utils.createResponse('error', 'PriceBookItems sheet not found');
 
     const itemId = 'PBI' + Date.now();
-    sheet.appendRow([itemId, data.priceBookId, data.serviceId, data.price]);
+    sheet.appendRow([itemId, data.priceBookId, data.serviceId, data.price, data.orgId || '']);
     Utils.clearCached('pb_items_' + data.priceBookId);
     return Utils.createResponse('success', 'Price added successfully');
   },
@@ -143,7 +157,7 @@ const PriceBooks = {
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.itemId) {
         sheet.getRange(i + 1, 4).setValue(data.price);
-        Utils.clearCached('pb_items_' + dataRange[i][1]); // dataRange[i][1] is priceBookId
+        Utils.clearCached('pb_items_' + dataRange[i][1]);
         return Utils.createResponse('success', 'Price updated successfully');
       }
     }

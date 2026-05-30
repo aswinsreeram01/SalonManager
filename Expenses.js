@@ -1,3 +1,8 @@
+// Expenses sheet columns (0-based):
+// expenseId(0), date(1), category(2), vendor(3), description(4), amount(5),
+// paymentMode(6), referenceNo(7), notes(8), createdAt(9), createdBy(10),
+// status(11), orgId(12)
+
 const Expenses = {
   _sheet() {
     return SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Expenses');
@@ -16,19 +21,23 @@ const Expenses = {
       notes:       r[8] || '',
       createdAt:   String(r[9]),
       createdBy:   r[10] || '',
-      status:      r[11] || 'active'
+      status:      r[11] || 'active',
+      orgId:       r[12] || ''
     };
   },
 
-  getAll() {
+  getAll(data) {
     const sheet = this._sheet();
     if (!sheet) return Utils.createResponse('success', 'Expenses retrieved', { expenses: [] });
 
+    const orgId = (data && data.orgId) || '';
     const rows = sheet.getDataRange().getValues();
     const expenses = [];
     for (let i = 1; i < rows.length; i++) {
       const obj = this._rowToObj(rows[i]);
-      if (obj.status !== 'void') expenses.push(obj);
+      if (obj.status === 'void') continue;
+      if (orgId && obj.orgId && obj.orgId !== orgId) continue;
+      expenses.push(obj);
     }
     return Utils.createResponse('success', 'Expenses retrieved', { expenses });
   },
@@ -51,8 +60,9 @@ const Expenses = {
       data.referenceNo || '',
       data.notes || '',
       createdAt,
-      data.createdBy || '',
-      'active'
+      data.userId || data.createdBy || '',
+      'active',
+      data.orgId || ''
     ]);
 
     return Utils.createResponse('success', 'Expense saved', { expenseId });
