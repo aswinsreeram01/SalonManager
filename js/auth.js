@@ -74,6 +74,11 @@ const Auth = {
     localStorage.removeItem('sessionToken');
     this.currentUser = null;
     Navigation._loaded.clear();
+    Navigation._hiddenTiles.clear();
+    Navigation._currentPage = 'home';
+    AppState._loaded = false;
+    AppState.spreadsheetUrl = null;
+    AppState.sheetGids = {};
     this.showLogin();
     UI.showMessage('loginMessage', 'Logged out successfully', 'success');
     // Fire the server-side session invalidation in the background
@@ -92,7 +97,7 @@ const Auth = {
     const userNameSpan = document.getElementById('userName');
     if (userNameSpan) userNameSpan.textContent = this.currentUser.fullName;
     Navigation.applyPermissions(this.currentUser.permissions);
-    Dashboard.load();
+    Navigation.switchPage('home');
     Navigation.startPreload();
   },
   

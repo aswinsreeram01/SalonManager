@@ -1668,3 +1668,154 @@ code.dc-sheet {
 /* Row states */
 .dc-row-missing td { background: #fffaf0; }
 .dc-row-extra   td { background: #faf5ff; }
+
+/* ══════════════════════════════════════════════════════
+   TILE-BASED MOBILE-FIRST LAYOUT
+   ══════════════════════════════════════════════════════ */
+
+/* ── Hide legacy sidebar nav ── */
+.sidebar,
+#sidebarBackdrop,
+#menuToggle,
+.mobile-bottom-nav { display: none !important; }
+
+/* ── Main content: full width, no sidebar offset ── */
+.main-content {
+    margin-left: 0 !important;
+    margin-top: 60px !important;
+    padding: 16px 16px 80px !important;
+    width: 100% !important;
+    min-height: calc(100dvh - 60px) !important;
+}
+
+@media (min-width: 768px) {
+    .main-content { padding: 24px 24px 80px !important; }
+}
+
+/* ── Header tweaks ── */
+.header-right { display: flex; align-items: center; gap: 10px; }
+
+.back-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: #4a5568;
+    -webkit-tap-highlight-color: transparent;
+}
+.back-btn:hover { background: #f7fafc; }
+.back-btn svg { width: 22px; height: 22px; stroke: currentColor; }
+
+.sheets-link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #f0fdf4;
+    color: #16a34a;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    text-decoration: none;
+    border: 1px solid #bbf7d0;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+.sheets-link-btn:hover { background: #dcfce7; }
+
+/* ── Bottom Nav (always visible) ── */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e2e8f0;
+    z-index: 300;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 12px rgba(0,0,0,0.07);
+    display: flex;
+}
+
+.bottom-nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: #a0aec0;
+    cursor: pointer;
+    padding: 10px 4px;
+    font-size: 10px;
+    font-weight: 500;
+    transition: color 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: 0.02em;
+    min-height: 56px;
+}
+.bottom-nav-btn svg { width: 22px; height: 22px; stroke: currentColor; flex-shrink: 0; }
+.bottom-nav-btn.active { color: #667eea; }
+.bottom-nav-btn:active { transform: scale(0.88); }
+
+/* ── Home page ── */
+.home-top { padding: 4px 0 20px; }
+.home-greeting { font-size: 22px; font-weight: 700; color: #2d3748; margin-bottom: 4px; }
+.home-org { font-size: 14px; color: #718096; }
+
+.tile-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin: 24px 0 10px;
+}
+
+.tile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+@media (min-width: 560px)  { .tile-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 960px)  { .tile-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.tile-card {
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    padding: 16px 14px 14px;
+    min-height: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: pointer;
+    border: none;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+.tile-card:active { transform: scale(0.96); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+.tile-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--tile-color, #667eea);
+    border-radius: 14px 14px 0 0;
+}
+
+.tile-emoji { font-size: 26px; line-height: 1; }
+.tile-label { font-size: 13px; font-weight: 600; color: #2d3748; line-height: 1.3; }
