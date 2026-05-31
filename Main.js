@@ -6,7 +6,8 @@ function doPost(e) {
     // ── Staff portal: own session type, handled before admin switch ────────
     const STAFF_ACTIONS = [
       'staff_login', 'staff_logout',
-      'get_staff_dashboard', 'get_pending_items', 'confirm_bill_items', 'change_staff_pin'
+      'get_staff_dashboard', 'get_pending_items', 'confirm_bill_items', 'change_staff_pin',
+      'log_attendance', 'get_my_attendance', 'request_advance', 'get_my_advances'
     ];
     if (STAFF_ACTIONS.includes(action)) {
       if (action !== 'staff_login') {
@@ -24,6 +25,10 @@ function doPost(e) {
         case 'get_pending_items':    return StaffPortal.getPendingItems(data);
         case 'confirm_bill_items':   return StaffPortal.confirmItems(data);
         case 'change_staff_pin':     return StaffPortal.changePin(data);
+        case 'log_attendance':       return StaffPortal.logAttendance(data);
+        case 'get_my_attendance':    return StaffPortal.getMyAttendance(data);
+        case 'request_advance':      return StaffPortal.requestAdvance(data);
+        case 'get_my_advances':      return StaffPortal.getMyAdvances(data);
       }
     }
 
@@ -240,6 +245,15 @@ function doPost(e) {
       // Weekly Incentive
       case 'save_weekly_incentive': return Attendance.saveWeeklyIncentive(data);
       case 'get_weekly_incentives': return Attendance.getWeeklyIncentives(data);
+
+      // HR Approvals
+      case 'get_pending_attendance': return HRApprovals.getPendingAttendance(data);
+      case 'approve_attendance':     return HRApprovals.approveAttendance(data);
+      case 'reject_attendance':      return HRApprovals.rejectAttendance(data);
+      case 'get_pending_advances':   return HRApprovals.getPendingAdvances(data);
+      case 'approve_advance':        return HRApprovals.approveAdvance(data);
+      case 'disburse_advance':       return HRApprovals.disburseAdvance(data);
+      case 'reject_advance':         return HRApprovals.rejectAdvance(data);
 
       // Payroll
       case 'calculate_payroll': return Payroll.calculate(data);

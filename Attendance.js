@@ -172,7 +172,9 @@ const Attendance = {
         otHours:      Number(rows[i][7]) || 0,
         dayStatus:    rows[i][8],
         notes:        rows[i][9],
-        createdAt:    rows[i][10]
+        createdAt:    rows[i][10],
+        orgId:        String(rows[i][11] || ''),
+        status:       String(rows[i][12] || 'approved'),
       });
     }
 
@@ -261,7 +263,8 @@ const Attendance = {
           rec.dayStatus  || '',
           rec.notes      || '',
           now,
-          data.orgId     || ''
+          data.orgId     || '',
+          'approved'
         ]);
       }
       saved++;
@@ -295,16 +298,23 @@ const Attendance = {
         amount:          Number(rows[i][4]) || 0,
         notes:           rows[i][5],
         runningBalance:  Number(rows[i][6]) || 0,
-        createdAt:       rows[i][7]
+        createdAt:       rows[i][7],
+        orgId:           String(rows[i][8] || ''),
+        status:          String(rows[i][9] || 'disbursed'),
+        approvedAmount:  Number(rows[i][10]) || 0,
+        paymentMode:     String(rows[i][11] || ''),
       });
     }
 
     // Sort by date ascending
     advances.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
-    // Compute outstanding balance from all rows
+    // Outstanding balance = only disbursed rows count
     advances.forEach(r => {
-      outstandingBalance += r.type === 'advance' ? r.amount : -r.amount;
+      const status = r.status || 'disbursed';
+      if (status === 'disbursed') {
+        outstandingBalance += r.type === 'advance' ? r.amount : -r.amount;
+      }
     });
 
     return Utils.createResponse('success', 'Advances retrieved', { advances, outstandingBalance });
@@ -336,7 +346,10 @@ const Attendance = {
       data.notes || '',
       newBalance,
       now,
-      data.orgId || ''
+      data.orgId || '',
+      'disbursed',
+      amount,
+      data.paymentMode || ''
     ]);
 
     return Utils.createResponse('success', 'Advance recorded successfully', { advanceId, runningBalance: newBalance });

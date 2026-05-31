@@ -39,6 +39,7 @@ const PAGE_TITLES = {
     products:      'Products',
     vendors:       'Vendors',
     staff:         'Staff & HR',
+    hrapprovals:   'HR Approvals',
     customers:     'Customers',
     organizations: 'Org & Config',
     users:         'Users',
@@ -57,6 +58,7 @@ const PAGE_SHEETS = {
     products:      'Products',
     vendors:       'Vendors',
     staff:         'Staff',
+    hrapprovals:   'StaffAttendance',
     customers:     'Customers',
     organizations: 'Organizations',
     users:         'Users',
@@ -77,6 +79,7 @@ const TILE_CONFIG = [
     { page: 'vendors',       label: 'Vendors',      emoji: '🏪', color: '#f97316' },
     { section: 'People' },
     { page: 'staff',         label: 'Staff & HR',   emoji: '👥', color: '#ec4899' },
+    { page: 'hrapprovals',   label: 'HR Approvals', emoji: '📋', color: '#0ea5e9' },
     { page: 'customers',     label: 'Customers',    emoji: '🧑', color: '#14b8a6' },
     { section: 'Administration' },
     { page: 'organizations', label: 'Org & Config', emoji: '🏢', color: '#64748b' },
@@ -279,6 +282,7 @@ const Navigation = {
             services:      () => Promise.all([ServiceGroups.load(), Services.load(), PriceBooks.load()]),
             products:      () => Products.load(),
             staff:         () => Staff.load(),
+            hrapprovals:   () => HRApprovals.load(),
             customers:     () => Customers.load(),
             users:         () => Users.load(),
             roles:         () => Roles.load(),
@@ -328,6 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Expenses.init();
     Vendors.init();
     Settings.init();
+    HRApprovals.init();
 
     // ── Services section tab switching ──────────────────────
     document.querySelectorAll('#services .prod-tab').forEach(btn => {

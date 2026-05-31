@@ -208,7 +208,231 @@ const StaffPortal = {
     return Utils.createResponse('success', `${confirmed} item(s) confirmed`, { confirmed, confirmedAt });
   },
 
+  // ── Attendance: self-log (today only) ─────────────────────────────────────
+
+  logAttendance(data) {
+    const { staffId, orgId } = data;
+    const tz      = Session.getScriptTimeZone();
+    const today   = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+    const clockIn  = String(data.clockIn  || '').trim();
+    const clockOut = String(data.clockOut || '').trim();
+    const notes    = String(data.notes    || '').trim();
+    const shiftId  = String(data.shiftId  || '').trim();
+
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('StaffAttendance');
+    if (!sheet) return Utils.createResponse('error', 'Attendance sheet not found');
+
+    const rows = sheet.getDataRange().getValues();
+
+    // Find existing record for staffId + today
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (String(r[1]) !== staffId) continue;
+      const d = r[2];
+      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      if (dateStr !== today) continue;
+
+      const currentStatus = String(r[12] || 'approved');
+      if (currentStatus === 'approved') {
+        return Utils.createResponse('error', 'Your attendance for today has already been approved and cannot be changed.');
+      }
+
+      // Update the existing pending/rejected row
+      sheet.getRange(i + 1, 4).setValue(shiftId);
+      sheet.getRange(i + 1, 5).setValue(clockIn);
+      sheet.getRange(i + 1, 6).setValue(clockOut);
+      sheet.getRange(i + 1, 9).setValue('present');
+      sheet.getRange(i + 1, 10).setValue(notes);
+      sheet.getRange(i + 1, 13).setValue('pending');
+      return Utils.createResponse('success', 'Attendance updated — awaiting manager approval', {
+        attendanceId: String(r[0]), date: today, clockIn, clockOut, status: 'pending'
+      });
+    }
+
+    // New record for today
+    const attendanceId = 'ATT' + Date.now() + Math.random().toString(36).substr(2, 4);
+    const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss");
+    sheet.appendRow([
+      attendanceId, staffId, today, shiftId,
+      clockIn, clockOut,
+      0, 0,          // hoursWorked/otHours computed by manager at approval
+      'present', notes,
+      now, orgId, 'pending'
+    ]);
+    return Utils.createResponse('success', 'Attendance logged — awaiting manager approval', {
+      attendanceId, date: today, clockIn, clockOut, status: 'pending'
+    });
+  },
+
+  getMyAttendance(data) {
+    const { staffId, orgId } = data;
+    const tz    = Session.getScriptTimeZone();
+    const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+    // last 14 days
+    const fromDate = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 13);
+      return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+    })();
+
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('StaffAttendance');
+    if (!sheet) return Utils.createResponse('success', 'ok', { todayRecord: null, history: [] });
+
+    // Build shift lookup
+    const shiftMap = this._buildShiftMap(ss, orgId);
+
+    const rows   = sheet.getDataRange().getValues();
+    let todayRecord = null;
+    const history   = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (String(r[1]) !== staffId) continue;
+      const d = r[2];
+      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      if (dateStr < fromDate) continue;
+
+      const rec = {
+        attendanceId: String(r[0]),
+        date:         dateStr,
+        shiftId:      String(r[3] || ''),
+        shiftName:    shiftMap[String(r[3] || '')] ? shiftMap[String(r[3] || '')].name : '',
+        clockIn:      String(r[4] || ''),
+        clockOut:     String(r[5] || ''),
+        hoursWorked:  Number(r[6]) || 0,
+        otHours:      Number(r[7]) || 0,
+        dayStatus:    String(r[8] || ''),
+        notes:        String(r[9] || ''),
+        status:       String(r[12] || 'approved'),
+      };
+
+      if (dateStr === today) todayRecord = rec;
+      else history.push(rec);
+    }
+
+    history.sort((a, b) => b.date.localeCompare(a.date));
+
+    return Utils.createResponse('success', 'Attendance loaded', {
+      todayRecord, history,
+      shifts: Object.values(shiftMap),
+    });
+  },
+
+  // ── Advances: self-request ─────────────────────────────────────────────────
+
+  requestAdvance(data) {
+    const { staffId, orgId } = data;
+    const amount = Number(data.amount) || 0;
+    const notes  = String(data.notes || '').trim();
+    if (amount <= 0) return Utils.createResponse('error', 'Amount must be greater than zero');
+
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('StaffAdvance');
+    if (!sheet) return Utils.createResponse('error', 'StaffAdvance sheet not found');
+
+    const rows = sheet.getDataRange().getValues();
+    // Check for existing pending or approved request
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][1]) !== staffId) continue;
+      const status = String(rows[i][9] || 'disbursed');
+      if (status === 'pending' || status === 'approved') {
+        return Utils.createResponse('error', 'You already have a pending or approved advance request. Please wait for it to be processed.');
+      }
+    }
+
+    const tz  = Session.getScriptTimeZone();
+    const now = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss");
+    const today = now.slice(0, 10);
+
+    // Running balance = last known disbursed balance
+    let runningBalance = 0;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][1]) !== staffId) continue;
+      const status = String(rows[i][9] || 'disbursed');
+      if (status === 'disbursed') runningBalance = Number(rows[i][6]) || 0;
+    }
+
+    const advanceId = 'ADV' + Date.now();
+    sheet.appendRow([
+      advanceId, staffId, today, 'advance',
+      amount, notes,
+      runningBalance, // balance not yet updated until disbursed
+      now, orgId,
+      'pending', 0, ''
+    ]);
+
+    return Utils.createResponse('success', 'Advance request submitted — awaiting manager approval', {
+      advanceId, amount, status: 'pending'
+    });
+  },
+
+  getMyAdvances(data) {
+    const { staffId } = data;
+
+    const ss    = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('StaffAdvance');
+    if (!sheet) return Utils.createResponse('success', 'ok', { advances: [], balance: 0, hasPending: false });
+
+    const rows    = sheet.getDataRange().getValues();
+    const advances = [];
+    let balance    = 0;
+    let hasPending = false;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      if (String(rows[i][1]) !== staffId) continue;
+      const d = rows[i][2];
+      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const status  = String(rows[i][9] || 'disbursed');
+      const amount  = Number(rows[i][4]) || 0;
+
+      advances.push({
+        advanceId:      String(rows[i][0]),
+        date:           dateStr,
+        type:           String(rows[i][3] || 'advance'),
+        amount,
+        notes:          String(rows[i][5] || ''),
+        runningBalance: Number(rows[i][6]) || 0,
+        createdAt:      String(rows[i][7] || ''),
+        status,
+        approvedAmount: Number(rows[i][10]) || 0,
+        paymentMode:    String(rows[i][11] || ''),
+      });
+
+      if (status === 'pending' || status === 'approved') hasPending = true;
+      if (status === 'disbursed') {
+        balance += rows[i][3] === 'advance' ? amount : -amount;
+      }
+    }
+
+    advances.sort((a, b) => b.date.localeCompare(a.date));
+
+    return Utils.createResponse('success', 'Advances loaded', { advances, balance, hasPending });
+  },
+
   // ── Private helpers ─────────────────────────────────────────────────────────
+
+  _buildShiftMap(ss, orgId) {
+    const sheet = ss.getSheetByName('Shifts');
+    const map   = {};
+    if (!sheet) return map;
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      const rowOrg = String(rows[i][6] || '');
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      map[String(rows[i][0])] = {
+        shiftId:   String(rows[i][0]),
+        name:      String(rows[i][1] || ''),
+        startTime: String(rows[i][2] || '09:00'),
+        endTime:   String(rows[i][3] || '18:00'),
+        breakMins: Number(rows[i][4]) || 0,
+      };
+    }
+    return map;
+  },
 
   // Returns map of billId → { customerName, createdAt, dateOnly, paymentMode }
   // Pass from/to = null for no date filter

@@ -26,6 +26,10 @@ const StaffAPI = {
     getPendingItems()              { return this.call('get_pending_items'); },
     confirmItems(billItemIds)      { return this.call('confirm_bill_items',  { billItemIds }); },
     changePin(currentPin, newPin)  { return this.call('change_staff_pin',    { currentPin, newPin }); },
+    logAttendance(d)               { return this.call('log_attendance',      d); },
+    getMyAttendance()              { return this.call('get_my_attendance'); },
+    requestAdvance(amount, notes)  { return this.call('request_advance',     { amount, notes }); },
+    getMyAdvances()                { return this.call('get_my_advances'); },
 };
 
 // ── App controller ────────────────────────────────────────────────────────────
@@ -33,6 +37,8 @@ const StaffApp = {
     currentStaff:   null,
     _activeTab:     'records',
     _pendingItems:  [],
+    _attShifts:     [],
+    _todayRecord:   null,
 
     init() {
         // Restore session
@@ -57,6 +63,22 @@ const StaffApp = {
         // Tab switching
         document.querySelectorAll('.sp-tab').forEach(btn =>
             btn.addEventListener('click', () => this.switchTab(btn.dataset.tab)));
+
+        // Attendance tab
+        document.getElementById('attSetIn')
+            .addEventListener('click', () => {
+                document.getElementById('attClockIn').value = _spNowTime();
+            });
+        document.getElementById('attSetOut')
+            .addEventListener('click', () => {
+                document.getElementById('attClockOut').value = _spNowTime();
+            });
+        document.getElementById('attSubmitBtn')
+            .addEventListener('click', () => this.handleLogAttendance());
+
+        // Advance tab
+        document.getElementById('advSubmitBtn')
+            .addEventListener('click', () => this.handleRequestAdvance());
 
         // Date filter
         document.getElementById('dashFilterBtn')
@@ -153,9 +175,13 @@ const StaffApp = {
         this._activeTab = tab;
         document.querySelectorAll('.sp-tab').forEach(btn =>
             btn.classList.toggle('active', btn.dataset.tab === tab));
-        document.getElementById('tab-records').style.display  = tab === 'records'  ? 'block' : 'none';
-        document.getElementById('tab-pending').style.display  = tab === 'pending'  ? 'block' : 'none';
-        if (tab === 'pending') this.loadPendingItems();
+        document.getElementById('tab-records').style.display    = tab === 'records'    ? 'block' : 'none';
+        document.getElementById('tab-pending').style.display    = tab === 'pending'    ? 'block' : 'none';
+        document.getElementById('tab-attendance').style.display = tab === 'attendance' ? 'block' : 'none';
+        document.getElementById('tab-advance').style.display    = tab === 'advance'    ? 'block' : 'none';
+        if (tab === 'pending')    this.loadPendingItems();
+        if (tab === 'attendance') this.loadAttendance();
+        if (tab === 'advance')    this.loadAdvances();
     },
 
     // ── My Records tab ────────────────────────────────────────────────────────
@@ -323,6 +349,234 @@ const StaffApp = {
         }
     },
 
+    // ── Attendance tab ────────────────────────────────────────────────────────
+
+    async loadAttendance() {
+        const msgEl   = document.getElementById('attMessage');
+        const loading = document.getElementById('attHistLoading');
+        const histWrap = document.getElementById('attHistWrap');
+        _clearMsg(msgEl);
+        loading.style.display   = 'block';
+        histWrap.style.display  = 'none';
+
+        try {
+            const res = await StaffAPI.getMyAttendance();
+            if (res.status !== 'success') throw new Error(res.message);
+            this._attShifts    = res.shifts || [];
+            this._todayRecord  = res.todayRecord || null;
+            this._renderAttendanceToday(res.todayRecord);
+            this._renderAttendanceHistory(res.history || []);
+            histWrap.style.display = 'block';
+        } catch (err) {
+            _showMsg(msgEl, 'Failed to load: ' + err.message, 'error');
+        } finally {
+            loading.style.display = 'none';
+        }
+    },
+
+    _renderAttendanceToday(rec) {
+        const approvedView = document.getElementById('attApprovedView');
+        const logView      = document.getElementById('attLogView');
+        const banner       = document.getElementById('attStatusBanner');
+        const shiftSel     = document.getElementById('attShiftSelect');
+        const submitBtn    = document.getElementById('attSubmitBtn');
+
+        // Populate shift dropdown
+        shiftSel.innerHTML = '<option value="">Select shift…</option>' +
+            this._attShifts.map(s =>
+                `<option value="${_esc(s.shiftId)}">${_esc(s.name)}</option>`
+            ).join('');
+
+        if (!rec) {
+            approvedView.style.display = 'none';
+            logView.style.display      = 'block';
+            banner.style.display       = 'none';
+            submitBtn.textContent      = 'Submit for Approval';
+            document.getElementById('attClockIn').value  = '';
+            document.getElementById('attClockOut').value = '';
+            document.getElementById('attNotes').value    = '';
+            return;
+        }
+
+        if (rec.status === 'approved') {
+            approvedView.style.display = 'block';
+            logView.style.display      = 'none';
+            document.getElementById('attApprovedDetail').textContent =
+                `${rec.shiftName || rec.shiftId}  •  ${rec.clockIn || '—'} – ${rec.clockOut || '—'}  •  ${rec.hoursWorked.toFixed(2)} hrs`;
+            return;
+        }
+
+        // pending or rejected
+        approvedView.style.display = 'none';
+        logView.style.display      = 'block';
+        banner.style.display       = 'block';
+
+        if (rec.status === 'pending') {
+            banner.innerHTML = `<div class="sp-message sp-message-warning" style="display:block">⏳ Your attendance is pending manager approval. You can update and resubmit.</div>`;
+        } else if (rec.status === 'rejected') {
+            banner.innerHTML = `<div class="sp-message sp-message-error" style="display:block">❌ Your attendance was rejected. Please resubmit.</div>`;
+        }
+
+        // Pre-fill fields
+        shiftSel.value = rec.shiftId || '';
+        document.getElementById('attClockIn').value  = rec.clockIn  || '';
+        document.getElementById('attClockOut').value = rec.clockOut || '';
+        document.getElementById('attNotes').value    = rec.notes    || '';
+        submitBtn.textContent = 'Update & Resubmit';
+    },
+
+    _renderAttendanceHistory(history) {
+        const statusChip = s => {
+            const m = { approved: ['#f0fff4','#276749'], pending: ['#fffbeb','#744210'], rejected: ['#fff5f5','#c53030'] };
+            const [bg, fg] = m[s] || ['#f7fafc', '#4a5568'];
+            return `<span style="background:${bg};color:${fg};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600;">${_esc(s)}</span>`;
+        };
+        const body = document.getElementById('attHistBody');
+        if (!history.length) {
+            body.innerHTML = '<tr><td colspan="7" class="sp-empty">No attendance in the last 14 days</td></tr>';
+            return;
+        }
+        body.innerHTML = history.map(r => `
+            <tr>
+                <td>${_esc(r.date)}</td>
+                <td>${_esc(r.shiftName || r.shiftId || '—')}</td>
+                <td class="sp-muted">${_esc(r.clockIn  || '—')}</td>
+                <td class="sp-muted">${_esc(r.clockOut || '—')}</td>
+                <td class="sp-num">${r.hoursWorked.toFixed(2)}</td>
+                <td class="sp-num">${r.otHours.toFixed(2)}</td>
+                <td>${statusChip(r.status)}</td>
+            </tr>`).join('');
+    },
+
+    async handleLogAttendance() {
+        const shiftId  = document.getElementById('attShiftSelect').value;
+        const clockIn  = document.getElementById('attClockIn').value;
+        const clockOut = document.getElementById('attClockOut').value;
+        const notes    = document.getElementById('attNotes').value.trim();
+        const msgEl    = document.getElementById('attMessage');
+        const btn      = document.getElementById('attSubmitBtn');
+
+        if (!clockIn) { _showMsg(msgEl, 'Please enter your clock-in time.', 'error'); return; }
+
+        btn.disabled    = true;
+        btn.textContent = 'Submitting…';
+        _clearMsg(msgEl);
+
+        try {
+            const res = await StaffAPI.logAttendance({ shiftId, clockIn, clockOut, notes });
+            if (res.status !== 'success') throw new Error(res.message);
+            _showMsg(msgEl, '✅ ' + res.message, 'success');
+            this.loadAttendance();
+        } catch (err) {
+            _showMsg(msgEl, err.message, 'error');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = 'Submit for Approval';
+        }
+    },
+
+    // ── Advance tab ───────────────────────────────────────────────────────────
+
+    async loadAdvances() {
+        const msgEl   = document.getElementById('advMessage');
+        const loading = document.getElementById('advHistLoading');
+        const histWrap = document.getElementById('advHistWrap');
+        _clearMsg(msgEl);
+        loading.style.display  = 'block';
+        histWrap.style.display = 'none';
+
+        try {
+            const res = await StaffAPI.getMyAdvances();
+            if (res.status !== 'success') throw new Error(res.message);
+            this._renderAdvanceBalance(res.balance || 0);
+            this._renderAdvanceRequestPanel(res.hasPending, res.advances || []);
+            this._renderAdvanceHistory(res.advances || []);
+            histWrap.style.display = 'block';
+        } catch (err) {
+            _showMsg(msgEl, 'Failed to load: ' + err.message, 'error');
+        } finally {
+            loading.style.display = 'none';
+        }
+    },
+
+    _renderAdvanceBalance(balance) {
+        const fmt = v => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        document.getElementById('advBalance').textContent = fmt(balance);
+    },
+
+    _renderAdvanceRequestPanel(hasPending, advances) {
+        const notice  = document.getElementById('advPendingNotice');
+        const form    = document.getElementById('advRequestForm');
+        const submitBtn = document.getElementById('advSubmitBtn');
+
+        if (hasPending) {
+            const p = advances.find(a => a.status === 'pending' || a.status === 'approved');
+            const statusText = p ? (p.status === 'approved' ? 'approved, awaiting disbursal' : 'pending manager approval') : 'in progress';
+            notice.style.display = 'block';
+            notice.textContent   = `⏳ You have a request ${statusText}. You can submit a new request only after the current one is disbursed or rejected.`;
+            form.style.display   = 'none';
+        } else {
+            notice.style.display = 'none';
+            form.style.display   = 'block';
+            document.getElementById('advAmount').value = '';
+            document.getElementById('advNotes').value  = '';
+        }
+    },
+
+    _renderAdvanceHistory(advances) {
+        const fmt = v => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const list = document.getElementById('advHistList');
+        if (!advances.length) {
+            list.innerHTML = '<p class="sp-empty" style="text-align:center;color:#a0aec0;padding:20px 0;">No advance history</p>';
+            return;
+        }
+
+        const statusChip = s => {
+            const m = { disbursed: ['#f0fff4','#276749'], pending: ['#fffbeb','#744210'], approved: ['#ebf8ff','#2b6cb0'], rejected: ['#fff5f5','#c53030'] };
+            const [bg, fg] = m[s] || ['#f7fafc','#4a5568'];
+            return `<span style="background:${bg};color:${fg};padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600;">${_esc(s)}</span>`;
+        };
+
+        list.innerHTML = advances.map(r => `
+            <div style="border-bottom:1px solid #f0f4f8;padding:12px 0;display:grid;grid-template-columns:1fr auto;gap:6px;align-items:start;">
+                <div>
+                    <div style="font-size:13px;font-weight:600;color:#2d3748;">${_esc(r.date)}</div>
+                    ${r.notes ? `<div style="font-size:12px;color:#718096;margin-top:2px;">${_esc(r.notes)}</div>` : ''}
+                    ${r.status === 'approved' ? `<div style="font-size:12px;color:#2b6cb0;margin-top:2px;">Approved: ${fmt(r.approvedAmount)}</div>` : ''}
+                    ${r.status === 'disbursed' ? `<div style="font-size:12px;color:#718096;margin-top:2px;">via ${_esc(r.paymentMode || '—')} · Balance: ${fmt(r.runningBalance)}</div>` : ''}
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:16px;font-weight:700;color:#2d3748;">${fmt(r.amount)}</div>
+                    <div style="margin-top:4px;">${statusChip(r.status)}</div>
+                </div>
+            </div>`).join('');
+    },
+
+    async handleRequestAdvance() {
+        const amount  = parseFloat(document.getElementById('advAmount').value) || 0;
+        const notes   = document.getElementById('advNotes').value.trim();
+        const msgEl   = document.getElementById('advMessage');
+        const btn     = document.getElementById('advSubmitBtn');
+
+        if (amount <= 0) { _showMsg(msgEl, 'Please enter a valid amount.', 'error'); return; }
+
+        btn.disabled    = true;
+        btn.textContent = 'Submitting…';
+        _clearMsg(msgEl);
+
+        try {
+            const res = await StaffAPI.requestAdvance(amount, notes);
+            if (res.status !== 'success') throw new Error(res.message);
+            _showMsg(msgEl, '✅ Advance request submitted — awaiting manager approval.', 'success');
+            this.loadAdvances();
+        } catch (err) {
+            _showMsg(msgEl, err.message, 'error');
+        } finally {
+            btn.disabled    = false;
+            btn.textContent = 'Request Advance';
+        }
+    },
+
     // ── Change PIN modal ──────────────────────────────────────────────────────
 
     openPinModal() {
@@ -401,6 +655,11 @@ function _clearMsg(el) {
     if (!el) return;
     el.textContent   = '';
     el.style.display = 'none';
+}
+
+function _spNowTime() {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
 document.addEventListener('DOMContentLoaded', () => StaffApp.init());

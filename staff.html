@@ -307,9 +307,11 @@
     <div class="sp-tabs">
         <button class="sp-tab active" data-tab="records">My Records</button>
         <button class="sp-tab" data-tab="pending">
-            Pending Approval
+            Pending
             <span class="sp-badge" id="pendingBadge" style="display:none">0</span>
         </button>
+        <button class="sp-tab" data-tab="attendance">Attendance</button>
+        <button class="sp-tab" data-tab="advance">Advance</button>
     </div>
 
     <!-- ── Tab: My Records ──────────────────────────────────────────────────── -->
@@ -457,6 +459,112 @@
 
         </div><!-- /pendingContent -->
     </div><!-- /tab-pending -->
+
+    <!-- ── Tab: Clock In/Out ─────────────────────────────────────────────────── -->
+    <div id="tab-attendance" class="sp-tab-panel" style="display:none">
+        <div id="attMessage" class="sp-message"></div>
+
+        <!-- Today's log card -->
+        <div class="sp-card" id="attTodayCard">
+            <div class="sp-card-title">🕐 Today's Attendance</div>
+
+            <!-- Approved: read-only -->
+            <div id="attApprovedView" style="display:none">
+                <div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:10px;padding:14px 16px;text-align:center;">
+                    <div style="font-size:22px;margin-bottom:6px;">✅</div>
+                    <div style="font-weight:700;color:#276749;font-size:15px;">Attendance Approved</div>
+                    <div id="attApprovedDetail" style="font-size:13px;color:#2f855a;margin-top:4px;"></div>
+                </div>
+            </div>
+
+            <!-- Pending/Rejected: show form -->
+            <div id="attLogView">
+                <div id="attStatusBanner" style="display:none;margin-bottom:12px;"></div>
+
+                <div class="sp-form-group">
+                    <label for="attShiftSelect">Shift</label>
+                    <select id="attShiftSelect" style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:16px;background:white;">
+                        <option value="">Select shift…</option>
+                    </select>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="sp-form-group" style="margin:0">
+                        <label for="attClockIn">Clock In</label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="time" id="attClockIn" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:16px;">
+                            <button type="button" class="sp-btn sp-btn-link" id="attSetIn" style="padding:8px 10px;font-size:12px;min-height:38px;">Now</button>
+                        </div>
+                    </div>
+                    <div class="sp-form-group" style="margin:0">
+                        <label for="attClockOut">Clock Out</label>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <input type="time" id="attClockOut" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:8px;font-size:16px;">
+                            <button type="button" class="sp-btn sp-btn-link" id="attSetOut" style="padding:8px 10px;font-size:12px;min-height:38px;">Now</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="sp-form-group" style="margin-top:12px;">
+                    <label for="attNotes">Notes (optional)</label>
+                    <input type="text" id="attNotes" placeholder="e.g. arrived late due to traffic">
+                </div>
+                <button class="sp-btn sp-btn-primary" id="attSubmitBtn" style="margin-top:4px">Submit for Approval</button>
+            </div>
+        </div>
+
+        <!-- 14-day history -->
+        <div class="sp-card">
+            <div class="sp-card-title">📅 Recent Attendance (14 days)</div>
+            <div id="attHistLoading" class="sp-loading"><span class="sp-spinner"></span> Loading…</div>
+            <div id="attHistWrap" class="sp-table-wrap" style="display:none">
+                <table>
+                    <thead><tr>
+                        <th>Date</th><th>Shift</th><th>In</th><th>Out</th>
+                        <th class="sp-num">Hrs</th><th class="sp-num">OT</th><th>Status</th>
+                    </tr></thead>
+                    <tbody id="attHistBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div><!-- /tab-attendance -->
+
+    <!-- ── Tab: My Advance ───────────────────────────────────────────────────── -->
+    <div id="tab-advance" class="sp-tab-panel" style="display:none">
+        <div id="advMessage" class="sp-message"></div>
+
+        <!-- Balance card -->
+        <div class="sp-card" style="text-align:center;padding:24px 18px;">
+            <div style="font-size:13px;color:#718096;margin-bottom:6px;font-weight:500;">OUTSTANDING BALANCE</div>
+            <div id="advBalance" style="font-size:34px;font-weight:800;color:#2d3748;">₹0.00</div>
+            <div style="font-size:12px;color:#a0aec0;margin-top:4px;">Sum of all disbursed advances</div>
+        </div>
+
+        <!-- Request form / pending notice -->
+        <div class="sp-card" id="advRequestCard">
+            <div class="sp-card-title">💰 Request Advance</div>
+            <div id="advPendingNotice" style="display:none;background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;padding:12px 14px;font-size:13px;color:#744210;margin-bottom:12px;"></div>
+            <div id="advRequestForm">
+                <div class="sp-form-group">
+                    <label for="advAmount">Amount (₹)*</label>
+                    <input type="number" id="advAmount" min="1" step="0.01" placeholder="Enter amount" inputmode="decimal">
+                </div>
+                <div class="sp-form-group">
+                    <label for="advNotes">Notes (optional)</label>
+                    <input type="text" id="advNotes" placeholder="Reason for advance…">
+                </div>
+                <button class="sp-btn sp-btn-primary" id="advSubmitBtn">Request Advance</button>
+            </div>
+        </div>
+
+        <!-- History list -->
+        <div class="sp-card">
+            <div class="sp-card-title">📜 Advance History</div>
+            <div id="advHistLoading" class="sp-loading"><span class="sp-spinner"></span> Loading…</div>
+            <div id="advHistWrap" style="display:none">
+                <div id="advHistList"></div>
+            </div>
+        </div>
+    </div><!-- /tab-advance -->
 
 </div><!-- /staffDashSection -->
 
