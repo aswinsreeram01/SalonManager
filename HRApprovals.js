@@ -52,9 +52,12 @@ const HRApprovals = {
         presentIds.add(staffId);
 
         if (status === 'pending' || status === 'rejected') {
-          const shiftId   = String(r[3] || '');
+          // Use stored shiftId; fall back to allocation if missing
+          const shiftId   = String(r[3] || '') || (allocMap[staffId] || '');
           const shiftInfo = shiftMap[shiftId] || null;
-          const otCalc    = this._calcHours(String(r[4]), String(r[5]), shiftInfo);
+          const clockIn   = this._formatTime(r[4]);
+          const clockOut  = this._formatTime(r[5]);
+          const otCalc    = this._calcHours(clockIn, clockOut);
           pending.push({
             attendanceId: String(r[0]),
             staffId,
@@ -62,8 +65,8 @@ const HRApprovals = {
             date,
             shiftId,
             shiftName:    shiftInfo ? shiftInfo.name : '',
-            clockIn:      String(r[4] || ''),
-            clockOut:     String(r[5] || ''),
+            clockIn,
+            clockOut,
             hoursWorked:  otCalc.hoursWorked,
             otHours:      otCalc.otHours,
             dayStatus:    String(r[8] || 'present'),
@@ -337,9 +340,8 @@ const HRApprovals = {
       map[String(rows[i][0])] = {
         shiftId:   String(rows[i][0]),
         name:      String(rows[i][1] || ''),
-        startTime: String(rows[i][2] || '09:00'),
-        endTime:   String(rows[i][3] || '18:00'),
-        breakMins: Number(rows[i][4]) || 0,
+        startTime: this._formatTime(rows[i][2]) || '09:00',
+        endTime:   this._formatTime(rows[i][3]) || '18:00',
       };
     }
     return map;
@@ -362,36 +364,38 @@ const HRApprovals = {
     return map;
   },
 
-  // Returns map of staffId → shiftId for a given date (most recent allocation)
+  // Returns map of staffId → shiftId by looking up the WeeklySchedule for the week containing dateStr.
   _buildAllocMap(ss, orgId, dateStr) {
-    const sheet = ss.getSheetByName('StaffShiftAllocation');
+    const sheet = ss.getSheetByName('WeeklySchedule');
     const map   = {};
     if (!sheet) return map;
+
+    // Derive Monday (weekStart) for dateStr
+    const d   = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay();
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    const weekStart = Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
-      const staffId = String(rows[i][1]);
-      const from = rows[i][3] instanceof Date ? rows[i][3].toISOString().slice(0, 10) : String(rows[i][3] || '').slice(0, 10);
-      const to   = rows[i][4] instanceof Date ? rows[i][4].toISOString().slice(0, 10) : String(rows[i][4] || '').slice(0, 10);
-      if (from && dateStr < from) continue;
-      if (to   && dateStr > to)   continue;
-      map[staffId] = String(rows[i][2]);  // shiftId
+      const rowOrg = String(rows[i][5] || '');
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      const ws = rows[i][2] instanceof Date
+        ? rows[i][2].toISOString().slice(0, 10)
+        : String(rows[i][2] || '').slice(0, 10);
+      if (ws !== weekStart) continue;
+      map[String(rows[i][1])] = String(rows[i][3] || '');  // staffId → shiftId
     }
     return map;
   },
 
-  // Returns { hoursWorked, otHours } given clockIn/Out strings and a shiftInfo object
-  _calcHours(clockIn, clockOut, shiftInfo) {
+  // Returns { hoursWorked, otHours }. OT = max(0, hoursWorked − 9). No break deduction.
+  _calcHours(clockIn, clockOut) {
     if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
-    const breakMins  = shiftInfo ? shiftInfo.breakMins : 0;
-    const shiftStart = shiftInfo ? this._toMinutes(shiftInfo.startTime) : 0;
-    const shiftEnd   = shiftInfo ? this._toMinutes(shiftInfo.endTime)   : 0;
-    const shiftMins  = Math.max(0, shiftEnd - shiftStart - breakMins);
-    const shiftHours = shiftMins / 60;
-
-    const workedMins = this._toMinutes(clockOut) - this._toMinutes(clockIn) - breakMins;
+    const workedMins  = this._toMinutes(clockOut) - this._toMinutes(clockIn);
     const hoursWorked = Math.max(0, workedMins / 60);
-    const otHours     = Math.max(0, hoursWorked - shiftHours);
+    const otHours     = Math.max(0, hoursWorked - 9);
     return { hoursWorked: Math.round(hoursWorked * 100) / 100, otHours: Math.round(otHours * 100) / 100 };
   },
 
@@ -400,5 +404,18 @@ const HRApprovals = {
     const parts = t.split(':');
     if (parts.length < 2) return 0;
     return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  },
+
+  // Safely convert a GAS cell value to HH:mm string.
+  // Sheets returns Date objects for time cells; extract just the time portion.
+  _formatTime(val) {
+    if (!val) return '';
+    if (val instanceof Date) {
+      return Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm');
+    }
+    const s = String(val).trim();
+    // Accept "HH:mm" or "HH:mm:ss"
+    const m = s.match(/^(\d{1,2}:\d{2})/);
+    return m ? m[1] : s;
   },
 };

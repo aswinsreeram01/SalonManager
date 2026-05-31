@@ -231,12 +231,12 @@ function doPost(e) {
       case 'update_org_settings': return OrgSettings.update(data);
 
       // Shifts & Attendance
-      case 'get_shifts': return Attendance.getShifts();
-      case 'save_shift': return Attendance.saveShift(data);
-      case 'get_allocations': return Attendance.getAllocations(data);
-      case 'save_allocation': return Attendance.saveAllocation(data);
-      case 'get_attendance': return Attendance.getAttendance(data);
-      case 'save_attendance': return Attendance.saveAttendance(data);
+      case 'get_shifts':          return Attendance.getShifts();
+      case 'save_shift':          return Attendance.saveShift(data);
+      case 'get_attendance':      return Attendance.getAttendance(data);
+      case 'save_attendance':     return Attendance.saveAttendance(data);
+      case 'get_week_schedule':   return WeeklySchedule.get(data);
+      case 'save_week_schedule':  return WeeklySchedule.save(data);
 
       // Advances
       case 'get_advances': return Attendance.getAdvances(data);

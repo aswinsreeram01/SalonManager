@@ -3,18 +3,19 @@ const Staff = {
 
   // ─── State ───────────────────────────────────────────────────────────────────
 
-  _staff:           [],
-  _profiles:        [],
-  _shifts:          [],
-  _attendance:      [],
+  _staff:            [],
+  _profiles:         [],
+  _shifts:           [],
+  _attendance:       [],
+  _weekScheduleData: {},
   _currentWeekStart: null,
-  _loadedPeriod:    '',
-  _keepWeekStart:   false,
-  _editingId:       null,
-  _profEditingId:   null,
-  _shiftEditingId:  null,
-  _attData:         null,
-  _payCalcResults:  [],
+  _loadedPeriod:     '',
+  _keepWeekStart:    false,
+  _editingId:        null,
+  _profEditingId:    null,
+  _shiftEditingId:   null,
+  _attData:          null,
+  _payCalcResults:   [],
 
   // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -40,7 +41,6 @@ const Staff = {
     document.getElementById('hrShiftAddBtn').addEventListener('click', () => this.openShiftForm());
     document.getElementById('hrShiftCancelBtn').addEventListener('click', () => this.closeShiftForm());
     document.getElementById('hrShiftForm').addEventListener('submit', e => this.handleShiftSubmit(e));
-    document.getElementById('hrAllocSaveBtn').addEventListener('click', () => this.saveAllocation());
 
     // ── Attendance tab ──
     document.getElementById('hrAttLoadBtn').addEventListener('click', () => this.loadAttendance());
@@ -79,7 +79,6 @@ const Staff = {
     document.querySelectorAll('#staff .prod-tab-panel').forEach(p =>
       p.classList.toggle('active', p.id === 'prod-tab-' + tab)
     );
-    if (tab === 'hr-shifts')     this._loadAllocations();
     if (tab === 'hr-attendance') this.loadAttendance();
     if (tab === 'hr-payroll')    this.loadPayrollHistory();
   },
@@ -107,7 +106,6 @@ const Staff = {
       if (res.status === 'success') {
         this._staff = res.staff || [];
         this._renderStaff();
-        this._populateStaffDropdowns();
       }
     } catch(e) {
       UI.showMessage('staffMessage', 'Failed to load staff', 'error');
@@ -133,7 +131,6 @@ const Staff = {
       if (res.status === 'success') {
         this._shifts = res.shifts || [];
         this._renderShifts();
-        this._populateShiftDropdown();
       }
     } catch(e) {
       // non-fatal
@@ -310,13 +307,6 @@ const Staff = {
       active.map(p => `<option value="${p.id || p.profileId}">${this._esc(p.name)}</option>`).join('');
   },
 
-  _populateStaffDropdowns() {
-    const active = this._staff.filter(s => s.status === 'active');
-    const opts = '<option value="">Select Staff</option>' +
-      active.map(s => `<option value="${s.id}">${this._esc(s.name)}</option>`).join('');
-    const allocSel = document.getElementById('hrAllocStaff');
-    if (allocSel) allocSel.innerHTML = opts;
-  },
 
   // ── Advances ──
 
@@ -596,76 +586,7 @@ const Staff = {
     }
   },
 
-  _populateShiftDropdown() {
-    const sel = document.getElementById('hrAllocShift');
-    if (!sel) return;
-    const active = this._shifts.filter(s => s.status === 'active');
-    sel.innerHTML = '<option value="">Select Shift</option>' +
-      active.map(s => {
-        const sid = s.id || s.shiftId;
-        return `<option value="${sid}">${this._esc(s.name)}</option>`;
-      }).join('');
-  },
 
-  async _loadAllocations() {
-    const tbody = document.getElementById('hrAllocTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
-    try {
-      const res = await API.getAllocations();
-      const allocs = (res.status === 'success' ? res.allocations || [] : []);
-      if (!allocs.length) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:16px;">No shift allocations</td></tr>';
-        return;
-      }
-      tbody.innerHTML = allocs.map(a => {
-        const staffMem = this._staff.find(s => s.id === a.staffId);
-        const shift    = this._shifts.find(s => (s.id || s.shiftId) === a.shiftId);
-        const staffName = staffMem ? this._esc(staffMem.name) : this._esc(a.staffId);
-        const shiftName = shift    ? this._esc(shift.name)    : this._esc(a.shiftId);
-        return `<tr>
-          <td>${staffName}</td>
-          <td>${shiftName}</td>
-          <td style="white-space:nowrap;">${this._fmtDate(a.effectiveFrom)}</td>
-          <td style="white-space:nowrap;">${a.effectiveTo ? this._fmtDate(a.effectiveTo) : '<span style="color:#a0aec0;">Current</span>'}</td>
-        </tr>`;
-      }).join('');
-    } catch(err) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#fc8181;">Error loading allocations</td></tr>';
-    }
-  },
-
-  async saveAllocation() {
-    const staffId     = document.getElementById('hrAllocStaff').value;
-    const shiftId     = document.getElementById('hrAllocShift').value;
-    const effectiveFrom = document.getElementById('hrAllocFrom').value;
-    const effectiveTo   = document.getElementById('hrAllocTo').value;
-    const msgEl = document.getElementById('hrAllocMessage');
-
-    if (!staffId) { this._showInlineMsg(msgEl, 'Please select a staff member.', 'error'); return; }
-    if (!shiftId) { this._showInlineMsg(msgEl, 'Please select a shift.', 'error'); return; }
-    if (!effectiveFrom) { this._showInlineMsg(msgEl, 'Please set an effective from date.', 'error'); return; }
-
-    const btn = document.getElementById('hrAllocSaveBtn');
-    btn.disabled = true;
-    btn.textContent = 'Assigning…';
-
-    try {
-      const res = await API.saveAllocation({ staffId, shiftId, effectiveFrom, effectiveTo });
-      if (res.status === 'success') {
-        this._showInlineMsg(msgEl, 'Shift assigned successfully.', 'success');
-        document.getElementById('hrAllocFrom').value = '';
-        document.getElementById('hrAllocTo').value   = '';
-        await this._loadAllocations();
-      } else {
-        this._showInlineMsg(msgEl, res.message || 'Error assigning shift', 'error');
-      }
-    } catch(err) {
-      this._showInlineMsg(msgEl, 'Error assigning shift', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Assign';
-    }
-  },
 
   // ─── TAB 4: ATTENDANCE ───────────────────────────────────────────────────────
 
@@ -698,7 +619,7 @@ const Staff = {
       ]);
       this._attendance = attRes.status === 'success' ? (attRes.attendance || []) : [];
       if (staffRes.status === 'success') this._staff = staffRes.staff || this._staff;
-      this._renderWeekGrid();
+      await this._renderWeekGrid();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
     } finally {
@@ -734,7 +655,7 @@ const Staff = {
       this._keepWeekStart = true;
       await this.loadAttendance();
     } else {
-      this._renderWeekGrid();
+      await this._renderWeekGrid();
     }
   },
 
@@ -749,19 +670,49 @@ const Staff = {
       this._keepWeekStart = true;
       await this.loadAttendance();
     } else {
-      this._renderWeekGrid();
+      await this._renderWeekGrid();
     }
   },
 
-  _renderWeekGrid() {
+  _isPastWeek() {
+    if (!this._currentWeekStart) return true;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return this._currentWeekStart < this._getMonday(today);
+  },
+
+  _dateStr(d) {
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  },
+
+  async _loadWeekSchedule() {
+    const weekStart = this._dateStr(this._currentWeekStart);
+    try {
+      const res = await API.call('get_week_schedule', { weekStart });
+      this._weekScheduleData = {};
+      if (res.status === 'success') {
+        (res.schedules || []).forEach(s => {
+          this._weekScheduleData[s.staffId] = {
+            shiftId: s.shiftId || '',
+            offDays: s.offDays ? s.offDays.split(',').filter(Boolean) : []
+          };
+        });
+      }
+    } catch(e) { this._weekScheduleData = {}; }
+  },
+
+  async _renderWeekGrid() {
     const wrap    = document.getElementById('hrAttGridWrap');
     const labelEl = document.getElementById('hrAttWeekLabel');
     if (labelEl) labelEl.textContent = this._weekLabel();
 
     if (!this._currentWeekStart) {
       wrap.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:24px;">Select a month and click Load.</p>';
+      document.getElementById('hrAttPlanWrap').style.display = 'none';
       return;
     }
+
+    // Load week schedule (for plan UI and future auto-select)
+    await this._loadWeekSchedule();
 
     const activeStaff = this._staff.filter(s => s.status === 'active');
     if (!activeStaff.length) {
@@ -769,19 +720,26 @@ const Staff = {
       return;
     }
 
-    // Build 7-day window
-    const days = [];
-    for (let i = 0; i < 7; i++) {
+    // Fri=5, Sat=6, Sun=0 are all weekends (highlighted + double-count)
+    const isWeekendDay = dow => dow === 0 || dow === 5 || dow === 6;
+
+    // Build 7-day window (Mon–Sun)
+    const dayNames = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const days = dayNames.map((name, i) => {
       const d = new Date(this._currentWeekStart);
       d.setDate(d.getDate() + i);
-      const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
-      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      days.push({
-        dateStr,
-        isWeekend,
+      const dow = d.getDay();
+      return {
+        name,
+        dateStr: this._dateStr(d),
+        dow,
+        isWeekend: isWeekendDay(dow),
         label: d.toLocaleDateString('en-IN', { weekday: 'short' }) + ' ' + d.getDate()
-      });
-    }
+      };
+    });
+
+    // Render week plan (current/future weeks only)
+    this._renderWeekPlan(activeStaff, days);
 
     const attMap = {};
     (this._attendance || []).forEach(a => { attMap[a.staffId + '|' + a.date] = a; });
@@ -791,32 +749,34 @@ const Staff = {
       absent:     { abbr: 'A', bg: '#fed7d7', color: '#9b2c2c' },
       'half-day': { abbr: 'H', bg: '#fefcbf', color: '#975a16' }
     };
+    const wkBg = '#fef9e7';  // weekend column tint for empty cells
 
     const dayHeaders = days.map(d =>
-      `<th style="min-width:44px;text-align:center;font-size:12px;padding:6px 4px;${d.isWeekend ? 'background:#fefcbf;' : ''}">${d.label}</th>`
+      `<th style="min-width:48px;text-align:center;font-size:12px;padding:6px 4px;${d.isWeekend ? `background:${wkBg};` : ''}">${d.label}</th>`
     ).join('');
 
     const rows = activeStaff.map(s => {
       let daysOff = 0, otHrs = 0;
       const cells = days.map(d => {
-        const rec    = attMap[s.id + '|' + d.dateStr];
+        const rec = attMap[s.id + '|' + d.dateStr];
         if (rec) {
           const st  = rec.dayStatus || 'present';
           const cfg = statusCfg[st] || { abbr: '?', bg: '#edf2f7', color: '#4a5568' };
-          if (st === 'absent') daysOff += 1;
-          if (st === 'half-day') daysOff += 0.5;
+          // Weekends (Fri/Sat/Sun): absent=2 days, half-day=1 day
+          if (st === 'absent')   daysOff += d.isWeekend ? 2 : 1;
+          if (st === 'half-day') daysOff += d.isWeekend ? 1 : 0.5;
           otHrs += parseFloat(rec.otHours) || 0;
-          return `<td style="text-align:center;background:${cfg.bg};color:${cfg.color};font-weight:700;font-size:13px;cursor:pointer;min-width:44px;padding:6px 4px;"
+          return `<td style="text-align:center;background:${cfg.bg};color:${cfg.color};font-weight:700;font-size:13px;cursor:pointer;min-width:48px;padding:6px 4px;"
             onclick="Staff.openAttModal('${s.id}','${d.dateStr}')" title="${st}">${cfg.abbr}</td>`;
         }
-        return `<td style="text-align:center;color:#cbd5e0;font-size:13px;cursor:pointer;min-width:44px;padding:6px 4px;${d.isWeekend ? 'background:#fafaf0;' : ''}"
+        return `<td style="text-align:center;color:#cbd5e0;font-size:13px;cursor:pointer;min-width:48px;padding:6px 4px;${d.isWeekend ? `background:${wkBg};` : ''}"
           onclick="Staff.openAttModal('${s.id}','${d.dateStr}')" title="No record">–</td>`;
       }).join('');
 
       return `<tr>
         <td style="white-space:nowrap;font-weight:500;min-width:130px;padding:6px 8px;position:sticky;left:0;background:#fff;z-index:1;border-right:2px solid #e2e8f0;">${this._esc(s.name)}</td>
         ${cells}
-        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;padding:6px 8px;">${daysOff}</td>
+        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;padding:6px 8px;">${daysOff % 1 === 0 ? daysOff : daysOff.toFixed(1)}</td>
         <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;padding:6px 8px;">${otHrs.toFixed(1)}</td>
       </tr>`;
     }).join('');
@@ -830,6 +790,95 @@ const Staff = {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
+  },
+
+  _renderWeekPlan(activeStaff, days) {
+    const planWrap = document.getElementById('hrAttPlanWrap');
+    if (!planWrap) return;
+
+    if (this._isPastWeek()) {
+      planWrap.style.display = 'none';
+      return;
+    }
+
+    planWrap.style.display = 'block';
+    const shiftOpts = `<option value="">No shift</option>` +
+      this._shifts.map(sh => {
+        const sid = sh.shiftId || sh.id;
+        return `<option value="${this._esc(sid)}">${this._esc(sh.name)}</option>`;
+      }).join('');
+
+    const headerCells = days.map(d =>
+      `<th style="text-align:center;padding:5px 4px;font-size:12px;min-width:44px;${d.isWeekend ? 'color:#b7791f;' : ''}">${d.name}</th>`
+    ).join('');
+
+    const rows = activeStaff.map(s => {
+      const sched = this._weekScheduleData[s.id] || { shiftId: '', offDays: [] };
+      const shiftSel = shiftOpts.replace(
+        `value="${this._esc(sched.shiftId)}"`,
+        `value="${this._esc(sched.shiftId)}" selected`
+      );
+      const dayCells = days.map((d, i) =>
+        `<td style="text-align:center;padding:5px 4px;">
+          <input type="checkbox" id="wpOff-${s.id}-${i}" ${sched.offDays.includes(d.name) ? 'checked' : ''}>
+        </td>`
+      ).join('');
+      return `<tr>
+        <td style="padding:5px 8px;white-space:nowrap;font-weight:500;">${this._esc(s.name)}</td>
+        <td style="padding:5px 8px;">
+          <select id="wpShift-${s.id}" style="font-size:13px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:4px;min-width:100px;">${shiftSel}</select>
+        </td>
+        ${dayCells}
+      </tr>`;
+    }).join('');
+
+    planWrap.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h4 style="margin:0;color:#2d3748;font-size:14px;font-weight:700;">Week Plan <span style="font-weight:400;color:#718096;font-size:12px;">(shift &amp; planned off days)</span></h4>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="wpMsg" style="font-size:13px;"></div>
+          <button class="btn btn-primary" id="wpSaveBtn" onclick="Staff.saveWeekSchedule()" style="padding:7px 18px;">Save Week Plan</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="border-collapse:collapse;font-size:13px;width:100%;">
+          <thead><tr>
+            <th style="text-align:left;padding:5px 8px;min-width:130px;">Staff</th>
+            <th style="padding:5px 8px;min-width:110px;">Shift</th>
+            ${headerCells}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  },
+
+  async saveWeekSchedule() {
+    const weekStart   = this._dateStr(this._currentWeekStart);
+    const activeStaff = this._staff.filter(s => s.status === 'active');
+    const dayNames    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+    const entries = activeStaff.map(s => {
+      const shiftSel = document.getElementById(`wpShift-${s.id}`);
+      const offDays  = dayNames.filter((_, i) => {
+        const cb = document.getElementById(`wpOff-${s.id}-${i}`);
+        return cb && cb.checked;
+      });
+      return { staffId: s.id, shiftId: shiftSel ? shiftSel.value : '', offDays: offDays.join(',') };
+    });
+
+    const btn   = document.getElementById('wpSaveBtn');
+    const msgEl = document.getElementById('wpMsg');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      const res = await API.call('save_week_schedule', { weekStart, entries });
+      if (res.status !== 'success') throw new Error(res.message);
+      if (msgEl) { msgEl.textContent = 'Saved ✓'; msgEl.style.color = '#276749'; setTimeout(() => { msgEl.textContent = ''; }, 3000); }
+      await this._loadWeekSchedule();
+    } catch(e) {
+      if (msgEl) { msgEl.textContent = e.message; msgEl.style.color = '#c53030'; }
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Week Plan'; }
+    }
   },
 
   openAttModal(staffId, date) {

@@ -664,37 +664,6 @@
                 </table>
             </div>
         </div>
-        <div class="card">
-            <h3 style="color:#2d3748;margin-bottom:16px;">Assign Shift to Staff</h3>
-            <div id="hrAllocMessage" class="message"></div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;align-items:end;margin-bottom:16px;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAllocStaff">Staff*</label>
-                    <select id="hrAllocStaff"><option value="">Select Staff</option></select>
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAllocShift">Shift*</label>
-                    <select id="hrAllocShift"><option value="">Select Shift</option></select>
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAllocFrom">Effective From*</label>
-                    <input type="date" id="hrAllocFrom">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAllocTo">Effective To (blank = current)</label>
-                    <input type="date" id="hrAllocTo">
-                </div>
-                <button class="btn btn-primary" id="hrAllocSaveBtn" type="button" style="align-self:flex-end;">Assign</button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>Staff</th><th>Shift</th><th>From</th><th>To</th></tr></thead>
-                    <tbody id="hrAllocTableBody">
-                        <tr><td colspan="4" style="text-align:center;color:#a0aec0;">—</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
     </div>
 
     <!-- ═══ TAB: ATTENDANCE ═══ -->
@@ -712,6 +681,9 @@
                     <span id="hrAttWeekLabel" style="font-size:14px;font-weight:600;color:#2d3748;min-width:190px;text-align:center;">—</span>
                     <button class="btn btn-secondary" id="hrAttNextWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Next week">&#8594;</button>
                 </div>
+            </div>
+            <div id="hrAttPlanWrap" style="display:none;margin:16px 0;padding:16px;background:#f7fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                <!-- Week plan populated by JS -->
             </div>
             <div id="hrAttGridWrap" style="overflow-x:auto;">
                 <p style="color:#a0aec0;text-align:center;padding:24px;">Select a month and click Load</p>
