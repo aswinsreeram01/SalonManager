@@ -6,6 +6,7 @@ const Staff = {
   _staff:          [],
   _profiles:       [],
   _shifts:         [],
+  _attendance:     [],
   _editingId:      null,
   _profEditingId:  null,
   _shiftEditingId: null,
@@ -47,8 +48,10 @@ const Staff = {
     document.getElementById('hrPayHistFilter').addEventListener('change', () => this.loadPayrollHistory());
 
     // ── Attendance modal ──
-    document.getElementById('hrAttModalSaveBtn').addEventListener('click', () => this.saveAttendanceRecord());
+    document.getElementById('hrAttModalSaveBtn').addEventListener('click',   () => this.saveAttendanceRecord());
     document.getElementById('hrAttModalCancelBtn').addEventListener('click', () => this.closeAttModal());
+    document.getElementById('hrAttModalEditBtn').addEventListener('click',   () => this._enterAttEditMode());
+    document.getElementById('hrAttModalBackBtn').addEventListener('click',   () => this._setAttViewMode(true));
 
     // Default month values
     const now = new Date();
@@ -690,6 +693,7 @@ const Staff = {
       const attendance = (attRes.status    === 'success' ? attRes.attendance    || [] : []);
       const shifts     = (shiftRes.status  === 'success' ? shiftRes.shifts      || [] : this._shifts);
 
+      this._attendance = attendance;  // cache for modal lookup
       this._renderAttGrid(staff, attendance, shifts, year, month, lastDay);
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
@@ -776,22 +780,48 @@ const Staff = {
   },
 
   openAttModal(staffId, date) {
-    const staffMem = this._staff.find(s => s.id === staffId);
+    const staffMem  = this._staff.find(s => s.id === staffId);
     const staffName = staffMem ? staffMem.name : staffId;
+    const rec       = (this._attendance || []).find(a => a.staffId === staffId && a.date === date);
 
-    // Try to find existing record from the last rendered grid data
-    // We keep a reference to the last loaded attendance — rebuild from the grid isn't reliable,
-    // so we open blank and load from any cached att data.
-    this._attData = { staffId, date };
+    this._attData = { staffId, date, attendanceId: rec ? (rec.attendanceId || null) : null };
 
     document.getElementById('hrAttModalTitle').textContent = `${staffName} — ${date}`;
-    document.getElementById('hrAttModalMsg').innerHTML     = '';
-    document.getElementById('hrAttClockIn').value   = '';
-    document.getElementById('hrAttClockOut').value  = '';
-    document.getElementById('hrAttStatus').value    = 'present';
-    document.getElementById('hrAttNotes').value     = '';
+    document.getElementById('hrAttModalMsg').innerHTML = '';
 
+    // Populate view fields
+    document.getElementById('hrAttViewIn').textContent  = rec && rec.clockIn  ? rec.clockIn  : '—';
+    document.getElementById('hrAttViewOut').textContent = rec && rec.clockOut ? rec.clockOut : '—';
+    document.getElementById('hrAttViewHrs').textContent = rec && rec.hoursWorked != null
+      ? Number(rec.hoursWorked).toFixed(2) + ' hrs' : '—';
+    document.getElementById('hrAttViewOT').textContent  = rec && rec.otHours != null
+      ? Number(rec.otHours).toFixed(2) + ' hrs' : '—';
+    document.getElementById('hrAttViewStatus').textContent = rec ? (rec.dayStatus || '—') : '—';
+    document.getElementById('hrAttViewNotes').textContent  = rec && rec.notes ? rec.notes : '—';
+
+    // Always open in view mode
+    this._setAttViewMode(true);
     document.getElementById('hrAttModal').style.display = 'flex';
+  },
+
+  _setAttViewMode(viewMode) {
+    document.getElementById('hrAttViewPanel').style.display  = viewMode ? 'block' : 'none';
+    document.getElementById('hrAttEditPanel').style.display  = viewMode ? 'none'  : 'block';
+    document.getElementById('hrAttViewBtns').style.display   = viewMode ? 'flex'  : 'none';
+    document.getElementById('hrAttEditBtns').style.display   = viewMode ? 'none'  : 'flex';
+    document.getElementById('hrAttModalMsg').innerHTML = '';
+  },
+
+  _enterAttEditMode() {
+    const rec = (this._attendance || []).find(a =>
+      a.staffId === this._attData.staffId && a.date === this._attData.date);
+
+    document.getElementById('hrAttClockIn').value  = rec ? (rec.clockIn   || '') : '';
+    document.getElementById('hrAttClockOut').value = rec ? (rec.clockOut  || '') : '';
+    document.getElementById('hrAttStatus').value   = rec ? (rec.dayStatus || 'present') : 'present';
+    document.getElementById('hrAttNotes').value    = rec ? (rec.notes     || '') : '';
+
+    this._setAttViewMode(false);
   },
 
   closeAttModal() {
@@ -815,8 +845,24 @@ const Staff = {
     try {
       const res = await API.saveAttendance([{ staffId, date, clockIn, clockOut, dayStatus, notes }]);
       if (res.status === 'success') {
-        this.closeAttModal();
+        // Reload attendance data so the view panel shows updated values
         await this.loadAttendance();
+        // Update view fields with what was just saved
+        document.getElementById('hrAttViewIn').textContent     = clockIn  || '—';
+        document.getElementById('hrAttViewOut').textContent    = clockOut || '—';
+        document.getElementById('hrAttViewStatus').textContent = dayStatus || '—';
+        document.getElementById('hrAttViewNotes').textContent  = notes    || '—';
+        // Recalc hrs/OT for the view panel (OT = max(0, hrs - 9))
+        if (clockIn && clockOut) {
+          const toM = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+          const hrs = Math.max(0, (toM(clockOut) - toM(clockIn)) / 60);
+          document.getElementById('hrAttViewHrs').textContent = hrs.toFixed(2) + ' hrs';
+          document.getElementById('hrAttViewOT').textContent  = Math.max(0, hrs - 9).toFixed(2) + ' hrs';
+        } else {
+          document.getElementById('hrAttViewHrs').textContent = '—';
+          document.getElementById('hrAttViewOT').textContent  = '—';
+        }
+        this._setAttViewMode(true);
       } else {
         this._showInlineMsg(msgEl, res.message || 'Error saving attendance', 'error');
       }
