@@ -2067,6 +2067,77 @@
                 </div>
             </div>
 
+            <!-- Approvals -->
+            <div class="content-section" id="hrapprovals">
+                <div class="page-header">
+                    <h1 class="page-title">Approvals</h1>
+                    <p class="page-subtitle">Review and approve staff attendance and advance requests</p>
+                </div>
+
+                <!-- Tab bar -->
+                <div class="prod-tabs">
+                    <button class="hra-tab prod-tab active" data-tab="attendance">Attendance</button>
+                    <button class="hra-tab prod-tab" data-tab="advance">Advance Requests</button>
+                </div>
+
+                <!-- ═══ TAB: ATTENDANCE ═══ -->
+                <div id="hraTabAttendance" style="display:block;">
+                    <div id="hraAttMessage" class="message" style="display:none;"></div>
+                    <div class="card">
+                        <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:0;">
+                            <div class="form-group" style="margin-bottom:0;">
+                                <label for="hraAttDate">Date</label>
+                                <input type="date" id="hraAttDate">
+                            </div>
+                            <button class="btn btn-primary" id="hraAttLoadBtn" type="button">Refresh</button>
+                        </div>
+                    </div>
+                    <div id="hraAttLoading" style="display:none;text-align:center;padding:24px;color:#718096;">Loading…</div>
+                    <div id="hraAttContent" style="display:none;">
+                        <div class="card">
+                            <h3 style="color:#2d3748;margin-bottom:12px;">
+                                Pending Submissions
+                                <span id="hraPendingAttCount" style="margin-left:8px;background:#fed7d7;color:#c53030;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
+                            </h3>
+                            <div id="hraPendingAttWrap" style="overflow-x:auto;"></div>
+                        </div>
+                        <div class="card">
+                            <h3 style="color:#2d3748;margin-bottom:12px;">
+                                Not Logged — mark or override
+                                <span id="hraAbsentCount" style="margin-left:8px;background:#fefcbf;color:#744210;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
+                            </h3>
+                            <div id="hraAbsentWrap" style="overflow-x:auto;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ TAB: ADVANCE REQUESTS ═══ -->
+                <div id="hraTabAdvance" style="display:none;">
+                    <div id="hraAdvMessage" class="message" style="display:none;"></div>
+                    <div class="card" style="display:flex;align-items:center;gap:12px;padding:16px 20px;">
+                        <span style="font-size:14px;color:#718096;">Refresh to see latest requests</span>
+                        <button class="btn btn-primary" id="hraAdvLoadBtn" type="button">Refresh</button>
+                    </div>
+                    <div id="hraAdvLoading" style="display:none;text-align:center;padding:24px;color:#718096;">Loading…</div>
+                    <div id="hraAdvContent" style="display:none;">
+                        <div class="card">
+                            <h3 style="color:#2d3748;margin-bottom:12px;">
+                                Awaiting Approval
+                                <span id="hraPendingAdvCount" style="margin-left:8px;background:#fed7d7;color:#c53030;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
+                            </h3>
+                            <div id="hraPendingAdvWrap" style="overflow-x:auto;"></div>
+                        </div>
+                        <div class="card">
+                            <h3 style="color:#2d3748;margin-bottom:12px;">
+                                Approved — Awaiting Disbursal
+                                <span id="hraApprovedAdvCount" style="margin-left:8px;background:#c6f6d5;color:#276749;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
+                            </h3>
+                            <div id="hraApprovedAdvWrap" style="overflow-x:auto;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -2250,82 +2321,6 @@
                     <button type="button" class="btn btn-secondary" id="apptCancelFormBtn">Cancel</button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- HR Approvals -->
-    <div class="content-section" id="hrapprovals">
-        <div class="page-header">
-            <h1 class="page-title">Approvals</h1>
-            <p class="page-subtitle">Review and approve staff attendance and advance requests</p>
-        </div>
-
-        <!-- Tab bar -->
-        <div class="prod-tabs">
-            <button class="hra-tab prod-tab active" data-tab="attendance">Attendance</button>
-            <button class="hra-tab prod-tab" data-tab="advance">Advance Requests</button>
-        </div>
-
-        <!-- ═══ TAB: ATTENDANCE ═══ -->
-        <div id="hraTabAttendance" style="display:block;">
-            <div id="hraAttMessage" class="message" style="display:none;"></div>
-            <div class="card">
-                <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-bottom:0;">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label for="hraAttDate">Date</label>
-                        <input type="date" id="hraAttDate">
-                    </div>
-                    <button class="btn btn-primary" id="hraAttLoadBtn" type="button">Refresh</button>
-                </div>
-            </div>
-
-            <div id="hraAttLoading" style="display:none;text-align:center;padding:24px;color:#718096;">Loading…</div>
-            <div id="hraAttContent" style="display:none;">
-                <!-- Pending submissions -->
-                <div class="card">
-                    <h3 style="color:#2d3748;margin-bottom:12px;">
-                        Pending Submissions
-                        <span id="hraPendingAttCount" style="margin-left:8px;background:#fed7d7;color:#c53030;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
-                    </h3>
-                    <div id="hraPendingAttWrap" style="overflow-x:auto;"></div>
-                </div>
-                <!-- Absent / no-log staff -->
-                <div class="card">
-                    <h3 style="color:#2d3748;margin-bottom:12px;">
-                        Not Logged (mark or override)
-                        <span id="hraAbsentCount" style="margin-left:8px;background:#fefcbf;color:#744210;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
-                    </h3>
-                    <div id="hraAbsentWrap" style="overflow-x:auto;"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ═══ TAB: ADVANCE REQUESTS ═══ -->
-        <div id="hraTabAdvance" style="display:none;">
-            <div id="hraAdvMessage" class="message" style="display:none;"></div>
-            <div class="card" style="display:flex;align-items:center;gap:12px;padding:16px 20px;">
-                <span style="font-size:14px;color:#718096;">Refresh to see latest requests</span>
-                <button class="btn btn-primary" id="hraAdvLoadBtn" type="button">Refresh</button>
-            </div>
-            <div id="hraAdvLoading" style="display:none;text-align:center;padding:24px;color:#718096;">Loading…</div>
-            <div id="hraAdvContent" style="display:none;">
-                <!-- Pending approval -->
-                <div class="card">
-                    <h3 style="color:#2d3748;margin-bottom:12px;">
-                        Awaiting Approval
-                        <span id="hraPendingAdvCount" style="margin-left:8px;background:#fed7d7;color:#c53030;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
-                    </h3>
-                    <div id="hraPendingAdvWrap" style="overflow-x:auto;"></div>
-                </div>
-                <!-- Approved, awaiting disbursal -->
-                <div class="card">
-                    <h3 style="color:#2d3748;margin-bottom:12px;">
-                        Approved — Awaiting Disbursal
-                        <span id="hraApprovedAdvCount" style="margin-left:8px;background:#c6f6d5;color:#276749;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;vertical-align:middle;">0</span>
-                    </h3>
-                    <div id="hraApprovedAdvWrap" style="overflow-x:auto;"></div>
-                </div>
-            </div>
         </div>
     </div>
 
