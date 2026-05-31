@@ -22,7 +22,6 @@ const HRApprovals = {
     },
 
     load() {
-        // Default date = today
         if (!document.getElementById('hraAttDate').value) {
             document.getElementById('hraAttDate').value = _hraToday();
         }
@@ -40,8 +39,8 @@ const HRApprovals = {
     // ── Attendance Tab ─────────────────────────────────────────────────────────
 
     async loadAttendance() {
-        const date = document.getElementById('hraAttDate').value || _hraToday();
-        this._date = date;
+        const date  = document.getElementById('hraAttDate').value || _hraToday();
+        this._date  = date;
         const msgEl = document.getElementById('hraAttMessage');
         _hraMsg(msgEl, '', '');
 
@@ -51,10 +50,9 @@ const HRApprovals = {
         try {
             const res = await API.call('get_pending_attendance', { date });
             if (res.status !== 'success') throw new Error(res.message);
-
             this._shifts = res.shifts || [];
             this._renderPendingAttendance(res.pending || []);
-            this._renderAbsentAttendance(res.absent  || []);
+            this._renderAbsentAttendance(res.absent   || []);
             document.getElementById('hraAttContent').style.display = 'block';
         } catch (err) {
             _hraMsg(msgEl, 'Failed to load: ' + err.message, 'error');
@@ -64,9 +62,11 @@ const HRApprovals = {
     },
 
     _shiftOptions(selectedId) {
-        return this._shifts.map(s =>
-            `<option value="${_hEsc(s.shiftId)}" ${s.shiftId === selectedId ? 'selected' : ''}>${_hEsc(s.name)}</option>`
-        ).join('');
+        const opts = `<option value="">No shift</option>` +
+            this._shifts.map(s =>
+                `<option value="${_hEsc(s.shiftId)}" ${s.shiftId === selectedId ? 'selected' : ''}>${_hEsc(s.name)}</option>`
+            ).join('');
+        return opts;
     },
 
     _renderPendingAttendance(pending) {
@@ -75,37 +75,43 @@ const HRApprovals = {
         count.textContent = pending.length;
 
         if (!pending.length) {
-            wrap.innerHTML = '<p class="hra-empty">No pending submissions for this date. ✅</p>';
+            wrap.innerHTML = '<p class="hra-empty">No pending submissions for this date ✅</p>';
             return;
         }
 
         wrap.innerHTML = `
         <table class="hra-table">
           <thead><tr>
-            <th>Staff</th><th>Shift</th><th>Clock In</th><th>Clock Out</th>
-            <th>Hrs Worked</th><th>OT Hrs</th><th>Status</th><th>Actions</th>
+            <th>Staff</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>
+            <th>Hrs</th>
+            <th>OT</th>
+            <th>Shift</th>
+            <th>Status</th>
+            <th></th>
           </tr></thead>
           <tbody>
             ${pending.map(r => `
               <tr id="hraAttRow-${_hEsc(r.attendanceId)}">
                 <td><strong>${_hEsc(r.staffName)}</strong></td>
+                <td><input type="time" class="hra-time-in"  data-id="${_hEsc(r.attendanceId)}" value="${_hEsc(r.clockIn)}"></td>
+                <td><input type="time" class="hra-time-out" data-id="${_hEsc(r.attendanceId)}" value="${_hEsc(r.clockOut)}"></td>
+                <td class="hra-num hra-hours-worked" data-id="${_hEsc(r.attendanceId)}">${Number(r.hoursWorked || 0).toFixed(2)}</td>
+                <td class="hra-num hra-ot-hours"     data-id="${_hEsc(r.attendanceId)}">${Number(r.otHours || 0).toFixed(2)}</td>
                 <td>
-                  <select class="hra-shift-sel" data-id="${_hEsc(r.attendanceId)}">
+                  <select class="hra-shift-sel" data-id="${_hEsc(r.attendanceId)}" style="min-width:90px;">
                     ${this._shiftOptions(r.shiftId)}
                   </select>
                 </td>
-                <td><input type="time" class="hra-time-in"  data-id="${_hEsc(r.attendanceId)}" value="${_hEsc(r.clockIn)}"></td>
-                <td><input type="time" class="hra-time-out" data-id="${_hEsc(r.attendanceId)}" value="${_hEsc(r.clockOut)}"></td>
-                <td class="hra-hours-worked" data-id="${_hEsc(r.attendanceId)}">${r.hoursWorked.toFixed(2)}</td>
-                <td class="hra-ot-hours"     data-id="${_hEsc(r.attendanceId)}">${r.otHours.toFixed(2)}</td>
-                <td><span class="hra-badge hra-badge-${r.status}">${r.status}</span></td>
-                <td class="hra-action-cell">
-                  <button class="btn btn-primary hra-btn-sm"
-                    onclick="HRApprovals.approveAttendanceRow('${_hEsc(r.attendanceId)}','${_hEsc(r.staffId)}')">
-                    Approve</button>
-                  <button class="btn btn-danger hra-btn-sm"
-                    onclick="HRApprovals.rejectAttendanceRow('${_hEsc(r.attendanceId)}')">
-                    Reject</button>
+                <td><span class="hra-badge hra-badge-${_hEsc(r.status)}">${_hEsc(r.status)}</span></td>
+                <td>
+                  <div class="hra-btn-group">
+                    <button class="btn btn-primary hra-btn-sm"
+                      onclick="HRApprovals.approveAttendanceRow('${_hEsc(r.attendanceId)}','${_hEsc(r.staffId)}')">✓</button>
+                    <button class="btn btn-danger hra-btn-sm"
+                      onclick="HRApprovals.rejectAttendanceRow('${_hEsc(r.attendanceId)}')">✕</button>
+                  </div>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -118,24 +124,25 @@ const HRApprovals = {
     },
 
     _recalcOT(attendanceId) {
-        const row      = document.getElementById(`hraAttRow-${attendanceId}`);
+        const row = document.getElementById(`hraAttRow-${attendanceId}`);
         if (!row) return;
         const clockIn  = row.querySelector('.hra-time-in').value;
         const clockOut = row.querySelector('.hra-time-out').value;
-        const shiftId  = row.querySelector('.hra-shift-sel').value;
-        const shift    = this._shifts.find(s => s.shiftId === shiftId);
+        const shiftSel = row.querySelector('.hra-shift-sel');
+        const shiftId  = shiftSel ? shiftSel.value : '';
+        const shift    = this._shifts.find(s => s.shiftId === shiftId) || null;
 
         const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut, shift);
-
-        row.querySelector(`.hra-hours-worked`).textContent = hoursWorked.toFixed(2);
-        row.querySelector(`.hra-ot-hours`).textContent     = otHours.toFixed(2);
+        row.querySelector('.hra-hours-worked').textContent = Number(hoursWorked || 0).toFixed(2);
+        row.querySelector('.hra-ot-hours').textContent     = Number(otHours || 0).toFixed(2);
     },
 
     async approveAttendanceRow(attendanceId, staffId) {
-        const row     = document.getElementById(`hraAttRow-${attendanceId}`);
+        const row      = document.getElementById(`hraAttRow-${attendanceId}`);
         const clockIn  = row.querySelector('.hra-time-in').value;
         const clockOut = row.querySelector('.hra-time-out').value;
-        const shiftId  = row.querySelector('.hra-shift-sel').value;
+        const shiftSel = row.querySelector('.hra-shift-sel');
+        const shiftId  = shiftSel ? shiftSel.value : '';
         const msgEl    = document.getElementById('hraAttMessage');
 
         try {
@@ -161,7 +168,7 @@ const HRApprovals = {
             if (row) {
                 row.querySelector('.hra-badge').textContent = 'rejected';
                 row.querySelector('.hra-badge').className  = 'hra-badge hra-badge-rejected';
-                row.querySelector('.hra-action-cell').innerHTML = '<span style="color:#a0aec0;font-size:12px;">Rejected</span>';
+                row.querySelector('.hra-btn-group').innerHTML = '<span style="color:#a0aec0;font-size:12px;">Rejected</span>';
             }
             _hraMsg(msgEl, 'Attendance rejected.', 'info');
         } catch (err) {
@@ -175,34 +182,39 @@ const HRApprovals = {
         count.textContent = absent.length;
 
         if (!absent.length) {
-            wrap.innerHTML = '<p class="hra-empty">All active staff have logged attendance. ✅</p>';
+            wrap.innerHTML = '<p class="hra-empty">All active staff have logged attendance ✅</p>';
             return;
         }
 
         wrap.innerHTML = `
         <table class="hra-table">
           <thead><tr>
-            <th>Staff</th><th>Shift</th><th>Clock In</th><th>Clock Out</th><th>Action</th>
+            <th>Staff</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>
+            <th>Shift</th>
+            <th></th>
           </tr></thead>
           <tbody>
             ${absent.map(r => `
               <tr id="hraAbsRow-${_hEsc(r.staffId)}">
                 <td><strong>${_hEsc(r.staffName)}</strong></td>
+                <td><input type="time" class="hra-abs-in"  data-staffid="${_hEsc(r.staffId)}"></td>
+                <td><input type="time" class="hra-abs-out" data-staffid="${_hEsc(r.staffId)}"></td>
                 <td>
-                  <select class="hra-shift-sel-abs" data-staffid="${_hEsc(r.staffId)}">
+                  <select class="hra-shift-sel-abs" data-staffid="${_hEsc(r.staffId)}" style="min-width:90px;">
                     ${this._shiftOptions(r.shiftId)}
                   </select>
                 </td>
-                <td><input type="time" class="hra-abs-in"  data-staffid="${_hEsc(r.staffId)}" placeholder="leave blank if absent"></td>
-                <td><input type="time" class="hra-abs-out" data-staffid="${_hEsc(r.staffId)}"></td>
                 <td>
                   <button class="btn btn-primary hra-btn-sm"
                     onclick="HRApprovals.approveAbsent('${_hEsc(r.staffId)}')">
-                    Mark Present / Absent</button>
+                    Save</button>
                 </td>
               </tr>`).join('')}
           </tbody>
-        </table>`;
+        </table>
+        <p style="font-size:12px;color:#a0aec0;margin-top:8px;padding:0 4px;">Leave Clock In/Out blank to mark as Absent.</p>`;
     },
 
     async approveAbsent(staffId) {
@@ -221,7 +233,7 @@ const HRApprovals = {
             row.remove();
             const remaining = document.querySelectorAll('#hraAbsentWrap tbody tr').length;
             document.getElementById('hraAbsentCount').textContent = remaining;
-            _hraMsg(msgEl, `${dayStatus === 'present' ? 'Attendance approved' : 'Marked absent'}.`, 'success');
+            _hraMsg(msgEl, `${dayStatus === 'present' ? 'Marked present' : 'Marked absent'}.`, 'success');
         } catch (err) {
             _hraMsg(msgEl, err.message, 'error');
         }
@@ -232,7 +244,6 @@ const HRApprovals = {
     async loadAdvances() {
         const msgEl = document.getElementById('hraAdvMessage');
         _hraMsg(msgEl, '', '');
-
         document.getElementById('hraAdvContent').style.display = 'none';
         document.getElementById('hraAdvLoading').style.display = 'block';
 
@@ -256,33 +267,33 @@ const HRApprovals = {
         const fmt = v => '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         if (!pending.length) {
-            wrap.innerHTML = '<p class="hra-empty">No pending advance requests. ✅</p>';
+            wrap.innerHTML = '<p class="hra-empty">No pending advance requests ✅</p>';
             return;
         }
 
         wrap.innerHTML = `
         <table class="hra-table">
           <thead><tr>
-            <th>Staff</th><th>Date</th><th>Requested</th><th>Approve Amount</th><th>Notes</th><th>Actions</th>
+            <th>Staff</th><th>Date</th><th>Requested</th><th>Approve (₹)</th><th>Notes</th><th></th>
           </tr></thead>
           <tbody>
             ${pending.map(r => `
               <tr id="hraAdvRow-${_hEsc(r.advanceId)}">
                 <td><strong>${_hEsc(r.staffName)}</strong></td>
-                <td>${_hEsc(r.date)}</td>
-                <td class="hra-amt">${fmt(r.amount)}</td>
+                <td style="white-space:nowrap;">${_hEsc(r.date)}</td>
+                <td class="hra-num">${fmt(r.amount)}</td>
                 <td>
                   <input type="number" class="hra-approve-amt" data-id="${_hEsc(r.advanceId)}"
-                    value="${r.amount}" min="1" step="0.01" style="width:110px;">
+                    value="${Number(r.amount || 0)}" min="1" step="0.01" style="width:100px;padding:5px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:13px;">
                 </td>
-                <td>${_hEsc(r.notes)}</td>
-                <td class="hra-action-cell">
-                  <button class="btn btn-primary hra-btn-sm"
-                    onclick="HRApprovals.approveAdvanceRow('${_hEsc(r.advanceId)}')">
-                    Approve</button>
-                  <button class="btn btn-danger hra-btn-sm"
-                    onclick="HRApprovals.rejectAdvanceRow('${_hEsc(r.advanceId)}')">
-                    Reject</button>
+                <td style="color:#718096;font-size:12px;">${_hEsc(r.notes)}</td>
+                <td>
+                  <div class="hra-btn-group">
+                    <button class="btn btn-primary hra-btn-sm"
+                      onclick="HRApprovals.approveAdvanceRow('${_hEsc(r.advanceId)}')">Approve</button>
+                    <button class="btn btn-danger hra-btn-sm"
+                      onclick="HRApprovals.rejectAdvanceRow('${_hEsc(r.advanceId)}')">Reject</button>
+                  </div>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -290,13 +301,13 @@ const HRApprovals = {
     },
 
     async approveAdvanceRow(advanceId) {
-        const row    = document.getElementById(`hraAdvRow-${advanceId}`);
+        const row            = document.getElementById(`hraAdvRow-${advanceId}`);
         const approvedAmount = parseFloat(row.querySelector('.hra-approve-amt').value) || 0;
-        const msgEl  = document.getElementById('hraAdvMessage');
+        const msgEl          = document.getElementById('hraAdvMessage');
         try {
             const res = await API.call('approve_advance', { advanceId, approvedAmount });
             if (res.status !== 'success') throw new Error(res.message);
-            _hraMsg(msgEl, 'Advance approved — awaiting disbursal.', 'success');
+            _hraMsg(msgEl, 'Advance approved — ready to disburse.', 'success');
             await this.loadAdvances();
         } catch (err) {
             _hraMsg(msgEl, err.message, 'error');
@@ -329,28 +340,26 @@ const HRApprovals = {
         wrap.innerHTML = `
         <table class="hra-table">
           <thead><tr>
-            <th>Staff</th><th>Date</th><th>Requested</th><th>Approved</th><th>Notes</th>
-            <th>Payment Mode</th><th>Actions</th>
+            <th>Staff</th><th>Date</th><th>Requested</th><th>Approved</th><th>Notes</th><th>Via</th><th></th>
           </tr></thead>
           <tbody>
             ${approved.map(r => `
               <tr id="hraAdvDisRow-${_hEsc(r.advanceId)}">
                 <td><strong>${_hEsc(r.staffName)}</strong></td>
-                <td>${_hEsc(r.date)}</td>
-                <td class="hra-amt">${fmt(r.amount)}</td>
-                <td class="hra-amt"><strong>${fmt(r.approvedAmount)}</strong></td>
-                <td>${_hEsc(r.notes)}</td>
+                <td style="white-space:nowrap;">${_hEsc(r.date)}</td>
+                <td class="hra-num">${fmt(r.amount)}</td>
+                <td class="hra-num"><strong>${fmt(r.approvedAmount)}</strong></td>
+                <td style="color:#718096;font-size:12px;">${_hEsc(r.notes)}</td>
                 <td>
-                  <select class="hra-pay-mode" data-id="${_hEsc(r.advanceId)}" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:5px;font-size:13px;">
-                    <option value="">-- Select --</option>
+                  <select class="hra-pay-mode" data-id="${_hEsc(r.advanceId)}" style="padding:5px 7px;border:1px solid #e2e8f0;border-radius:5px;font-size:13px;min-width:80px;">
+                    <option value="">Select</option>
                     <option value="Cash">Cash</option>
                     <option value="UPI">UPI</option>
                   </select>
                 </td>
-                <td class="hra-action-cell">
+                <td>
                   <button class="btn btn-primary hra-btn-sm"
-                    onclick="HRApprovals.disburseAdvanceRow('${_hEsc(r.advanceId)}')">
-                    Disburse</button>
+                    onclick="HRApprovals.disburseAdvanceRow('${_hEsc(r.advanceId)}')">Disburse</button>
                 </td>
               </tr>`).join('')}
           </tbody>
@@ -362,13 +371,14 @@ const HRApprovals = {
         const paymentMode = row.querySelector('.hra-pay-mode').value;
         const msgEl       = document.getElementById('hraAdvMessage');
         if (!paymentMode) {
-            _hraMsg(msgEl, 'Please select a payment mode before disbursing.', 'error');
+            _hraMsg(msgEl, 'Select a payment mode before disbursing.', 'error');
             return;
         }
         try {
             const res = await API.call('disburse_advance', { advanceId, paymentMode });
             if (res.status !== 'success') throw new Error(res.message);
-            _hraMsg(msgEl, `Disbursed via ${paymentMode}. New balance: ₹${Number(res.newBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}.`, 'success');
+            const bal = Number(res.newBalance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            _hraMsg(msgEl, `Disbursed via ${paymentMode}. New balance: ₹${bal}.`, 'success');
             await this.loadAdvances();
         } catch (err) {
             _hraMsg(msgEl, err.message, 'error');
@@ -376,7 +386,7 @@ const HRApprovals = {
     },
 };
 
-// ── Module helpers ───────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function _hraToday() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -392,8 +402,8 @@ function _hraMsg(el, text, type) {
 }
 function _hraCalcHours(clockIn, clockOut, shift) {
     if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
-    const toMins  = t => { const [h, m] = (t || '').split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-    const breakMins  = shift ? (shift.breakMins || 0) : 0;
+    const toMins     = t => { const [h, m] = (String(t || '')).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+    const breakMins  = shift ? (Number(shift.breakMins) || 0) : 0;
     const shiftMins  = shift ? Math.max(0, toMins(shift.endTime) - toMins(shift.startTime) - breakMins) : 0;
     const shiftHours = shiftMins / 60;
     const worked     = Math.max(0, toMins(clockOut) - toMins(clockIn) - breakMins);

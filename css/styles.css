@@ -1828,8 +1828,9 @@ code.dc-sheet {
 .hra-table input[type="time"] { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 13px; }
 .hra-table input[type="number"] { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 13px; }
 .hra-table select { padding: 4px 6px; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 13px; }
-.hra-amt { text-align: right; font-variant-numeric: tabular-nums; }
-.hra-action-cell { white-space: nowrap; display: flex; gap: 6px; align-items: center; }
+.hra-num  { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hra-amt  { text-align: right; font-variant-numeric: tabular-nums; }
+.hra-btn-group { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
 .hra-btn-sm { padding: 4px 10px !important; font-size: 12px !important; min-height: unset !important; }
 .btn-danger { background: #e53e3e; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
 .btn-danger:hover { background: #c53030; }

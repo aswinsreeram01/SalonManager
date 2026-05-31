@@ -378,14 +378,7 @@ const StaffApp = {
         const approvedView = document.getElementById('attApprovedView');
         const logView      = document.getElementById('attLogView');
         const banner       = document.getElementById('attStatusBanner');
-        const shiftSel     = document.getElementById('attShiftSelect');
         const submitBtn    = document.getElementById('attSubmitBtn');
-
-        // Populate shift dropdown
-        shiftSel.innerHTML = '<option value="">Select shift…</option>' +
-            this._attShifts.map(s =>
-                `<option value="${_esc(s.shiftId)}">${_esc(s.name)}</option>`
-            ).join('');
 
         if (!rec) {
             approvedView.style.display = 'none';
@@ -402,7 +395,7 @@ const StaffApp = {
             approvedView.style.display = 'block';
             logView.style.display      = 'none';
             document.getElementById('attApprovedDetail').textContent =
-                `${rec.shiftName || rec.shiftId}  •  ${rec.clockIn || '—'} – ${rec.clockOut || '—'}  •  ${rec.hoursWorked.toFixed(2)} hrs`;
+                `${rec.clockIn || '—'} – ${rec.clockOut || '—'}  •  ${Number(rec.hoursWorked || 0).toFixed(2)} hrs`;
             return;
         }
 
@@ -418,7 +411,6 @@ const StaffApp = {
         }
 
         // Pre-fill fields
-        shiftSel.value = rec.shiftId || '';
         document.getElementById('attClockIn').value  = rec.clockIn  || '';
         document.getElementById('attClockOut').value = rec.clockOut || '';
         document.getElementById('attNotes').value    = rec.notes    || '';
@@ -449,7 +441,6 @@ const StaffApp = {
     },
 
     async handleLogAttendance() {
-        const shiftId  = document.getElementById('attShiftSelect').value;
         const clockIn  = document.getElementById('attClockIn').value;
         const clockOut = document.getElementById('attClockOut').value;
         const notes    = document.getElementById('attNotes').value.trim();
@@ -463,7 +454,7 @@ const StaffApp = {
         _clearMsg(msgEl);
 
         try {
-            const res = await StaffAPI.logAttendance({ shiftId, clockIn, clockOut, notes });
+            const res = await StaffAPI.logAttendance({ clockIn, clockOut, notes });
             if (res.status !== 'success') throw new Error(res.message);
             _showMsg(msgEl, '✅ ' + res.message, 'success');
             this.loadAttendance();
