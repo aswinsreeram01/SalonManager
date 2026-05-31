@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#667eea">
+    <title>Staff Portal — Salon Manager</title>
+    <style>
+        /* ── Reset ── */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #f7fafc;
+            min-height: 100dvh;
+            -webkit-tap-highlight-color: transparent;
+            color: #2d3748;
+        }
+        button, input, select, textarea { font-family: inherit; touch-action: manipulation; }
+
+        /* ── Login screen ── */
+        #staffLoginSection {
+            min-height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sp-login-box {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            padding: 36px 28px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .sp-login-logo {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .sp-login-logo .sp-icon {
+            font-size: 42px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .sp-login-logo h1 { font-size: 22px; font-weight: 700; color: #2d3748; }
+        .sp-login-logo p  { font-size: 13px; color: #718096; margin-top: 2px; }
+
+        /* ── Header ── */
+        .sp-header {
+            position: fixed; top: 0; left: 0; right: 0;
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px;
+            z-index: 100;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .sp-header-left { display: flex; flex-direction: column; gap: 1px; }
+        .sp-header-name { font-size: 16px; font-weight: 700; color: #2d3748; }
+        .sp-header-role { font-size: 11px; color: #718096; }
+
+        /* ── Main content ── */
+        #staffDashSection {
+            padding-top: 76px;
+            padding-bottom: 32px;
+            max-width: 720px;
+            margin: 0 auto;
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+
+        /* ── Cards ── */
+        .sp-card {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .sp-card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ── Filter row ── */
+        .sp-filter-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        @media (max-width: 440px) {
+            .sp-filter-row { grid-template-columns: 1fr 1fr; }
+            .sp-filter-row .sp-btn { grid-column: span 2; }
+        }
+
+        /* ── Summary chips ── */
+        .sp-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 0;
+        }
+        .sp-stat {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 14px 12px;
+            text-align: center;
+        }
+        .sp-stat-label { font-size: 11px; color: #718096; font-weight: 500; margin-bottom: 6px; }
+        .sp-stat-value { font-size: 20px; font-weight: 700; color: #2d3748; }
+        .sp-stat-sub   { font-size: 12px; color: #667eea; margin-top: 2px; }
+        .sp-stat.sp-stat-total { background: linear-gradient(135deg,#667eea,#764ba2); }
+        .sp-stat.sp-stat-total .sp-stat-label,
+        .sp-stat.sp-stat-total .sp-stat-value { color: white; }
+
+        /* ── Tables ── */
+        .sp-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th {
+            text-align: left; padding: 8px 10px;
+            background: #f7fafc; border-bottom: 2px solid #e2e8f0;
+            font-weight: 600; color: #4a5568; white-space: nowrap;
+        }
+        td { padding: 9px 10px; border-bottom: 1px solid #f0f4f8; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #fafbff; }
+        .sp-num   { text-align: right; font-variant-numeric: tabular-nums; }
+        .sp-amt   { font-weight: 600; color: #2d3748; }
+        .sp-muted { color: #a0aec0; }
+        .sp-time  { font-size: 11px; white-space: nowrap; }
+        .sp-empty { text-align: center; color: #a0aec0; padding: 20px !important; }
+
+        /* ── Confirm card ── */
+        .sp-confirm-hint { font-size: 13px; color: #718096; margin-bottom: 14px; line-height: 1.5; }
+        .sp-confirmed-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #f0fff4; color: #276749;
+            border: 1px solid #9ae6b4;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        /* ── PIN change ── */
+        #changePinSection {
+            display: none;
+            border-top: 1px solid #edf2f7;
+            margin-top: 16px;
+            padding-top: 16px;
+        }
+
+        /* ── Forms ── */
+        .sp-form-group { margin-bottom: 14px; }
+        .sp-form-group label {
+            display: block; font-size: 13px; font-weight: 500;
+            color: #4a5568; margin-bottom: 5px;
+        }
+        .sp-form-group input {
+            width: 100%; padding: 10px 12px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 16px; /* prevents iOS zoom */
+            background: white; color: #2d3748;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .sp-form-group input:focus {
+            outline: none; border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.12);
+        }
+        .sp-hint { font-size: 12px; color: #a0aec0; margin-top: 4px; }
+
+        /* ── Buttons ── */
+        .sp-btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 11px 22px; border: none; border-radius: 10px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            min-height: 44px; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+        }
+        .sp-btn:active { transform: scale(0.97); }
+        .sp-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .sp-btn-primary   { background: #667eea; color: white; width: 100%; }
+        .sp-btn-primary:hover   { background: #5a67d8; }
+        .sp-btn-secondary { background: #edf2f7; color: #4a5568; }
+        .sp-btn-secondary:hover { background: #e2e8f0; }
+        .sp-btn-confirm   { background: #38a169; color: white; width: 100%; }
+        .sp-btn-confirm:hover   { background: #2f855a; }
+        .sp-btn-link {
+            background: none; border: 1px solid #e2e8f0; color: #667eea;
+            padding: 6px 14px; border-radius: 8px; font-size: 13px;
+            font-weight: 500; cursor: pointer; min-height: 36px;
+        }
+        .sp-btn-link:hover { background: #f7fafc; }
+        .sp-btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        /* ── Messages ── */
+        .sp-message {
+            padding: 10px 14px; border-radius: 8px; font-size: 13px;
+            margin: 10px 0; display: none;
+        }
+        .sp-message-success { background: #f0fff4; color: #276749; border: 1px solid #9ae6b4; }
+        .sp-message-error   { background: #fff5f5; color: #c53030; border: 1px solid #fc8181; }
+        .sp-message-warning { background: #fffbeb; color: #744210; border: 1px solid #f6e05e; display: block !important; }
+        .sp-message-info    { background: #ebf8ff; color: #2b6cb0; border: 1px solid #90cdf4; }
+
+        /* ── Loading ── */
+        #dashLoading {
+            text-align: center; padding: 32px; color: #718096; font-size: 14px; display: none;
+        }
+        .sp-spinner {
+            display: inline-block; width: 20px; height: 20px;
+            border: 2px solid #e2e8f0; border-top-color: #667eea;
+            border-radius: 50%; animation: spin 0.7s linear infinite;
+            margin-right: 8px; vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Mobile adjustments ── */
+        @media (max-width: 480px) {
+            .sp-stats { grid-template-columns: 1fr 1fr; }
+            .sp-stat.sp-stat-total { grid-column: span 2; }
+            .sp-stat-value { font-size: 18px; }
+            th, td { padding: 7px 8px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══════════════════════════════════════════════════════════════ -->
+<div id="staffLoginSection" style="display:none">
+    <div class="sp-login-box">
+        <div class="sp-login-logo">
+            <span class="sp-icon">✂️</span>
+            <h1>Staff Portal</h1>
+            <p>Salon Manager</p>
+        </div>
+
+        <form id="staffLoginForm" autocomplete="off">
+            <div class="sp-form-group">
+                <label for="staffPhone">Mobile Number</label>
+                <input type="tel" id="staffPhone" placeholder="+91 98765 43210"
+                       autocomplete="tel" inputmode="tel" required>
+            </div>
+            <div class="sp-form-group">
+                <label for="staffPinInput">PIN</label>
+                <input type="password" id="staffPinInput" placeholder="Enter PIN"
+                       autocomplete="current-password" maxlength="8" inputmode="numeric" required>
+                <p class="sp-hint">Default PIN is the last 4 digits of your phone number</p>
+            </div>
+            <div id="staffLoginMessage" class="sp-message"></div>
+            <button type="submit" class="sp-btn sp-btn-primary" id="staffLoginBtn">Sign In</button>
+        </form>
+    </div>
+</div>
+
+<!-- ═══ DASHBOARD ════════════════════════════════════════════════════════════ -->
+<div id="staffDashSection" style="display:none">
+
+    <!-- Header -->
+    <div class="sp-header">
+        <div class="sp-header-left">
+            <span class="sp-header-name" id="staffNameHeader">Staff Portal</span>
+            <span class="sp-header-role" id="staffRoleHeader"></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <button class="sp-btn-link" id="changePinBtn">🔑 Change PIN</button>
+            <button class="sp-btn-link" id="staffLogoutBtn">Sign out</button>
+        </div>
+    </div>
+
+    <div id="dashMessage" class="sp-message" style="margin: 0 0 12px;"></div>
+
+    <!-- Date filter -->
+    <div class="sp-card">
+        <div class="sp-card-title">📅 Filter by Date</div>
+        <div class="sp-filter-row">
+            <div class="sp-form-group" style="margin-bottom:0">
+                <label for="dashFromDate">From</label>
+                <input type="date" id="dashFromDate">
+            </div>
+            <div class="sp-form-group" style="margin-bottom:0">
+                <label for="dashToDate">To</label>
+                <input type="date" id="dashToDate">
+            </div>
+            <button class="sp-btn sp-btn-secondary" id="dashFilterBtn" style="margin-top:18px">Apply</button>
+        </div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div id="dashLoading">
+        <span class="sp-spinner"></span> Loading your records…
+    </div>
+
+    <div id="dashContent" style="display:none">
+
+        <!-- Summary -->
+        <div class="sp-card">
+            <div class="sp-card-title">📊 Summary</div>
+            <div class="sp-stats">
+                <div class="sp-stat">
+                    <div class="sp-stat-label">Services Done</div>
+                    <div class="sp-stat-value" id="statServicesCount">0</div>
+                    <div class="sp-stat-sub" id="statServicesTotal">₹0</div>
+                </div>
+                <div class="sp-stat">
+                    <div class="sp-stat-label">Products Sold</div>
+                    <div class="sp-stat-value" id="statProductsCount">0</div>
+                    <div class="sp-stat-sub" id="statProductsTotal">₹0</div>
+                </div>
+                <div class="sp-stat sp-stat-total">
+                    <div class="sp-stat-label">Total Revenue</div>
+                    <div class="sp-stat-value" id="statGrandTotal">₹0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Services -->
+        <div class="sp-card">
+            <div class="sp-card-title">✂️ Services Done</div>
+            <div class="sp-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="sp-num">#</th>
+                            <th>Service</th>
+                            <th>Customer</th>
+                            <th class="sp-num">Qty</th>
+                            <th class="sp-num">Amount</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffServicesBody">
+                        <tr><td colspan="6" class="sp-empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Products -->
+        <div class="sp-card">
+            <div class="sp-card-title">📦 Products Sold</div>
+            <div class="sp-table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th class="sp-num">#</th>
+                            <th>Product</th>
+                            <th>Customer</th>
+                            <th class="sp-num">Qty</th>
+                            <th class="sp-num">Amount</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffProductsBody">
+                        <tr><td colspan="6" class="sp-empty">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Day Confirmation -->
+        <div class="sp-card" id="confirmCard" style="display:none">
+            <div class="sp-card-title">✅ Day Confirmation</div>
+            <div id="confirmInfo"></div>
+            <button class="sp-btn sp-btn-confirm" id="confirmDayBtn">✓ Confirm Today's Records</button>
+        </div>
+
+    </div><!-- /dashContent -->
+
+    <!-- Change PIN -->
+    <div class="sp-card" id="changePinCard" style="display:none">
+        <div class="sp-card-title">🔑 Change PIN</div>
+        <div id="changePinSection" style="display:block">
+            <form id="changePinForm" autocomplete="off">
+                <div class="sp-form-group">
+                    <label for="currentPinInput">Current PIN</label>
+                    <input type="password" id="currentPinInput" inputmode="numeric"
+                           maxlength="8" placeholder="Enter current PIN" required>
+                </div>
+                <div class="sp-form-group">
+                    <label for="newPinInput">New PIN</label>
+                    <input type="password" id="newPinInput" inputmode="numeric"
+                           maxlength="8" placeholder="Minimum 4 digits" required>
+                </div>
+                <div class="sp-form-group">
+                    <label for="confirmNewPinInput">Confirm New PIN</label>
+                    <input type="password" id="confirmNewPinInput" inputmode="numeric"
+                           maxlength="8" placeholder="Repeat new PIN" required>
+                </div>
+                <div id="pinMessage" class="sp-message"></div>
+                <div class="sp-btn-row">
+                    <button type="submit" class="sp-btn sp-btn-confirm" id="savePinBtn">Save PIN</button>
+                    <button type="button" class="sp-btn sp-btn-secondary" id="cancelPinBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div><!-- /staffDashSection -->
+
+<script src="js/staff-portal.js"></script>
+</body>
+</html>
