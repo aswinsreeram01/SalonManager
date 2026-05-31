@@ -3,15 +3,18 @@ const Staff = {
 
   // ─── State ───────────────────────────────────────────────────────────────────
 
-  _staff:          [],
-  _profiles:       [],
-  _shifts:         [],
-  _attendance:     [],
-  _editingId:      null,
-  _profEditingId:  null,
-  _shiftEditingId: null,
-  _attData:        null,
-  _payCalcResults: [],
+  _staff:           [],
+  _profiles:        [],
+  _shifts:          [],
+  _attendance:      [],
+  _currentWeekStart: null,
+  _loadedPeriod:    '',
+  _keepWeekStart:   false,
+  _editingId:       null,
+  _profEditingId:   null,
+  _shiftEditingId:  null,
+  _attData:         null,
+  _payCalcResults:  [],
 
   // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +44,8 @@ const Staff = {
 
     // ── Attendance tab ──
     document.getElementById('hrAttLoadBtn').addEventListener('click', () => this.loadAttendance());
+    document.getElementById('hrAttPrevWeek').addEventListener('click', () => this._prevWeek());
+    document.getElementById('hrAttNextWeek').addEventListener('click', () => this._nextWeek());
 
     // ── Payroll tab ──
     document.getElementById('hrPayCalcBtn').addEventListener('click', () => this.calculatePayroll());
@@ -52,6 +57,7 @@ const Staff = {
     document.getElementById('hrAttModalCancelBtn').addEventListener('click', () => this.closeAttModal());
     document.getElementById('hrAttModalEditBtn').addEventListener('click',   () => this._enterAttEditMode());
     document.getElementById('hrAttModalBackBtn').addEventListener('click',   () => this._setAttViewMode(true));
+    document.getElementById('hrAttStatus').addEventListener('change', e => this._onAttStatusChange(e.target.value));
 
     // Default month values
     const now = new Date();
@@ -523,10 +529,9 @@ const Staff = {
         <td style="font-weight:500;">${this._esc(s.name)}</td>
         <td style="white-space:nowrap;">${this._esc(s.startTime || s.hrShiftStart || '—')}</td>
         <td style="white-space:nowrap;">${this._esc(s.endTime   || s.hrShiftEnd   || '—')}</td>
-        <td style="text-align:center;">${s.breakMins || s.hrShiftBreak || 0} min</td>
         <td><span class="status-badge status-${s.status}">${s.status}</span></td>
         <td>
-          <button class="action-btn action-btn-edit"   onclick="Staff.openShiftForm('${sid}')">Edit</button>
+          <button class="action-btn action-btn-edit" onclick="Staff.openShiftForm('${sid}')">Edit</button>
         </td>
       </tr>`;
     }).join('');
@@ -544,7 +549,6 @@ const Staff = {
         document.getElementById('hrShiftName').value   = s.name       || '';
         document.getElementById('hrShiftStart').value  = s.startTime  || s.hrShiftStart  || '';
         document.getElementById('hrShiftEnd').value    = s.endTime    || s.hrShiftEnd    || '';
-        document.getElementById('hrShiftBreak').value  = s.breakMins  || s.hrShiftBreak  || 0;
         document.getElementById('hrShiftStatus').value = s.status     || 'active';
       }
     }
@@ -567,7 +571,6 @@ const Staff = {
       name:      document.getElementById('hrShiftName').value.trim(),
       startTime: document.getElementById('hrShiftStart').value,
       endTime:   document.getElementById('hrShiftEnd').value,
-      breakMins: parseInt(document.getElementById('hrShiftBreak').value, 10) || 0,
       status:    document.getElementById('hrShiftStatus').value
     };
     if (this._shiftEditingId) data.shiftId = this._shiftEditingId;
@@ -678,103 +681,153 @@ const Staff = {
     const lastDay  = new Date(year, month, 0).getDate();
     const toDate   = `${period}-${String(lastDay).padStart(2, '0')}`;
 
+    // Set week start: only reset when period changes or never loaded
+    if (!this._keepWeekStart || this._loadedPeriod !== period) {
+      this._currentWeekStart = this._getMonday(new Date(year, month - 1, 1));
+    }
+    this._keepWeekStart = false;
+    this._loadedPeriod  = period;
+
     const btn = document.getElementById('hrAttLoadBtn');
-    btn.disabled = true;
-    btn.textContent = 'Loading…';
+    btn.disabled = true; btn.textContent = 'Loading…';
 
     try {
-      const [staffRes, attRes, shiftRes] = await Promise.all([
+      const [staffRes, attRes] = await Promise.all([
         API.getStaff(),
-        API.getAttendance({ fromDate, toDate }),
-        API.getShifts()
+        API.getAttendance({ fromDate, toDate })
       ]);
-
-      const staff      = (staffRes.status  === 'success' ? staffRes.staff       || [] : this._staff);
-      const attendance = (attRes.status    === 'success' ? attRes.attendance    || [] : []);
-      const shifts     = (shiftRes.status  === 'success' ? shiftRes.shifts      || [] : this._shifts);
-
-      this._attendance = attendance;  // cache for modal lookup
-      this._renderAttGrid(staff, attendance, shifts, year, month, lastDay);
+      this._attendance = attRes.status === 'success' ? (attRes.attendance || []) : [];
+      if (staffRes.status === 'success') this._staff = staffRes.staff || this._staff;
+      this._renderWeekGrid();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
     } finally {
-      btn.disabled = false;
-      btn.textContent = 'Load Grid';
+      btn.disabled = false; btn.textContent = 'Load';
     }
   },
 
-  _renderAttGrid(staff, attendance, shifts, year, month, daysInMonth) {
-    const wrap = document.getElementById('hrAttGridWrap');
-    const activeStaff = staff.filter(s => s.status === 'active');
+  _getMonday(date) {
+    const d   = new Date(date);
+    const day = d.getDay();                    // 0=Sun … 6=Sat
+    d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+    d.setHours(0, 0, 0, 0);
+    return d;
+  },
 
+  _weekLabel() {
+    if (!this._currentWeekStart) return '—';
+    const end = new Date(this._currentWeekStart);
+    end.setDate(end.getDate() + 6);
+    const s = this._currentWeekStart.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    const e = end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${s} – ${e}`;
+  },
+
+  async _prevWeek() {
+    if (!this._currentWeekStart) return;
+    const prev = new Date(this._currentWeekStart);
+    prev.setDate(prev.getDate() - 7);
+    this._currentWeekStart = prev;
+    const needPeriod = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+    if (needPeriod !== this._loadedPeriod) {
+      document.getElementById('hrAttMonth').value = needPeriod;
+      this._keepWeekStart = true;
+      await this.loadAttendance();
+    } else {
+      this._renderWeekGrid();
+    }
+  },
+
+  async _nextWeek() {
+    if (!this._currentWeekStart) return;
+    const next = new Date(this._currentWeekStart);
+    next.setDate(next.getDate() + 7);
+    this._currentWeekStart = next;
+    const needPeriod = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+    if (needPeriod !== this._loadedPeriod) {
+      document.getElementById('hrAttMonth').value = needPeriod;
+      this._keepWeekStart = true;
+      await this.loadAttendance();
+    } else {
+      this._renderWeekGrid();
+    }
+  },
+
+  _renderWeekGrid() {
+    const wrap    = document.getElementById('hrAttGridWrap');
+    const labelEl = document.getElementById('hrAttWeekLabel');
+    if (labelEl) labelEl.textContent = this._weekLabel();
+
+    if (!this._currentWeekStart) {
+      wrap.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:24px;">Select a month and click Load.</p>';
+      return;
+    }
+
+    const activeStaff = this._staff.filter(s => s.status === 'active');
     if (!activeStaff.length) {
       wrap.innerHTML = '<p style="text-align:center;color:#a0aec0;padding:24px;">No active staff members.</p>';
       return;
     }
 
-    // Build lookup map
-    const attMap = {};
-    attendance.forEach(a => { attMap[a.staffId + '|' + a.date] = a; });
-
-    // Status display config
-    const statusCfg = {
-      present:  { abbr: 'P', bg: '#c6f6d5', color: '#276749' },
-      absent:   { abbr: 'A', bg: '#fed7d7', color: '#9b2c2c' },
-      'half-day':{ abbr: 'H', bg: '#fefcbf', color: '#975a16' },
-      leave:    { abbr: 'L', bg: '#bee3f8', color: '#2a4365' }
-    };
-
-    // Day headers
-    const dayHeaders = [];
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dt  = new Date(year, month - 1, d);
-      const dow = dt.getDay(); // 0=Sun, 5=Fri, 6=Sat
-      const weekend = (dow === 0 || dow === 5 || dow === 6);
-      dayHeaders.push(`<th style="min-width:32px;text-align:center;font-size:11px;${weekend ? 'background:#fefcbf;' : ''}">${d}${weekend ? '*' : ''}</th>`);
+    // Build 7-day window
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(this._currentWeekStart);
+      d.setDate(d.getDate() + i);
+      const isWeekend = (d.getDay() === 0 || d.getDay() === 6);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      days.push({
+        dateStr,
+        isWeekend,
+        label: d.toLocaleDateString('en-IN', { weekday: 'short' }) + ' ' + d.getDate()
+      });
     }
 
-    // Build rows
+    const attMap = {};
+    (this._attendance || []).forEach(a => { attMap[a.staffId + '|' + a.date] = a; });
+
+    const statusCfg = {
+      present:    { abbr: 'P', bg: '#c6f6d5', color: '#276749' },
+      absent:     { abbr: 'A', bg: '#fed7d7', color: '#9b2c2c' },
+      'half-day': { abbr: 'H', bg: '#fefcbf', color: '#975a16' }
+    };
+
+    const dayHeaders = days.map(d =>
+      `<th style="min-width:44px;text-align:center;font-size:12px;padding:6px 4px;${d.isWeekend ? 'background:#fefcbf;' : ''}">${d.label}</th>`
+    ).join('');
+
     const rows = activeStaff.map(s => {
-      let daysOff = 0;
-      let otHrs   = 0;
-      const cells = [];
-
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const rec     = attMap[s.id + '|' + dateStr];
-        let cellHtml;
-
+      let daysOff = 0, otHrs = 0;
+      const cells = days.map(d => {
+        const rec    = attMap[s.id + '|' + d.dateStr];
         if (rec) {
-          const status = rec.dayStatus || 'present';
-          const cfg    = statusCfg[status] || { abbr: '?', bg: '#edf2f7', color: '#4a5568' };
-          if (status === 'absent' || status === 'leave' || status === 'half-day') daysOff += (status === 'half-day' ? 0.5 : 1);
+          const st  = rec.dayStatus || 'present';
+          const cfg = statusCfg[st] || { abbr: '?', bg: '#edf2f7', color: '#4a5568' };
+          if (st === 'absent') daysOff += 1;
+          if (st === 'half-day') daysOff += 0.5;
           otHrs += parseFloat(rec.otHours) || 0;
-          cellHtml = `<td style="text-align:center;background:${cfg.bg};color:${cfg.color};font-weight:600;font-size:12px;cursor:pointer;min-width:32px;"
-            onclick="Staff.openAttModal('${s.id}','${dateStr}')" title="${status}">${cfg.abbr}</td>`;
-        } else {
-          cellHtml = `<td style="text-align:center;color:#a0aec0;font-size:12px;cursor:pointer;min-width:32px;"
-            onclick="Staff.openAttModal('${s.id}','${dateStr}')" title="No record">–</td>`;
+          return `<td style="text-align:center;background:${cfg.bg};color:${cfg.color};font-weight:700;font-size:13px;cursor:pointer;min-width:44px;padding:6px 4px;"
+            onclick="Staff.openAttModal('${s.id}','${d.dateStr}')" title="${st}">${cfg.abbr}</td>`;
         }
-        cells.push(cellHtml);
-      }
+        return `<td style="text-align:center;color:#cbd5e0;font-size:13px;cursor:pointer;min-width:44px;padding:6px 4px;${d.isWeekend ? 'background:#fafaf0;' : ''}"
+          onclick="Staff.openAttModal('${s.id}','${d.dateStr}')" title="No record">–</td>`;
+      }).join('');
 
       return `<tr>
-        <td style="white-space:nowrap;font-weight:500;min-width:120px;position:sticky;left:0;background:#fff;z-index:1;">${this._esc(s.name)}</td>
-        ${cells.join('')}
-        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;">${daysOff}</td>
-        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;">${otHrs.toFixed(1)}</td>
+        <td style="white-space:nowrap;font-weight:500;min-width:130px;padding:6px 8px;position:sticky;left:0;background:#fff;z-index:1;border-right:2px solid #e2e8f0;">${this._esc(s.name)}</td>
+        ${cells}
+        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;padding:6px 8px;">${daysOff}</td>
+        <td style="text-align:center;font-weight:600;white-space:nowrap;background:#f7fafc;padding:6px 8px;">${otHrs.toFixed(1)}</td>
       </tr>`;
     }).join('');
 
-    wrap.innerHTML = `<table style="border-collapse:collapse;font-size:13px;">
-      <thead>
-        <tr>
-          <th style="text-align:left;min-width:120px;position:sticky;left:0;background:#f7fafc;z-index:2;">Staff</th>
-          ${dayHeaders.join('')}
-          <th style="min-width:60px;text-align:center;background:#f7fafc;">Days Off</th>
-          <th style="min-width:60px;text-align:center;background:#f7fafc;">OT hrs</th>
-        </tr>
-      </thead>
+    wrap.innerHTML = `<table style="border-collapse:collapse;font-size:13px;width:100%;">
+      <thead><tr>
+        <th style="text-align:left;min-width:130px;padding:6px 8px;position:sticky;left:0;background:#f7fafc;z-index:2;border-right:2px solid #e2e8f0;">Staff</th>
+        ${dayHeaders}
+        <th style="min-width:60px;text-align:center;background:#f7fafc;padding:6px 8px;">Days Off</th>
+        <th style="min-width:60px;text-align:center;background:#f7fafc;padding:6px 8px;">OT hrs</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   },
@@ -816,12 +869,26 @@ const Staff = {
     const rec = (this._attendance || []).find(a =>
       a.staffId === this._attData.staffId && a.date === this._attData.date);
 
+    const status = rec ? (rec.dayStatus || 'present') : 'present';
     document.getElementById('hrAttClockIn').value  = rec ? (rec.clockIn   || '') : '';
     document.getElementById('hrAttClockOut').value = rec ? (rec.clockOut  || '') : '';
-    document.getElementById('hrAttStatus').value   = rec ? (rec.dayStatus || 'present') : 'present';
+    document.getElementById('hrAttStatus').value   = status;
     document.getElementById('hrAttNotes').value    = rec ? (rec.notes     || '') : '';
 
+    this._onAttStatusChange(status);
     this._setAttViewMode(false);
+  },
+
+  _onAttStatusChange(status) {
+    const isAbsent = (status || document.getElementById('hrAttStatus').value) === 'absent';
+    const inEl  = document.getElementById('hrAttClockIn');
+    const outEl = document.getElementById('hrAttClockOut');
+    inEl.disabled  = isAbsent;
+    outEl.disabled = isAbsent;
+    const grayStyle = 'background:#f0f4f8;color:#a0aec0;cursor:not-allowed;';
+    const normStyle = '';
+    inEl.style.cssText  = isAbsent ? grayStyle : normStyle;
+    outEl.style.cssText = isAbsent ? grayStyle : normStyle;
   },
 
   closeAttModal() {
@@ -832,9 +899,9 @@ const Staff = {
   async saveAttendanceRecord() {
     if (!this._attData) return;
     const { staffId, date } = this._attData;
-    const clockIn   = document.getElementById('hrAttClockIn').value;
-    const clockOut  = document.getElementById('hrAttClockOut').value;
     const dayStatus = document.getElementById('hrAttStatus').value;
+    const clockIn   = dayStatus === 'absent' ? '' : document.getElementById('hrAttClockIn').value;
+    const clockOut  = dayStatus === 'absent' ? '' : document.getElementById('hrAttClockOut').value;
     const notes     = document.getElementById('hrAttNotes').value.trim();
     const msgEl     = document.getElementById('hrAttModalMsg');
     const btn       = document.getElementById('hrAttModalSaveBtn');

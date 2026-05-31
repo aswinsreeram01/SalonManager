@@ -131,7 +131,7 @@ const HRApprovals = {
         const shiftId  = shiftSel ? shiftSel.value : '';
         const shift    = this._shifts.find(s => s.shiftId === shiftId) || null;
 
-        const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut, shift);
+        const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut);
         row.querySelector('.hra-hours-worked').textContent = Number(hoursWorked || 0).toFixed(2);
         row.querySelector('.hra-ot-hours').textContent     = Number(otHours || 0).toFixed(2);
     },
@@ -240,7 +240,7 @@ const HRApprovals = {
         const shiftId  = shiftSel ? shiftSel.value : '';
         const shift    = this._shifts.find(s => s.shiftId === shiftId) || null;
 
-        const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut, shift);
+        const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut);
         row.querySelector('.hra-abs-hrs').textContent = Number(hoursWorked || 0).toFixed(2);
         row.querySelector('.hra-abs-ot').textContent  = Number(otHours || 0).toFixed(2);
     },
@@ -477,12 +477,11 @@ function _hraBtnLoading(btn, loading, label) {
         btn.style.opacity = '';
     }
 }
-// OT = max(0, hoursWorked − 9). Shift breakMins still apply to hoursWorked calc.
-function _hraCalcHours(clockIn, clockOut, shift) {
+// OT = max(0, hoursWorked − 9). No break deduction.
+function _hraCalcHours(clockIn, clockOut) {
     if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
-    const toMins    = t => { const [h, m] = (String(t || '')).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-    const breakMins = shift ? (Number(shift.breakMins) || 0) : 0;
-    const worked    = Math.max(0, toMins(clockOut) - toMins(clockIn) - breakMins);
+    const toMins  = t => { const [h, m] = (String(t || '')).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+    const worked  = Math.max(0, toMins(clockOut) - toMins(clockIn));
     const hoursWorked = Math.round((worked / 60) * 100) / 100;
     const otHours     = Math.round(Math.max(0, hoursWorked - 9) * 100) / 100;
     return { hoursWorked, otHours };
