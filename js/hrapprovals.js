@@ -62,11 +62,10 @@ const HRApprovals = {
     },
 
     _shiftOptions(selectedId) {
-        const opts = `<option value="">No shift</option>` +
+        return `<option value="">No shift</option>` +
             this._shifts.map(s =>
                 `<option value="${_hEsc(s.shiftId)}" ${s.shiftId === selectedId ? 'selected' : ''}>${_hEsc(s.name)}</option>`
             ).join('');
-        return opts;
     },
 
     _renderPendingAttendance(pending) {
@@ -108,9 +107,9 @@ const HRApprovals = {
                 <td>
                   <div class="hra-btn-group">
                     <button class="btn btn-primary hra-btn-sm"
-                      onclick="HRApprovals.approveAttendanceRow('${_hEsc(r.attendanceId)}','${_hEsc(r.staffId)}')">✓</button>
+                      onclick="HRApprovals.approveAttendanceRow('${_hEsc(r.attendanceId)}','${_hEsc(r.staffId)}',this)">✓</button>
                     <button class="btn btn-danger hra-btn-sm"
-                      onclick="HRApprovals.rejectAttendanceRow('${_hEsc(r.attendanceId)}')">✕</button>
+                      onclick="HRApprovals.rejectAttendanceRow('${_hEsc(r.attendanceId)}',this)">✕</button>
                   </div>
                 </td>
               </tr>`).join('')}
@@ -137,7 +136,7 @@ const HRApprovals = {
         row.querySelector('.hra-ot-hours').textContent     = Number(otHours || 0).toFixed(2);
     },
 
-    async approveAttendanceRow(attendanceId, staffId) {
+    async approveAttendanceRow(attendanceId, staffId, btn) {
         const row      = document.getElementById(`hraAttRow-${attendanceId}`);
         const clockIn  = row.querySelector('.hra-time-in').value;
         const clockOut = row.querySelector('.hra-time-out').value;
@@ -145,6 +144,7 @@ const HRApprovals = {
         const shiftId  = shiftSel ? shiftSel.value : '';
         const msgEl    = document.getElementById('hraAttMessage');
 
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('approve_attendance', {
                 records: [{ attendanceId, staffId, date: this._date, shiftId, clockIn, clockOut }]
@@ -155,12 +155,14 @@ const HRApprovals = {
             document.getElementById('hraPendingAttCount').textContent = remaining;
             _hraMsg(msgEl, 'Attendance approved.', 'success');
         } catch (err) {
+            _hraBtnLoading(btn, false, '✓');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
 
-    async rejectAttendanceRow(attendanceId) {
+    async rejectAttendanceRow(attendanceId, btn) {
         const msgEl = document.getElementById('hraAttMessage');
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('reject_attendance', { attendanceId });
             if (res.status !== 'success') throw new Error(res.message);
@@ -172,6 +174,7 @@ const HRApprovals = {
             }
             _hraMsg(msgEl, 'Attendance rejected.', 'info');
         } catch (err) {
+            _hraBtnLoading(btn, false, '✕');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
@@ -192,6 +195,8 @@ const HRApprovals = {
             <th>Staff</th>
             <th>Clock In</th>
             <th>Clock Out</th>
+            <th>Hrs</th>
+            <th>OT</th>
             <th>Shift</th>
             <th></th>
           </tr></thead>
@@ -199,42 +204,92 @@ const HRApprovals = {
             ${absent.map(r => `
               <tr id="hraAbsRow-${_hEsc(r.staffId)}">
                 <td><strong>${_hEsc(r.staffName)}</strong></td>
-                <td><input type="time" class="hra-abs-in"  data-staffid="${_hEsc(r.staffId)}"></td>
-                <td><input type="time" class="hra-abs-out" data-staffid="${_hEsc(r.staffId)}"></td>
+                <td><input type="time" class="hra-abs-in"  data-staffid="${_hEsc(r.staffId)}" value=""></td>
+                <td><input type="time" class="hra-abs-out" data-staffid="${_hEsc(r.staffId)}" value=""></td>
+                <td class="hra-num hra-abs-hrs"  data-staffid="${_hEsc(r.staffId)}">0.00</td>
+                <td class="hra-num hra-abs-ot"   data-staffid="${_hEsc(r.staffId)}">0.00</td>
                 <td>
                   <select class="hra-shift-sel-abs" data-staffid="${_hEsc(r.staffId)}" style="min-width:90px;">
                     ${this._shiftOptions(r.shiftId)}
                   </select>
                 </td>
                 <td>
-                  <button class="btn btn-primary hra-btn-sm"
-                    onclick="HRApprovals.approveAbsent('${_hEsc(r.staffId)}')">
-                    Save</button>
+                  <div class="hra-btn-group">
+                    <button class="btn btn-primary hra-btn-sm"
+                      onclick="HRApprovals.approveAbsent('${_hEsc(r.staffId)}',this)">Save</button>
+                    <button class="btn btn-danger hra-btn-sm"
+                      onclick="HRApprovals.markAbsent('${_hEsc(r.staffId)}',this)">Absent</button>
+                  </div>
                 </td>
               </tr>`).join('')}
           </tbody>
-        </table>
-        <p style="font-size:12px;color:#a0aec0;margin-top:8px;padding:0 4px;">Leave Clock In/Out blank to mark as Absent.</p>`;
+        </table>`;
+
+        // Live OT recalculation for absent rows
+        wrap.querySelectorAll('.hra-abs-in, .hra-abs-out, .hra-shift-sel-abs').forEach(el => {
+            el.addEventListener('change', () => this._recalcAbsOT(el.dataset.staffid));
+        });
     },
 
-    async approveAbsent(staffId) {
+    _recalcAbsOT(staffId) {
+        const row = document.getElementById(`hraAbsRow-${staffId}`);
+        if (!row) return;
+        const clockIn  = row.querySelector('.hra-abs-in').value;
+        const clockOut = row.querySelector('.hra-abs-out').value;
+        const shiftSel = row.querySelector('.hra-shift-sel-abs');
+        const shiftId  = shiftSel ? shiftSel.value : '';
+        const shift    = this._shifts.find(s => s.shiftId === shiftId) || null;
+
+        const { hoursWorked, otHours } = _hraCalcHours(clockIn, clockOut, shift);
+        row.querySelector('.hra-abs-hrs').textContent = Number(hoursWorked || 0).toFixed(2);
+        row.querySelector('.hra-abs-ot').textContent  = Number(otHours || 0).toFixed(2);
+    },
+
+    async approveAbsent(staffId, btn) {
         const row      = document.getElementById(`hraAbsRow-${staffId}`);
         const shiftId  = row.querySelector('.hra-shift-sel-abs').value;
         const clockIn  = row.querySelector('.hra-abs-in').value;
         const clockOut = row.querySelector('.hra-abs-out').value;
         const msgEl    = document.getElementById('hraAttMessage');
-        const dayStatus = (clockIn && clockOut) ? 'present' : 'absent';
 
+        if (!clockIn || !clockOut) {
+            _hraMsg(msgEl, 'Enter both Clock In and Clock Out to save as present, or use Absent.', 'error');
+            return;
+        }
+
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('approve_attendance', {
-                records: [{ staffId, date: this._date, shiftId, clockIn, clockOut, dayStatus }]
+                records: [{ staffId, date: this._date, shiftId, clockIn, clockOut, dayStatus: 'present' }]
             });
             if (res.status !== 'success') throw new Error(res.message);
             row.remove();
             const remaining = document.querySelectorAll('#hraAbsentWrap tbody tr').length;
             document.getElementById('hraAbsentCount').textContent = remaining;
-            _hraMsg(msgEl, `${dayStatus === 'present' ? 'Marked present' : 'Marked absent'}.`, 'success');
+            _hraMsg(msgEl, 'Marked present.', 'success');
         } catch (err) {
+            _hraBtnLoading(btn, false, 'Save');
+            _hraMsg(msgEl, err.message, 'error');
+        }
+    },
+
+    async markAbsent(staffId, btn) {
+        const row     = document.getElementById(`hraAbsRow-${staffId}`);
+        const shiftId = row.querySelector('.hra-shift-sel-abs').value;
+        const msgEl   = document.getElementById('hraAttMessage');
+
+        _hraBtnLoading(btn, true);
+        try {
+            const res = await API.call('approve_attendance', {
+                records: [{ staffId, date: this._date, shiftId, clockIn: '', clockOut: '', dayStatus: 'absent' }]
+            });
+            if (res.status !== 'success') throw new Error(res.message);
+            row.remove();
+            const remaining = document.querySelectorAll('#hraAbsentWrap tbody tr').length;
+            document.getElementById('hraAbsentCount').textContent = remaining;
+            _hraMsg(msgEl, 'Marked absent.', 'info');
+        } catch (err) {
+            _hraBtnLoading(btn, false, 'Absent');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
@@ -290,9 +345,9 @@ const HRApprovals = {
                 <td>
                   <div class="hra-btn-group">
                     <button class="btn btn-primary hra-btn-sm"
-                      onclick="HRApprovals.approveAdvanceRow('${_hEsc(r.advanceId)}')">Approve</button>
+                      onclick="HRApprovals.approveAdvanceRow('${_hEsc(r.advanceId)}',this)">Approve</button>
                     <button class="btn btn-danger hra-btn-sm"
-                      onclick="HRApprovals.rejectAdvanceRow('${_hEsc(r.advanceId)}')">Reject</button>
+                      onclick="HRApprovals.rejectAdvanceRow('${_hEsc(r.advanceId)}',this)">Reject</button>
                   </div>
                 </td>
               </tr>`).join('')}
@@ -300,28 +355,33 @@ const HRApprovals = {
         </table>`;
     },
 
-    async approveAdvanceRow(advanceId) {
+    async approveAdvanceRow(advanceId, btn) {
         const row            = document.getElementById(`hraAdvRow-${advanceId}`);
         const approvedAmount = parseFloat(row.querySelector('.hra-approve-amt').value) || 0;
         const msgEl          = document.getElementById('hraAdvMessage');
+
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('approve_advance', { advanceId, approvedAmount });
             if (res.status !== 'success') throw new Error(res.message);
             _hraMsg(msgEl, 'Advance approved — ready to disburse.', 'success');
             await this.loadAdvances();
         } catch (err) {
+            _hraBtnLoading(btn, false, 'Approve');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
 
-    async rejectAdvanceRow(advanceId) {
+    async rejectAdvanceRow(advanceId, btn) {
         const msgEl = document.getElementById('hraAdvMessage');
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('reject_advance', { advanceId });
             if (res.status !== 'success') throw new Error(res.message);
             _hraMsg(msgEl, 'Advance rejected.', 'info');
             await this.loadAdvances();
         } catch (err) {
+            _hraBtnLoading(btn, false, 'Reject');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
@@ -359,14 +419,14 @@ const HRApprovals = {
                 </td>
                 <td>
                   <button class="btn btn-primary hra-btn-sm"
-                    onclick="HRApprovals.disburseAdvanceRow('${_hEsc(r.advanceId)}')">Disburse</button>
+                    onclick="HRApprovals.disburseAdvanceRow('${_hEsc(r.advanceId)}',this)">Disburse</button>
                 </td>
               </tr>`).join('')}
           </tbody>
         </table>`;
     },
 
-    async disburseAdvanceRow(advanceId) {
+    async disburseAdvanceRow(advanceId, btn) {
         const row         = document.getElementById(`hraAdvDisRow-${advanceId}`);
         const paymentMode = row.querySelector('.hra-pay-mode').value;
         const msgEl       = document.getElementById('hraAdvMessage');
@@ -374,6 +434,7 @@ const HRApprovals = {
             _hraMsg(msgEl, 'Select a payment mode before disbursing.', 'error');
             return;
         }
+        _hraBtnLoading(btn, true);
         try {
             const res = await API.call('disburse_advance', { advanceId, paymentMode });
             if (res.status !== 'success') throw new Error(res.message);
@@ -381,6 +442,7 @@ const HRApprovals = {
             _hraMsg(msgEl, `Disbursed via ${paymentMode}. New balance: ₹${bal}.`, 'success');
             await this.loadAdvances();
         } catch (err) {
+            _hraBtnLoading(btn, false, 'Disburse');
             _hraMsg(msgEl, err.message, 'error');
         }
     },
@@ -400,14 +462,28 @@ function _hraMsg(el, text, type) {
     el.className     = text ? `message ${type} show` : 'message';
     el.style.display = text ? 'block' : 'none';
 }
+// Disable a button and show "…" while an async action is in-flight.
+// Call with loading=false to restore; pass label for the restored text.
+function _hraBtnLoading(btn, loading, label) {
+    if (!btn) return;
+    if (loading) {
+        btn._hraLabel = btn.textContent;
+        btn.disabled  = true;
+        btn.textContent = '…';
+        btn.style.opacity = '0.7';
+    } else {
+        btn.disabled  = false;
+        btn.textContent = label || btn._hraLabel || btn.textContent;
+        btn.style.opacity = '';
+    }
+}
+// OT = max(0, hoursWorked − 9). Shift breakMins still apply to hoursWorked calc.
 function _hraCalcHours(clockIn, clockOut, shift) {
     if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
-    const toMins     = t => { const [h, m] = (String(t || '')).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
-    const breakMins  = shift ? (Number(shift.breakMins) || 0) : 0;
-    const shiftMins  = shift ? Math.max(0, toMins(shift.endTime) - toMins(shift.startTime) - breakMins) : 0;
-    const shiftHours = shiftMins / 60;
-    const worked     = Math.max(0, toMins(clockOut) - toMins(clockIn) - breakMins);
+    const toMins    = t => { const [h, m] = (String(t || '')).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
+    const breakMins = shift ? (Number(shift.breakMins) || 0) : 0;
+    const worked    = Math.max(0, toMins(clockOut) - toMins(clockIn) - breakMins);
     const hoursWorked = Math.round((worked / 60) * 100) / 100;
-    const otHours     = Math.round(Math.max(0, hoursWorked - shiftHours) * 100) / 100;
+    const otHours     = Math.round(Math.max(0, hoursWorked - 9) * 100) / 100;
     return { hoursWorked, otHours };
 }
