@@ -592,9 +592,14 @@ const Staff = {
 
   async loadAttendance() {
     const monthEl = document.getElementById('hrAttMonth');
-    const period  = monthEl ? monthEl.value : '';
     const msgEl   = document.getElementById('hrAttMessage');
 
+    // Auto-set to current month if nothing selected
+    const today = new Date();
+    const currentPeriod = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (monthEl && !monthEl.value) monthEl.value = currentPeriod;
+
+    const period = monthEl ? monthEl.value : '';
     if (!period) { this._showInlineMsg(msgEl, 'Please select a month.', 'error'); return; }
 
     const [year, month] = period.split('-').map(Number);
@@ -602,9 +607,13 @@ const Staff = {
     const lastDay  = new Date(year, month, 0).getDate();
     const toDate   = `${period}-${String(lastDay).padStart(2, '0')}`;
 
-    // Set week start: only reset when period changes or never loaded
+    // Set week start: if viewing current month (and not navigating), land on current week
     if (!this._keepWeekStart || this._loadedPeriod !== period) {
-      this._currentWeekStart = this._getMonday(new Date(year, month - 1, 1));
+      if (period === currentPeriod) {
+        this._currentWeekStart = this._getMonday(today);
+      } else {
+        this._currentWeekStart = this._getMonday(new Date(year, month - 1, 1));
+      }
     }
     this._keepWeekStart = false;
     this._loadedPeriod  = period;
@@ -818,11 +827,16 @@ const Staff = {
         `value="${this._esc(sched.shiftId)}"`,
         `value="${this._esc(sched.shiftId)}" selected`
       );
-      const dayCells = days.map((d, i) =>
-        `<td style="text-align:center;padding:5px 4px;">
-          <input type="checkbox" id="wpOff-${s.id}-${i}" ${sched.offDays.includes(d.name) ? 'checked' : ''}>
-        </td>`
-      ).join('');
+      const dayCells = days.map((d, i) => {
+        const isOff = sched.offDays.includes(d.name) ? 1 : 0;
+        return `<td style="text-align:center;padding:5px 4px;">
+          <button type="button" id="wpOff-${s.id}-${i}" data-off="${isOff}"
+            onclick="Staff._toggleOffDay(this)"
+            style="border:none;cursor:pointer;border-radius:50%;width:28px;height:28px;font-size:14px;line-height:28px;padding:0;
+              background:${isOff ? '#fed7d7' : '#c6f6d5'};color:${isOff ? '#9b2c2c' : '#276749'};
+              font-weight:700;transition:background 0.15s,color 0.15s;">${isOff ? '✗' : '✓'}</button>
+        </td>`;
+      }).join('');
       return `<tr>
         <td style="padding:5px 8px;white-space:nowrap;font-weight:500;">${this._esc(s.name)}</td>
         <td style="padding:5px 8px;">
@@ -852,22 +866,43 @@ const Staff = {
       </div>`;
   },
 
+  _toggleOffDay(btn) {
+    const isOff = btn.dataset.off === '1' ? 0 : 1;
+    btn.dataset.off = String(isOff);
+    btn.textContent = isOff ? '✗' : '✓';
+    btn.style.background = isOff ? '#fed7d7' : '#c6f6d5';
+    btn.style.color       = isOff ? '#9b2c2c' : '#276749';
+  },
+
   async saveWeekSchedule() {
     const weekStart   = this._dateStr(this._currentWeekStart);
     const activeStaff = this._staff.filter(s => s.status === 'active');
     const dayNames    = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const msgEl = document.getElementById('wpMsg');
+
+    // Validate: all staff must have a shift selected
+    const missing = activeStaff.filter(s => {
+      const sel = document.getElementById(`wpShift-${s.id}`);
+      return !sel || !sel.value;
+    });
+    if (missing.length) {
+      if (msgEl) {
+        msgEl.textContent = `Please select a shift for: ${missing.map(s => s.name).join(', ')}`;
+        msgEl.style.color = '#c53030';
+      }
+      return;
+    }
 
     const entries = activeStaff.map(s => {
       const shiftSel = document.getElementById(`wpShift-${s.id}`);
       const offDays  = dayNames.filter((_, i) => {
-        const cb = document.getElementById(`wpOff-${s.id}-${i}`);
-        return cb && cb.checked;
+        const btn = document.getElementById(`wpOff-${s.id}-${i}`);
+        return btn && btn.dataset.off === '1';
       });
       return { staffId: s.id, shiftId: shiftSel ? shiftSel.value : '', offDays: offDays.join(',') };
     });
 
-    const btn   = document.getElementById('wpSaveBtn');
-    const msgEl = document.getElementById('wpMsg');
+    const btn = document.getElementById('wpSaveBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
       const res = await API.call('save_week_schedule', { weekStart, entries });
