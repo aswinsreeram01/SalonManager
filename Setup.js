@@ -45,7 +45,7 @@ const SHEET_SCHEMA = {
                         'cashAmt','cardAmt','upiAmt','status','discountType','createdBy','orgId'],
   BillItems:           ['billItemId','billId','type','refId','itemName','staffId','staffName',
                         'qty','unitPrice','gstPct','lineSubtotal','lineGst','lineTotal',
-                        'profProductId','profProductName','profQty','profUom','orgId'],
+                        'profProductId','profProductName','profQty','profUom','orgId','staffConfirmed'],
 
   // ── Appointments ─────────────────────────────────────────────────────────────
   Appointments:        ['appointmentId','customerId','customerName','customerPhone',
@@ -59,7 +59,7 @@ const SHEET_SCHEMA = {
   // ── HR ───────────────────────────────────────────────────────────────────────
   Staff:               ['id','userId','name','phone','email','aadharNumber','upiId',
                         'startDate','role','salary','allowance','incentiveStructure',
-                        'specialization','status','staffType','profileId','targetPeriod','orgId'],
+                        'specialization','status','staffType','profileId','targetPeriod','orgId','staffPin'],
   IncentiveProfiles:   ['profileId','profileName','profileType','revenueBase','otHourlyRate',
                         'l1Type','l1Value','l2Type','l2Value','xPct','yPct','zPct','status','orgId'],
   Shifts:              ['shiftId','name','startTime','endTime','breakMins','status','orgId'],
@@ -78,7 +78,7 @@ const SHEET_SCHEMA = {
                         'netPay','status','notes','createdAt','orgId'],
 
   // ── Settings ─────────────────────────────────────────────────────────────────
-  OrgSettings:         ['key','value']
+  OrgSettings:           ['key','value']
 };
 
 // ── Group labels for the UI ───────────────────────────────────────────────────

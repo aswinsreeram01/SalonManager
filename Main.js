@@ -3,6 +3,31 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     const action = data.action;
 
+    // ── Staff portal: own session type, handled before admin switch ────────
+    const STAFF_ACTIONS = [
+      'staff_login', 'staff_logout',
+      'get_staff_dashboard', 'get_pending_items', 'confirm_bill_items', 'change_staff_pin'
+    ];
+    if (STAFF_ACTIONS.includes(action)) {
+      if (action !== 'staff_login') {
+        const staffSession = Utils.validateStaffSession(data.sessionToken);
+        if (!staffSession) {
+          return Utils.createResponse('error', 'Staff session expired. Please login again.', { staffSessionExpired: true });
+        }
+        data.staffId = staffSession.staffId;
+        data.orgId   = staffSession.orgId;
+      }
+      switch (action) {
+        case 'staff_login':          return StaffPortal.login(data);
+        case 'staff_logout':         return StaffPortal.logout(data);
+        case 'get_staff_dashboard':  return StaffPortal.getDashboard(data);
+        case 'get_pending_items':    return StaffPortal.getPendingItems(data);
+        case 'confirm_bill_items':   return StaffPortal.confirmItems(data);
+        case 'change_staff_pin':     return StaffPortal.changePin(data);
+      }
+    }
+
+    // ── Admin app: regular session validation ──────────────────────────────
     const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password'];
     if (!publicActions.includes(action)) {
       const session = Utils.validateSession(data.sessionToken);
