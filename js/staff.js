@@ -156,7 +156,7 @@ const Staff = {
     }
     tbody.innerHTML = list.map(s => {
       const profile = this._profiles.find(p => p.id === s.profileId || p.profileId === s.profileId);
-      const profileName = profile ? this._esc(profile.name) : '—';
+      const profileName = profile ? this._esc(profile.profileName || profile.name) : '—';
       const typeBadge = this._staffTypeBadge(s.staffType);
       return `<tr>
         <td>
@@ -304,7 +304,7 @@ const Staff = {
     if (!sel) return;
     const active = this._profiles.filter(p => p.status === 'active');
     sel.innerHTML = '<option value="">No Profile</option>' +
-      active.map(p => `<option value="${p.id || p.profileId}">${this._esc(p.name)}</option>`).join('');
+      active.map(p => `<option value="${p.id || p.profileId}">${this._esc(p.profileName || p.name)}</option>`).join('');
   },
 
 
@@ -393,10 +393,10 @@ const Staff = {
       const l2  = this._fmtTarget(p.l2Type || p.hrProfL2Type, p.l2Value || p.hrProfL2Value);
       const brackets = `${p.xPct || p.hrProfXPct || 0}% / ${p.yPct || p.hrProfYPct || 0}% / ${p.zPct || p.hrProfZPct || 0}%`;
       return `<tr>
-        <td style="font-weight:500;">${this._esc(p.name)}</td>
+        <td style="font-weight:500;">${this._esc(p.profileName || p.name)}</td>
         <td>${this._esc(p.profileType || p.type || '—')}</td>
         <td>${this._esc(p.revenueBase || '—')}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otRate || p.hrProfOtRate)}/hr</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate)}/hr</td>
         <td>${this._esc(l1)}</td>
         <td>${this._esc(l2)}</td>
         <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
@@ -418,10 +418,10 @@ const Staff = {
     if (id) {
       const p = this._profiles.find(x => (x.id || x.profileId) === id);
       if (p) {
-        document.getElementById('hrProfName').value        = p.name            || '';
+        document.getElementById('hrProfName').value        = p.profileName || p.name || '';
         document.getElementById('hrProfType').value        = p.profileType || p.type || '';
         document.getElementById('hrProfRevenueBase').value = p.revenueBase     || '';
-        document.getElementById('hrProfOtRate').value      = p.otRate || p.hrProfOtRate || '';
+        document.getElementById('hrProfOtRate').value      = p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate ?? '';
         document.getElementById('hrProfL1Type').value      = p.l1Type || p.hrProfL1Type || '';
         document.getElementById('hrProfL1Value').value     = p.l1Value || p.hrProfL1Value || '';
         document.getElementById('hrProfL2Type').value      = p.l2Type || p.hrProfL2Type || '';
@@ -448,20 +448,20 @@ const Staff = {
     e.preventDefault();
     const btn = document.getElementById('hrProfSaveBtn');
     const data = {
-      name:        document.getElementById('hrProfName').value.trim(),
-      profileType: document.getElementById('hrProfType').value,
-      revenueBase: document.getElementById('hrProfRevenueBase').value,
-      otRate:      parseFloat(document.getElementById('hrProfOtRate').value) || 0,
-      l1Type:      document.getElementById('hrProfL1Type').value,
-      l1Value:     parseFloat(document.getElementById('hrProfL1Value').value) || 0,
-      l2Type:      document.getElementById('hrProfL2Type').value,
-      l2Value:     parseFloat(document.getElementById('hrProfL2Value').value) || 0,
-      xPct:        parseFloat(document.getElementById('hrProfXPct').value) || 0,
-      yPct:        parseFloat(document.getElementById('hrProfYPct').value) || 0,
-      zPct:        parseFloat(document.getElementById('hrProfZPct').value) || 0,
-      status:      document.getElementById('hrProfStatus').value
+      profileName:   document.getElementById('hrProfName').value.trim(),
+      profileType:   document.getElementById('hrProfType').value,
+      revenueBase:   document.getElementById('hrProfRevenueBase').value,
+      otHourlyRate:  parseFloat(document.getElementById('hrProfOtRate').value) || 0,
+      l1Type:        document.getElementById('hrProfL1Type').value,
+      l1Value:       parseFloat(document.getElementById('hrProfL1Value').value) || 0,
+      l2Type:        document.getElementById('hrProfL2Type').value,
+      l2Value:       parseFloat(document.getElementById('hrProfL2Value').value) || 0,
+      xPct:          parseFloat(document.getElementById('hrProfXPct').value) || 0,
+      yPct:          parseFloat(document.getElementById('hrProfYPct').value) || 0,
+      zPct:          parseFloat(document.getElementById('hrProfZPct').value) || 0,
+      status:        document.getElementById('hrProfStatus').value
     };
-    if (this._profEditingId) data.id = this._profEditingId;
+    if (this._profEditingId) data.profileId = this._profEditingId;
 
     btn.disabled = true;
     const origText = btn.textContent;

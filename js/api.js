@@ -338,7 +338,7 @@ const API = {
     getIncentiveProfiles() { return this.call('get_incentive_profiles'); },
     addIncentiveProfile(data) { return this.call('add_incentive_profile', data); },
     updateIncentiveProfile(data) { return this.call('update_incentive_profile', data); },
-    deleteIncentiveProfile(id) { return this.call('delete_incentive_profile', { id }); },
+    deleteIncentiveProfile(id) { return this.call('delete_incentive_profile', { profileId: id }); },
 
     // Org Settings
     getOrgSettings() { return this.call('get_org_settings'); },

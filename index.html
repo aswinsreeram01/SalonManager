@@ -549,37 +549,37 @@
                         <input type="number" id="hrProfOtRate" min="0" step="0.01" value="50">
                     </div>
                     <div class="form-group">
-                        <label for="hrProfL1Type">L1 Target Type</label>
+                        <label for="hrProfL1Type">Target1 Type</label>
                         <select id="hrProfL1Type">
                             <option value="fixed">Fixed Amount (₹)</option>
                             <option value="salary_pct">% of Base Salary</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="hrProfL1Value">L1 Value</label>
+                        <label for="hrProfL1Value">Target1 Value</label>
                         <input type="number" id="hrProfL1Value" min="0" step="0.01" placeholder="e.g. 10000 or 150">
                     </div>
                     <div class="form-group">
-                        <label for="hrProfL2Type">L2 Target Type</label>
+                        <label for="hrProfL2Type">Target2 Type</label>
                         <select id="hrProfL2Type">
                             <option value="fixed">Fixed Amount (₹)</option>
                             <option value="salary_pct">% of Base Salary</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="hrProfL2Value">L2 Value</label>
+                        <label for="hrProfL2Value">Target2 Value</label>
                         <input type="number" id="hrProfL2Value" min="0" step="0.01" placeholder="e.g. 35000 or 350">
                     </div>
                     <div class="form-group">
-                        <label for="hrProfXPct">X% (0 → L1)</label>
+                        <label for="hrProfXPct">X% (0 → T1)</label>
                         <input type="number" id="hrProfXPct" min="0" max="100" step="0.01" value="1">
                     </div>
                     <div class="form-group">
-                        <label for="hrProfYPct">Y% (L1 → L2)</label>
+                        <label for="hrProfYPct">Y% (T1 → T2)</label>
                         <input type="number" id="hrProfYPct" min="0" max="100" step="0.01" value="1.5">
                     </div>
                     <div class="form-group">
-                        <label for="hrProfZPct">Z% (above L2)</label>
+                        <label for="hrProfZPct">Z% (above T2)</label>
                         <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
                     </div>
                     <div class="form-group">
@@ -605,7 +605,7 @@
                 <table>
                     <thead><tr>
                         <th>Name</th><th>Type</th><th>Revenue Base</th>
-                        <th>OT Rate</th><th>L1</th><th>L2</th>
+                        <th>OT Rate</th><th>Target1</th><th>Target2</th>
                         <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrProfTableBody">
