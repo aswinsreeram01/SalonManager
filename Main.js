@@ -262,8 +262,9 @@ function doPost(e) {
       case 'update_payroll_status': return Payroll.updateStatus(data);
 
       // Setup / Sheet Scaffolding
-      case 'get_setup_status': return Setup.getStatus();
-      case 'run_setup':        return Setup.run(data);
+      case 'get_setup_status':      return Setup.getStatus();
+      case 'run_setup':             return Setup.run(data);
+      case 'refresh_summary_sheet': return Setup.refreshSummary();
 
       default:
         return Utils.createResponse('error', 'Invalid action');

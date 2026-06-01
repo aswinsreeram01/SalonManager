@@ -5,6 +5,7 @@ const Settings = {
 
     init() {
         document.getElementById('setupRefreshBtn')?.addEventListener('click', () => this.loadSetupStatus());
+        document.getElementById('setupSummaryBtn')?.addEventListener('click', () => this.refreshSummarySheet());
     },
 
     async load() {
@@ -203,6 +204,20 @@ const Settings = {
             UI.showMessage('settingsMessage', 'Setup failed: ' + err.message, 'error');
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = 'Run Setup'; }
+        }
+    },
+
+    async refreshSummarySheet() {
+        const btn = document.getElementById('setupSummaryBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Refreshing…'; }
+        try {
+            const res = await API.refreshSummarySheet();
+            if (res.status !== 'success') throw new Error(res.message);
+            UI.showMessage('settingsMessage', res.message || '📋 Index sheet refreshed.', 'success');
+        } catch(err) {
+            UI.showMessage('settingsMessage', 'Failed: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = '📋 Refresh Summary Sheet'; }
         }
     },
 

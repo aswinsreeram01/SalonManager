@@ -372,5 +372,6 @@ const API = {
 
     // Setup / Sheet Scaffolding
     getSetupStatus() { return this.call('get_setup_status'); },
-    runSetup(actions) { return this.call('run_setup', { actions }); }
+    runSetup(actions) { return this.call('run_setup', { actions }); },
+    refreshSummarySheet() { return this.call('refresh_summary_sheet'); }
 };
