@@ -328,8 +328,33 @@ function _timeGreeting() {
     return 'Good evening';
 }
 
+// ── Page HTML loader ─────────────────────────────────────────────────────────
+// Fetches all page HTML files in parallel and injects them before init() runs.
+// Pages are small static files; parallel HTTP/2 fetch completes in ~100ms.
+const PAGE_HTML = [
+    'dashboard','billing','history','appointments','expenses',
+    'services','products','vendors','staff','hrapprovals',
+    'customers','organizations','users','roles','permissions','settings'
+];
+
+async function _loadPageHTML() {
+    await Promise.all(PAGE_HTML.map(async page => {
+        try {
+            const r = await fetch(`pages/${page}.html`);
+            if (r.ok) {
+                const el = document.getElementById(page);
+                if (el) el.innerHTML = await r.text();
+            }
+        } catch(e) { /* page file missing — content section stays empty */ }
+    }));
+}
+
 // Initialize app when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Fetch and inject all page HTML before init() — needed so event listeners
+    // attached in init() find their DOM elements.
+    await _loadPageHTML();
+
     Auth.init();
     Navigation.init();
     Billing.init();

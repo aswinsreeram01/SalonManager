@@ -1,0 +1,32 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">Permissions</h1>
+                    <p class="page-subtitle">Manage role-based access control</p>
+                </div>
+
+                <div id="permissionMessage" class="message"></div>
+
+                <div class="card">
+                    <div class="form-group" style="max-width: 360px;">
+                        <label for="permRoleSelect">Select Role</label>
+                        <select id="permRoleSelect">
+                            <option value="">Choose a role to manage...</option>
+                        </select>
+                    </div>
+
+                    <div id="permMatrix" style="display: none;">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Menu Item</th>
+                                        <th style="width: 80px;">Access</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="permMatrixBody"></tbody>
+                            </table>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="savePermissionsBtn">Save Permissions</button>
+                        </div>
+                    </div>
+                </div>

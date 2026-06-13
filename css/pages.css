@@ -1,0 +1,543 @@
+﻿/* ── Status Badges ── */
+.appt-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.appt-badge-booked    { background: #ebf8ff; color: #2b6cb0; }
+.appt-badge-confirmed { background: #e9d8fd; color: #553c9a; }
+.appt-badge-completed { background: #c6f6d5; color: #22543d; }
+.appt-badge-cancelled { background: #e2e8f0; color: #718096; }
+.appt-badge-no-show   { background: #fed7d7; color: #742a2a; }
+
+/* ── Action Buttons ── */
+.appt-action-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.appt-act-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.appt-act-btn:hover { opacity: 0.82; }
+.appt-btn-confirm  { background: #ebf8ff; color: #2b6cb0; }
+.appt-btn-complete { background: #c6f6d5; color: #22543d; }
+.appt-btn-noshow   { background: #fed7d7; color: #742a2a; }
+.appt-btn-edit     { background: #f7fafc; color: #4a5568; border: 1px solid #e2e8f0; }
+.appt-btn-cancel   { background: #fff5f5; color: #e53e3e; }
+.appt-btn-bill     { background: #667eea; color: white; }
+.appt-billed-tag   { font-size: 12px; color: #38a169; font-weight: 600; }
+
+/* ── List View ── */
+.appt-list { display: flex; flex-direction: column; gap: 8px; }
+.appt-list-row {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.appt-time-col { flex-shrink: 0; min-width: 64px; }
+.appt-time      { font-size: 14px; font-weight: 700; color: #2d3748; }
+.appt-dur       { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+.appt-info-col  { flex: 1; min-width: 0; }
+.appt-right-col { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.appt-customer-name { font-size: 14px; font-weight: 600; color: #2d3748; }
+.appt-detail-line   { font-size: 12px; color: #718096; margin-top: 2px; }
+.appt-notes-line    { font-size: 12px; color: #a0aec0; margin-top: 3px; font-style: italic; }
+
+/* ── Timeline / Day View ── */
+.appt-day-view { display: flex; flex-direction: column; }
+.appt-slot {
+    display: flex;
+    min-height: 48px;
+    border-bottom: 1px solid #f0f4f8;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.appt-slot:hover { background: #f7fafc; }
+.appt-slot-hour { border-bottom-color: #e2e8f0; }
+.appt-slot-time {
+    flex-shrink: 0;
+    width: 52px;
+    padding: 10px 8px 0;
+    font-size: 12px;
+    color: #a0aec0;
+    font-weight: 600;
+    text-align: right;
+    user-select: none;
+}
+.appt-slot-hour .appt-slot-time { color: #718096; }
+.appt-slot-body {
+    flex: 1;
+    padding: 4px 8px 4px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Day-view appointment card */
+.appt-day-card {
+    border-radius: 8px;
+    padding: 8px 12px;
+    border-left: 3px solid transparent;
+    cursor: default;
+}
+.appt-day-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+.appt-card-booked    { background: #ebf8ff; border-left-color: #4299e1; }
+.appt-card-confirmed { background: #f3e8ff; border-left-color: #805ad5; }
+.appt-card-completed { background: #f0fff4; border-left-color: #48bb78; }
+.appt-card-cancelled { background: #f7fafc; border-left-color: #a0aec0; }
+.appt-card-no-show   { background: #fff5f5; border-left-color: #fc8181; }
+
+/* ══════════════════════════════════════════════════════════
+   DESKTOP (≥ 768px)
+   ══════════════════════════════════════════════════════════ */
+@media (min-width: 768px) {
+    .username { display: block; }
+    .mobile-bottom-nav { display: none !important; }
+    .sidebar-backdrop { display: none !important; }
+    .sidebar { transform: none; }
+    .sidebar.collapsed { transform: translateX(-100%); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE (≤ 767px)
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+
+    html, body { overflow-x: hidden; }
+
+    /* Header: compact */
+    .header { height: 52px; padding: 0 8px 0 2px; }
+    .app-title { font-size: 15px; }
+    .logout-btn { padding: 5px 10px; font-size: 13px; }
+
+    /* Sidebar: slide-in drawer */
+    .sidebar {
+        top: 52px;
+        height: calc(100dvh - 52px);
+        width: min(300px, 85vw);
+        transform: translateX(-100%);
+        z-index: 200;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    /* Main content: full width (no sidebar on mobile) */
+    .main-content {
+        margin-left: 0 !important;
+        width: 100% !important;
+        margin-top: 52px;
+        padding: 14px 12px 24px;
+    }
+
+    /* Bottom tab bar: show */
+    .mobile-bottom-nav { display: block; }
+
+    /* Page structure */
+    .page-header { margin-bottom: 14px; }
+    .page-title { font-size: 20px; }
+    .card { padding: 14px 14px; margin-bottom: 12px; border-radius: 10px; }
+
+    /* Dashboard: 3-column stats (compact) */
+    .dashboard-cards { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .stat-card { padding: 12px 10px; }
+    .stat-label { font-size: 11px; margin-bottom: 4px; }
+    .stat-value { font-size: 18px; }
+    .quick-links { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .quick-link { padding: 16px 14px; }
+    .quick-link-title { font-size: 14px; }
+    .quick-link-desc { font-size: 12px; }
+
+    /* Forms: prevent iOS zoom (16px min font size) */
+    input, select, textarea {
+        font-size: 16px;
+        padding: 11px 12px;
+        border-radius: 8px;
+    }
+    .btn { min-height: 44px; padding: 10px 16px; }
+    .btn-group { gap: 8px; }
+    label { font-size: 13px; }
+
+    /* Tables: compact cells */
+    th { padding: 9px 8px; font-size: 11px; }
+    td { padding: 9px 8px; font-size: 13px; }
+    .action-btns { gap: 4px; }
+    .action-btn { padding: 5px 9px; font-size: 11px; }
+
+    /* Billing: prevent all overflow — belt + suspenders */
+    #billing { overflow-x: hidden; }
+    #billing .table-container { overflow-x: hidden; }
+    .billing-table { display: block; width: 100%; max-width: 100%; }
+    .billing-table thead { display: none; }
+    .billing-table tbody { display: block; width: 100%; }
+
+    /* Each billing row = a flex-wrap card with 3 visual lines */
+    .billing-table tr[data-row] {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .billing-table tr[data-type="service"] {
+        border-radius: 10px 10px 0 0;
+        margin-bottom: 0;
+    }
+
+    /* Reset all cells */
+    .billing-table tr[data-row] > td {
+        display: flex;
+        align-items: center;
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        white-space: normal;
+    }
+
+    /* ── Line 1: [#] [Type] [Item…] [Delete] ── */
+    .billing-table tr[data-row] > td:nth-child(1) {
+        order: 1; flex: 0 0 26px; max-width: 26px;
+        justify-content: center;
+        padding: 8px 2px;
+        background: #f7fafc;
+        border-right: 1px solid #edf2f7;
+        font-size: 11px; color: #a0aec0;
+    }
+    .billing-table tr[data-row] > td:nth-child(2) {
+        order: 2; flex: 0 0 auto;
+        padding: 6px 5px;
+    }
+    .billing-table tr[data-row] > td:nth-child(3) {
+        order: 3; flex: 1 1 0; min-width: 0;
+        padding: 6px 5px;
+    }
+    .billing-table tr[data-row] > td:nth-child(11) {
+        order: 4; flex: 0 0 36px; max-width: 36px;
+        justify-content: center;
+        padding: 6px 4px;
+        border-left: 1px solid #edf2f7;
+    }
+
+    /* ── Line 2: Staff (full width) ── */
+    .billing-table tr[data-row] > td:nth-child(4) {
+        order: 10; flex: 0 0 100%; max-width: 100%;
+        padding: 5px 8px;
+        border-top: 1px solid #edf2f7;
+        background: #fafafa;
+    }
+
+    /* ── Line 3: [Total] [Qty] [Price] ── */
+    .billing-table tr[data-row] > td:nth-child(10) {
+        order: 19; flex: 0 0 76px; max-width: 76px;
+        justify-content: center;
+        padding: 7px 4px;
+        border-top: 1px solid #edf2f7;
+        border-right: 1px solid #edf2f7;
+        background: #f7fafc;
+        font-weight: 700; font-size: 13px; color: #2d3748;
+    }
+    .billing-table tr[data-row] > td:nth-child(5) {
+        order: 20; flex: 0 0 88px; max-width: 88px;
+        padding: 7px 6px;
+        border-top: 1px solid #edf2f7;
+    }
+    .billing-table tr[data-row] > td:nth-child(6) {
+        order: 21; flex: 1 1 0; min-width: 0;
+        padding: 7px 6px;
+        border-top: 1px solid #edf2f7;
+    }
+
+    /* Hidden: GST%, subtotal, GST amount */
+    .billing-table tr[data-row] > td:nth-child(7),
+    .billing-table tr[data-row] > td:nth-child(8),
+    .billing-table tr[data-row] > td:nth-child(9) { display: none !important; }
+
+    /* All inputs/selects inside billing cards */
+    .billing-table tr[data-row] select,
+    .billing-table tr[data-row] input {
+        font-size: 16px !important;
+        padding: 5px 7px !important;
+        border-radius: 6px;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    /* Qty cell: fixed width input */
+    .billing-table tr[data-row] > td:nth-child(5) input {
+        width: 60px !important; max-width: 60px !important;
+        text-align: center;
+    }
+
+    /* ── Prof sub-row ── */
+    .billing-table tr[data-row-prof] {
+        display: flex;
+        border: 1px solid #e2e8f0;
+        border-top: none;
+        border-radius: 0 0 10px 10px;
+        margin-bottom: 10px;
+        background: #f7fafc;
+        overflow: hidden;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .billing-table tr[data-row-prof] > td:nth-child(1) { display: none !important; }
+    .billing-table tr[data-row-prof] > td:nth-child(2) {
+        flex: 1; min-width: 0; padding: 6px 10px 10px; overflow: hidden;
+    }
+    /* Inner flex: stack select on its own line, qty + uom below */
+    .billing-table tr[data-row-prof] > td:nth-child(2) > div {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        align-items: center;
+    }
+    .prof-prod-select {
+        min-width: 0 !important; max-width: 100% !important;
+        width: 100% !important; flex: 1 1 auto !important;
+        font-size: 16px !important; padding: 5px 7px !important;
+        box-sizing: border-box;
+    }
+    .prof-qty-input {
+        width: 70px !important; max-width: 70px !important;
+        font-size: 16px !important; padding: 5px 7px !important;
+        text-align: center; box-sizing: border-box;
+    }
+
+    /* Billing: summary + payment stack vertically */
+    .billing-cols { grid-template-columns: 1fr; gap: 24px; }
+
+    /* Payment modes: 2×2 grid */
+    .payment-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .payment-modes label { justify-content: center; font-size: 14px; padding: 10px 8px; }
+
+    /* Modals: bottom sheet */
+    #billConfirmModal,
+    #newCustomerModal,
+    #invoiceSettingsModal { align-items: flex-end !important; padding: 0 !important; }
+
+    .modal-box {
+        max-width: 100%;
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 24px 20px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        max-height: 92dvh;
+        overflow-y: auto;
+    }
+
+    /* Invoice: full-width bottom sheet */
+    #invoiceOverlay {
+        padding: 0 !important;
+        align-items: flex-end !important;
+    }
+    .invoice-sheet {
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 24px 16px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        max-height: 94dvh;
+        overflow-y: auto;
+    }
+    .inv-salon-name { font-size: 18px; }
+    .inv-header { flex-direction: column; gap: 8px; }
+    .inv-meta { text-align: left; }
+    .invoice-actions .btn { flex: 1 1 auto; font-size: 13px; padding: 10px 10px; }
+
+    /* Save bill button: full width */
+    #saveBillBtn { width: 100%; font-size: 15px; padding: 14px; }
+
+    /* Appointments: mobile tweaks */
+    .appt-nav-card { padding: 10px 12px; }
+    .appt-date-display { font-size: 14px; }
+    .appt-list-row { padding: 12px 12px; gap: 10px; }
+    .appt-time-col { min-width: 54px; }
+    .appt-time { font-size: 13px; }
+    .appt-right-col { align-items: flex-start; }
+    .appt-action-row { margin-top: 6px; }
+
+    /* Booking modal: bottom sheet on mobile */
+    #apptBookingModal { align-items: flex-end !important; padding: 0 !important; }
+    #apptBookingModal .modal-box {
+        max-width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 20px 16px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    }
+
+    /* Expenses */
+    .exp-summary-value { font-size: 22px; }
+}
+
+/* ── Expenses ─────────────────────────────────────────── */
+.exp-filter-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.exp-summary-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.exp-summary-card {
+    flex: 1;
+    min-width: 140px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e2e8f0;
+}
+
+.exp-summary-label {
+    font-size: 13px;
+    color: #718096;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+
+.exp-summary-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.exp-cat-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+
+/* Extra small (≤ 380px) */
+@media (max-width: 380px) {
+    .dashboard-cards { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .stat-value { font-size: 16px; }
+    .stat-label { font-size: 10px; }
+}
+
+/* ── Section card tabs ────────────────────────────────── */
+.prod-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    padding: 2px 2px 6px;
+}
+
+.prod-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 11px 16px;
+    min-width: 96px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.prod-tab:hover {
+    border-color: #a5b4fc;
+    color: #4f46e5;
+    background: #f5f3ff;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(79,70,229,0.12);
+}
+
+.prod-tab.active {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-color: transparent;
+    color: white;
+    box-shadow: 0 4px 14px rgba(102,126,234,0.38);
+    transform: translateY(-1px);
+}
+
+.ptab-icon { font-size: 20px; line-height: 1; }
+.ptab-label { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+
+.prod-tab-panel { display: none; }
+.prod-tab-panel.active { display: block; }
+
+/* PO item/receive item table inputs */
+.po-item-product,
+.rcv-item-product {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+}
+
+#poItemsBody input,
+#rcvItemsBody input {
+    padding: 5px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+/* Audit table physical count input */
+.audit-phys-qty {
+    padding: 5px 6px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fff;
+}
+
+/* Receive stock mode radio row */
+#rcvPoRow select,
+#rcvVendorRow select {
+    width: 100%;
+}
+
+@media (max-width: 600px) {
+    .prod-tab {
+        font-size: 11px;
+        padding: 7px 8px;
+        min-width: 80px;
+    }
+}
+

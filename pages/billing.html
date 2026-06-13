@@ -1,0 +1,127 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">New Bill</h1>
+                    <p class="page-subtitle">Create an invoice for a customer visit</p>
+                </div>
+
+                <div id="billingMessage" class="message"></div>
+
+                <!-- Customer & Price Book -->
+                <div class="card">
+                    <div style="display:flex;gap:20px;align-items:flex-end;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:200px;margin-bottom:0;">
+                            <label for="billingPhone" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#4a5568;">Customer Phone*</label>
+                            <input type="tel" id="billingPhone" placeholder="Enter phone to search…" maxlength="15" autocomplete="off" class="form-control" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
+                        </div>
+                        <div style="flex:1;min-width:200px;margin-bottom:0;">
+                            <label for="billingPriceBook" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#4a5568;">Price Book</label>
+                            <select id="billingPriceBook" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
+                                <option value="">No Price Book (use defaults)</option>
+                            </select>
+                        </div>
+                        <div style="flex:0 0 auto;display:flex;flex-direction:column;">
+                            <label style="visibility:hidden;display:block;font-size:13px;font-weight:600;margin-bottom:6px;">x</label>
+                            <button class="btn btn-secondary" onclick="Billing.resetBill()">Clear Bill</button>
+                        </div>
+                    </div>
+                    <div id="billingCustomerName" style="font-size:14px;font-weight:500;min-height:20px;margin-top:8px;"></div>
+                </div>
+
+                <!-- Items Grid -->
+                <div class="card">
+                    <h3 style="color:#2d3748;margin-bottom:16px;">Bill Items</h3>
+                    <div class="table-container">
+                        <table class="billing-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Type</th>
+                                    <th>Item</th>
+                                    <th>Staff</th>
+                                    <th style="text-align:center;">Qty</th>
+                                    <th style="text-align:right;">Price (₹)</th>
+                                    <th style="text-align:center;">GST%</th>
+                                    <th style="text-align:right;">Subtotal</th>
+                                    <th style="text-align:right;">GST Amt</th>
+                                    <th style="text-align:right;">Line Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="billingItemsBody"></tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-secondary" onclick="Billing.addRow()" style="margin-top:12px;font-size:13px;">
+                        + Add Row
+                    </button>
+                </div>
+
+                <!-- Summary + Payment -->
+                <div class="card">
+                    <div class="billing-cols">
+                        <!-- Summary -->
+                        <div>
+                            <h3 style="color:#2d3748;margin-bottom:20px;">Summary</h3>
+                            <div class="billing-summary">
+                                <div class="sum-row"><span>Services Subtotal</span><span id="sumSvcSubtotal">₹0.00</span></div>
+                                <div class="sum-row"><span>Services GST</span><span id="sumSvcGst">₹0.00</span></div>
+                                <div class="sum-row"><span>Retail Subtotal</span><span id="sumPrdSubtotal">₹0.00</span></div>
+                                <div class="sum-row"><span>Retail GST</span><span id="sumPrdGst">₹0.00</span></div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #edf2f7;">
+                                    <span style="font-size:14px;color:#4a5568;">Discount</span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <select id="discountType" style="font-size:12px;padding:3px 6px;border:1px solid #e2e8f0;border-radius:4px;background:white;cursor:pointer;">
+                                            <option value="value">₹</option>
+                                            <option value="percent">%</option>
+                                        </select>
+                                        <input type="number" id="billingDiscount" min="0" step="0.01" placeholder="0.00"
+                                            style="width:80px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;text-align:right;">
+                                        <span id="sumDiscountAmt" style="min-width:72px;text-align:right;font-size:14px;color:#e53e3e;font-weight:500;">₹0.00</span>
+                                    </div>
+                                </div>
+                                <div class="sum-row sum-input-row">
+                                    <span>Tip (₹)</span>
+                                    <input type="number" id="billingTip" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="sum-row sum-grand">
+                                    <span>GRAND TOTAL</span>
+                                    <span id="sumGrandTotal">₹0.00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment -->
+                        <div>
+                            <h3 style="color:#2d3748;margin-bottom:20px;">Payment Mode</h3>
+                            <div class="payment-modes">
+                                <label><input type="radio" name="paymentMode" value="Cash" checked> Cash</label>
+                                <label><input type="radio" name="paymentMode" value="Card"> Card</label>
+                                <label><input type="radio" name="paymentMode" value="UPI"> UPI</label>
+                                <label><input type="radio" name="paymentMode" value="Split"> Split</label>
+                            </div>
+                            <div id="splitInputs" style="display:none;margin-top:20px;">
+                                <div class="form-group">
+                                    <label for="splitCash">Cash Amount (₹)</label>
+                                    <input type="number" id="splitCash" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label for="splitCard">Card Amount (₹)</label>
+                                    <input type="number" id="splitCard" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label for="splitUpi">UPI Amount (₹)</label>
+                                    <input type="number" id="splitUpi" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validation + Save -->
+                <div style="padding-bottom:32px;">
+                    <div id="billingValidationList" style="margin-bottom:12px;"></div>
+                    <div style="text-align:right;">
+                        <button class="btn btn-primary" id="saveBillBtn" onclick="Billing.save()"
+                            style="font-size:15px;padding:12px 36px;font-weight:600;" disabled>
+                            Save &amp; Generate Invoice
+                        </button>
+                    </div>
+                </div>

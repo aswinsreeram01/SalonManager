@@ -1,0 +1,90 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">User Management</h1>
+                    <p class="page-subtitle">Manage system users and their access</p>
+                </div>
+
+                <div id="userMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New User</h3>
+                        <button class="btn btn-secondary" id="toggleUserForm">
+                            <span id="userFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <div id="selfEditWarning" class="warning-banner" style="display: none;">
+                        You are editing your own account. Role and status cannot be changed.
+                    </div>
+
+                    <form id="userForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="userFullName">Full Name*</label>
+                                <input type="text" id="userFullName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userEmail">Email*</label>
+                                <input type="email" id="userEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userPassword">Password <span id="userPasswordHint" style="color:#a0aec0; font-weight:400;">(required)</span></label>
+                                <input type="password" id="userPassword" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label for="userPhone">Phone</label>
+                                <input type="tel" id="userPhone">
+                            </div>
+                            <div class="form-group">
+                                <label for="userWhatsapp">WhatsApp</label>
+                                <input type="tel" id="userWhatsapp">
+                            </div>
+                            <div class="form-group">
+                                <label for="userRole">Role*</label>
+                                <select id="userRole" required>
+                                    <option value="">Select Role</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userOrg">Organization*</label>
+                                <select id="userOrg" required>
+                                    <option value="">Select Organization</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userStatus">Status</label>
+                                <select id="userStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveUserBtn">Save User</button>
+                            <button type="button" class="btn btn-secondary" id="cancelUserBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Users List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Organization</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

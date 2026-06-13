@@ -1,0 +1,86 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">Vendors</h1>
+                    <p class="page-subtitle">Manage your product suppliers and vendor contacts</p>
+                </div>
+
+                <div id="venMessage" class="message"></div>
+
+                <!-- Add/Edit Form Card -->
+                <div class="card" id="venFormCard" style="display:none;">
+                    <h3 id="venFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Vendor</h3>
+                    <form id="vendorForm">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;">
+                            <div class="form-group">
+                                <label for="venName">Vendor Name*</label>
+                                <input type="text" id="venName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="venContactPerson">Contact Person</label>
+                                <input type="text" id="venContactPerson">
+                            </div>
+                            <div class="form-group">
+                                <label for="venPhone">Phone</label>
+                                <input type="tel" id="venPhone">
+                            </div>
+                            <div class="form-group">
+                                <label for="venEmail">Email</label>
+                                <input type="email" id="venEmail">
+                            </div>
+                            <div class="form-group">
+                                <label for="venAddress">Address</label>
+                                <input type="text" id="venAddress">
+                            </div>
+                            <div class="form-group">
+                                <label for="venNotes">Notes</label>
+                                <input type="text" id="venNotes">
+                            </div>
+                            <div class="form-group">
+                                <label for="venStatus">Status</label>
+                                <select id="venStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group" style="margin-top:20px;">
+                            <button type="submit" class="btn btn-primary" id="venSaveBtn">Save Vendor</button>
+                            <button type="button" class="btn btn-secondary" id="venCancelBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Vendors List -->
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                        <h3 style="color:#2d3748;margin:0;">Vendors</h3>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <!-- GAP 12 fix: status filter defaults to Active so inactive/removed vendors
+                                 don't clutter the list; user can switch to All or Inactive to find and
+                                 reactivate a vendor via the Edit form. -->
+                            <select id="venStatusFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+                                <option value="active">Active</option>
+                                <option value="">All</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <input type="search" id="venSearch" placeholder="Search vendors…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:180px;">
+                            <button class="btn btn-primary" id="venAddBtn">+ Add Vendor</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Vendor Name</th>
+                                    <th>Contact Person</th>
+                                    <th>Phone</th>
+                                    <th>Email</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="venTableBody">
+                                <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

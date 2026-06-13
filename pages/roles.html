@@ -1,0 +1,60 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">Roles</h1>
+                    <p class="page-subtitle">Manage user roles and responsibilities</p>
+                </div>
+
+                <div id="roleMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New Role</h3>
+                        <button class="btn btn-secondary" id="toggleRoleForm">
+                            <span id="roleFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="roleForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="roleName">Role Name*</label>
+                                <input type="text" id="roleName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="roleStatus">Status</label>
+                                <select id="roleStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="roleDescription">Description</label>
+                            <textarea id="roleDescription"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveRoleBtn">Save Role</button>
+                            <button type="button" class="btn btn-secondary" id="cancelRoleBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Roles List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rolesTableBody">
+                                <tr>
+                                    <td colspan="4" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

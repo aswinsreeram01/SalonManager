@@ -1,0 +1,108 @@
+﻿                <div class="page-header">
+                    <h1 class="page-title">Organizations</h1>
+                    <p class="page-subtitle">Manage organizational structure</p>
+                </div>
+
+                <div id="organizationMessage" class="message"></div>
+
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #2d3748;">Add New Organization</h3>
+                        <button class="btn btn-secondary" id="toggleOrganizationForm">
+                            <span id="organizationFormToggleText">Show Form</span>
+                        </button>
+                    </div>
+
+                    <form id="organizationForm" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+                            <div class="form-group">
+                                <label for="organizationName">Organization Name*</label>
+                                <input type="text" id="organizationName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationParent">Parent Organization</label>
+                                <select id="organizationParent">
+                                    <option value="">None (Root Level)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationType">Type*</label>
+                                <input type="text" id="organizationType" placeholder="e.g., Headquarters, Branch, Franchise" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="organizationStatus">Status</label>
+                                <select id="organizationStatus">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-primary" id="saveOrganizationBtn">Save Organization</button>
+                            <button type="button" class="btn btn-secondary" id="cancelOrganizationBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin-bottom: 16px; color: #2d3748;">Organizations List</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Parent</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="organizationsTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Org Settings -->
+                <div class="card" style="margin-top:24px;">
+                    <h3 style="margin-bottom:16px; color:#2d3748;">Organisation Settings</h3>
+                    <form id="orgSettingsForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="orgSalonName">Salon Name</label>
+                                <input type="text" id="orgSalonName" placeholder="e.g. Glamour Studio">
+                            </div>
+                            <div class="form-group">
+                                <label for="orgGstNumber">GST Number</label>
+                                <input type="text" id="orgGstNumber" placeholder="e.g. 29ABCDE1234F1Z5">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="orgCurrencySymbol">Currency Symbol</label>
+                                <input type="text" id="orgCurrencySymbol" value="₹" maxlength="4">
+                            </div>
+                            <div class="form-group">
+                                <label for="orgDefaultTargetPeriod">Default Target Period</label>
+                                <select id="orgDefaultTargetPeriod">
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="orgSalaryPayDay">Salary Pay Day (day of month)</label>
+                                <input type="number" id="orgSalaryPayDay" min="1" max="28" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="orgDefaultOffs">Default Eligible Offs / Month</label>
+                                <input type="number" id="orgDefaultOffs" min="0" max="30" value="4">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="orgSettingsSaveBtn">Save Settings</button>
+                    </form>
+                </div>

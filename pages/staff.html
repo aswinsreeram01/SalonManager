@@ -1,0 +1,458 @@
+﻿    <div class="page-header">
+        <h1 class="page-title">Staff & HR</h1>
+        <p class="page-subtitle">Manage staff, incentive profiles, shifts, attendance, and payroll</p>
+    </div>
+
+    <div id="staffMessage" class="message"></div>
+
+    <div class="prod-tabs">
+        <button class="prod-tab active" data-tab="hr-staff"><span class="ptab-icon">👥</span><span class="ptab-label">Staff</span></button>
+        <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Incentive Profiles</span></button>
+        <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
+        <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
+        <button class="prod-tab" data-tab="hr-payroll"><span class="ptab-icon">💰</span><span class="ptab-label">Payroll</span></button>
+    </div>
+
+    <!-- ═══ TAB: STAFF ═══ -->
+    <div id="prod-tab-hr-staff" class="prod-tab-panel active">
+        <div id="hrStaffFormCard" class="card" style="display:none;">
+            <h3 id="hrStaffFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Staff Member</h3>
+            <form id="hrStaffForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrStaffName">Name*</label>
+                        <input type="text" id="hrStaffName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffPhone">Phone*</label>
+                        <input type="tel" id="hrStaffPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffEmail">Email</label>
+                        <input type="email" id="hrStaffEmail">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffAadhar">Aadhar Number</label>
+                        <input type="text" id="hrStaffAadhar" placeholder="1234-5678-9012">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffUpi">UPI / GPay ID</label>
+                        <input type="text" id="hrStaffUpi" placeholder="user@upi">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffStartDate">Start Date*</label>
+                        <input type="date" id="hrStaffStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffRole">Role*</label>
+                        <select id="hrStaffRole" required>
+                            <option value="">Select Role</option>
+                            <option value="Stylist">Stylist</option>
+                            <option value="Colorist">Colorist</option>
+                            <option value="Manager">Manager</option>
+                            <option value="Receptionist">Receptionist</option>
+                            <option value="Housekeeping">Housekeeping</option>
+                            <option value="Trainee">Trainee</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffType">Staff Type*</label>
+                        <select id="hrStaffType" required>
+                            <option value="service_provider">Service Provider</option>
+                            <option value="manager">Manager</option>
+                            <option value="housekeeping">Housekeeping</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffSalary">Base Salary (₹)</label>
+                        <input type="number" id="hrStaffSalary" step="0.01" placeholder="15000">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffAllowance">Allowances (₹)</label>
+                        <input type="number" id="hrStaffAllowance" step="0.01" placeholder="500">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffSpecialization">Specialization</label>
+                        <input type="text" id="hrStaffSpecialization" placeholder="e.g., Hair Coloring">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffProfileId">Incentive Profile</label>
+                        <select id="hrStaffProfileId">
+                            <option value="">No Profile</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffTargetPeriod">Target Period</label>
+                        <select id="hrStaffTargetPeriod">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffStatus">Status</label>
+                        <select id="hrStaffStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrStaffSaveBtn">Save Staff Member</button>
+                    <button type="button" class="btn btn-secondary" id="hrStaffCancelBtn">Cancel</button>
+                </div>
+            </form>
+            <!-- Advance Ledger (shown when editing) -->
+            <div id="hrAdvanceSection" style="display:none;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:20px;">
+                <h4 style="color:#2d3748;margin-bottom:4px;">Advance Ledger — <span id="hrAdvanceName" style="color:#667eea;"></span></h4>
+                <p style="color:#718096;font-size:13px;margin-bottom:12px;">Outstanding balance: <strong id="hrAdvanceBalance">₹0.00</strong></p>
+                <div class="table-container" style="margin-bottom:16px;">
+                    <table>
+                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Balance</th></tr></thead>
+                        <tbody id="hrAdvanceTableBody">
+                            <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No entries</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Date</label>
+                        <input type="date" id="hrAdvDate">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Type</label>
+                        <select id="hrAdvType">
+                            <option value="advance">Advance (give)</option>
+                            <option value="repayment">Repayment (recover)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Amount (₹)</label>
+                        <input type="number" id="hrAdvAmount" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Notes</label>
+                        <input type="text" id="hrAdvNotes" placeholder="Optional">
+                    </div>
+                    <button class="btn btn-secondary" id="hrAdvSaveBtn" type="button" style="align-self:flex-end;">Add Entry</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
+                <div style="display:flex;gap:10px;">
+                    <input type="search" id="hrStaffSearch" placeholder="Search staff…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
+                    <button class="btn btn-primary" id="hrStaffAddBtn">+ Add Staff</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
+                        <th>Profile</th><th>Salary</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrStaffTableBody">
+                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: INCENTIVE PROFILES ═══ -->
+    <div id="prod-tab-hr-profiles" class="prod-tab-panel">
+        <div id="hrProfFormCard" class="card" style="display:none;">
+            <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Incentive Profile</h3>
+            <form id="hrProfForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrProfName">Profile Name*</label>
+                        <input type="text" id="hrProfName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfType">Profile Type</label>
+                        <select id="hrProfType">
+                            <option value="service_provider">Service Provider</option>
+                            <option value="manager">Manager</option>
+                            <option value="housekeeping">Housekeeping</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfRevenueBase">Revenue Base</label>
+                        <select id="hrProfRevenueBase">
+                            <option value="individual">Individual (own revenue)</option>
+                            <option value="org">Org (total salon revenue)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfOtRate">OT Hourly Rate (₹)</label>
+                        <input type="number" id="hrProfOtRate" min="0" step="0.01" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL1Type">Target1 Type</label>
+                        <select id="hrProfL1Type">
+                            <option value="fixed">Fixed Amount (₹)</option>
+                            <option value="salary_pct">% of Base Salary</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL1Value">Target1 Value</label>
+                        <input type="number" id="hrProfL1Value" min="0" step="0.01" placeholder="e.g. 10000 or 150">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL2Type">Target2 Type</label>
+                        <select id="hrProfL2Type">
+                            <option value="fixed">Fixed Amount (₹)</option>
+                            <option value="salary_pct">% of Base Salary</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfL2Value">Target2 Value</label>
+                        <input type="number" id="hrProfL2Value" min="0" step="0.01" placeholder="e.g. 35000 or 350">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfXPct">X% (0 → T1)</label>
+                        <input type="number" id="hrProfXPct" min="0" max="100" step="0.01" value="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfYPct">Y% (T1 → T2)</label>
+                        <input type="number" id="hrProfYPct" min="0" max="100" step="0.01" value="1.5">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfZPct">Z% (above T2)</label>
+                        <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrProfStatus">Status</label>
+                        <select id="hrProfStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Profile</button>
+                    <button type="button" class="btn btn-secondary" id="hrProfCancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Incentive Profiles</h3>
+                <button class="btn btn-primary" id="hrProfAddBtn">+ Add Profile</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Type</th><th>Revenue Base</th>
+                        <th>OT Rate</th><th>Target1</th><th>Target2</th>
+                        <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrProfTableBody">
+                        <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: SHIFTS ═══ -->
+    <div id="prod-tab-hr-shifts" class="prod-tab-panel">
+        <div id="hrShiftFormCard" class="card" style="display:none;">
+            <h3 id="hrShiftFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Shift</h3>
+            <form id="hrShiftForm">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="hrShiftName">Shift Name*</label>
+                        <input type="text" id="hrShiftName" placeholder="e.g. Morning" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftStart">Start Time*</label>
+                        <input type="time" id="hrShiftStart" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftEnd">End Time*</label>
+                        <input type="time" id="hrShiftEnd" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="hrShiftStatus">Status</label>
+                        <select id="hrShiftStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-group" style="margin-top:20px;">
+                    <button type="submit" class="btn btn-primary" id="hrShiftSaveBtn">Save Shift</button>
+                    <button type="button" class="btn btn-secondary" id="hrShiftCancelBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Shift Definitions</h3>
+                <button class="btn btn-primary" id="hrShiftAddBtn">+ Add Shift</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrShiftTableBody">
+                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: ATTENDANCE ═══ -->
+    <div id="prod-tab-hr-attendance" class="prod-tab-panel">
+        <div class="card">
+            <div id="hrAttMessage" class="message"></div>
+            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttMonth">Month</label>
+                    <input type="month" id="hrAttMonth">
+                </div>
+                <button class="btn btn-primary" id="hrAttLoadBtn" style="align-self:flex-end;">Load</button>
+                <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
+                    <button class="btn btn-secondary" id="hrAttPrevWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Previous week">&#8592;</button>
+                    <span id="hrAttWeekLabel" style="font-size:14px;font-weight:600;color:#2d3748;min-width:190px;text-align:center;">—</span>
+                    <button class="btn btn-secondary" id="hrAttNextWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Next week">&#8594;</button>
+                </div>
+            </div>
+            <div id="hrAttPlanWrap" style="display:none;margin:16px 0;padding:16px;background:#f7fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                <!-- Week plan populated by JS -->
+            </div>
+            <div id="hrAttGridWrap" style="overflow-x:auto;">
+                <p style="color:#a0aec0;text-align:center;padding:24px;">Select a month and click Load</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PAYROLL ═══ -->
+    <div id="prod-tab-hr-payroll" class="prod-tab-panel">
+        <div class="card">
+            <h3 style="color:#2d3748;margin-bottom:16px;">Generate Payroll</h3>
+            <div id="hrPayMessage" class="message"></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayPeriod">Month*</label>
+                    <input type="month" id="hrPayPeriod">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayPayableDays">Payable Days</label>
+                    <input type="number" id="hrPayPayableDays" value="26" min="1" max="31">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayEligibleOffs">Eligible Offs (free)</label>
+                    <input type="number" id="hrPayEligibleOffs" value="4" min="0">
+                </div>
+                <button class="btn btn-primary" id="hrPayCalcBtn" type="button" style="align-self:flex-end;">Calculate for All Staff</button>
+            </div>
+            <div id="hrPayCalcWrap" style="display:none;">
+                <div class="table-container" style="margin-bottom:16px;">
+                    <table>
+                        <thead><tr>
+                            <th>Staff</th><th>Base</th><th>Days Off</th><th>Excess</th>
+                            <th>Leave Deduct</th><th>Adj. Base</th><th>OT Pay</th>
+                            <th>Incentives</th><th>Advance Deduct</th><th>Net Pay</th>
+                        </tr></thead>
+                        <tbody id="hrPayCalcBody"></tbody>
+                    </table>
+                </div>
+                <button class="btn btn-primary" id="hrPaySaveBtn" type="button">Save Payroll</button>
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Payroll History</h3>
+                <input type="month" id="hrPayHistFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Staff</th><th>Period</th><th>Net Pay</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrPayHistBody">
+                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No payroll records</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Modal -->
+    <div id="hrAttModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div class="modal-box" style="max-width:420px;width:100%;">
+            <h3 id="hrAttModalTitle" style="color:#2d3748;margin-bottom:16px;">Attendance</h3>
+            <div id="hrAttModalMsg" class="message"></div>
+
+            <!-- View panel (default) -->
+            <div id="hrAttViewPanel">
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f4f8;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">Clock In</span>
+                    <span id="hrAttViewIn" style="font-size:14px;font-weight:600;color:#2d3748;">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f4f8;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">Clock Out</span>
+                    <span id="hrAttViewOut" style="font-size:14px;font-weight:600;color:#2d3748;">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f4f8;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">Hours Worked</span>
+                    <span id="hrAttViewHrs" style="font-size:14px;font-weight:600;color:#2d3748;">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f4f8;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">OT Hours</span>
+                    <span id="hrAttViewOT" style="font-size:14px;font-weight:600;color:#2d3748;">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f4f8;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">Status</span>
+                    <span id="hrAttViewStatus" style="font-size:14px;font-weight:600;color:#2d3748;">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;">
+                    <span style="color:#718096;font-size:13px;font-weight:500;">Notes</span>
+                    <span id="hrAttViewNotes" style="font-size:14px;color:#2d3748;text-align:right;max-width:200px;">—</span>
+                </div>
+            </div>
+
+            <!-- Edit panel (shown after clicking Edit) -->
+            <div id="hrAttEditPanel" style="display:none;">
+                <div style="display:grid;gap:12px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttClockIn">Clock In</label>
+                        <input type="time" id="hrAttClockIn">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttClockOut">Clock Out</label>
+                        <input type="time" id="hrAttClockOut">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttStatus">Status</label>
+                        <select id="hrAttStatus">
+                            <option value="present">Present</option>
+                            <option value="absent">Absent</option>
+                            <option value="half-day">Half Day</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttNotes">Notes</label>
+                        <input type="text" id="hrAttNotes" placeholder="Optional">
+                    </div>
+                </div>
+            </div>
+
+            <!-- View mode buttons -->
+            <div id="hrAttViewBtns" class="btn-group" style="margin-top:20px;">
+                <button class="btn btn-primary" id="hrAttModalEditBtn">Edit</button>
+                <button class="btn btn-secondary" id="hrAttModalCancelBtn">Close</button>
+            </div>
+            <!-- Edit mode buttons -->
+            <div id="hrAttEditBtns" class="btn-group" style="margin-top:20px;display:none;">
+                <button class="btn btn-primary" id="hrAttModalSaveBtn">Save</button>
+                <button class="btn btn-secondary" id="hrAttModalBackBtn">Back</button>
+            </div>
+        </div>
+    </div>

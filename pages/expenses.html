@@ -1,0 +1,157 @@
+﻿                <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+                    <div>
+                        <h1 class="page-title">Expenses</h1>
+                        <p class="page-subtitle">Track and manage business expenses</p>
+                    </div>
+                    <button class="btn btn-primary" id="expAddBtn">+ Add Expense</button>
+                </div>
+
+                <div id="expMessage" class="message"></div>
+
+                <!-- Filters -->
+                <div class="card" style="margin-bottom:20px;">
+                    <div class="exp-filter-row">
+                        <div class="form-group" style="margin-bottom:0;flex:1;min-width:150px;">
+                            <label>Period</label>
+                            <select id="expDatePreset">
+                                <option value="month">This Month</option>
+                                <option value="week">This Week</option>
+                                <option value="lastmonth">Last Month</option>
+                                <option value="year">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;flex:1;min-width:150px;">
+                            <label>Category</label>
+                            <select id="expCategoryFilter">
+                                <option value="">All Categories</option>
+                                <option>Rent</option>
+                                <option>Utilities</option>
+                                <option>Staff Salary</option>
+                                <option>Supplies</option>
+                                <option>Equipment</option>
+                                <option>Marketing</option>
+                                <option>Maintenance</option>
+                                <option>Miscellaneous</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;flex:1;min-width:150px;">
+                            <label>Payment Mode</label>
+                            <select id="expPaymentFilter">
+                                <option value="">All Modes</option>
+                                <option>Cash</option>
+                                <option>Card</option>
+                                <option>UPI</option>
+                                <option>Bank Transfer</option>
+                                <option>Cheque</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="expCustomRange" style="display:none;gap:12px;margin-top:12px;flex-wrap:wrap;">
+                        <div class="form-group" style="margin-bottom:0;flex:1;min-width:150px;">
+                            <label>From</label>
+                            <input type="date" id="expCustomFrom">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;flex:1;min-width:150px;">
+                            <label>To</label>
+                            <input type="date" id="expCustomTo">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Summary Bar -->
+                <div class="exp-summary-bar">
+                    <div class="exp-summary-card">
+                        <div class="exp-summary-label">Total Expenses</div>
+                        <div class="exp-summary-value" id="expSummaryTotal">₹0.00</div>
+                    </div>
+                    <div class="exp-summary-card">
+                        <div class="exp-summary-label">Transactions</div>
+                        <div class="exp-summary-value" id="expSummaryCount">0</div>
+                    </div>
+                </div>
+
+                <!-- Add / Edit Form -->
+                <div class="card" id="expFormCard" style="display:none;margin-bottom:20px;">
+                    <h3 id="expFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Expense</h3>
+                    <form id="expenseForm" autocomplete="off">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;">
+                            <div class="form-group">
+                                <label for="expDate">Date *</label>
+                                <input type="date" id="expDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expCategory">Category *</label>
+                                <select id="expCategory" required>
+                                    <option value="">Select category…</option>
+                                    <option>Rent</option>
+                                    <option>Utilities</option>
+                                    <option>Staff Salary</option>
+                                    <option>Supplies</option>
+                                    <option>Equipment</option>
+                                    <option>Marketing</option>
+                                    <option>Maintenance</option>
+                                    <option>Miscellaneous</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="expVendor">Vendor / Payee</label>
+                                <input type="text" id="expVendor" placeholder="e.g., City Electricals">
+                            </div>
+                            <div class="form-group">
+                                <label for="expDescription">Description *</label>
+                                <input type="text" id="expDescription" placeholder="Brief description" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expAmount">Amount (₹) *</label>
+                                <input type="number" id="expAmount" min="0" step="0.01" placeholder="0.00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="expPaymentMode">Payment Mode *</label>
+                                <select id="expPaymentMode" required>
+                                    <option value="">Select mode…</option>
+                                    <option>Cash</option>
+                                    <option>Card</option>
+                                    <option>UPI</option>
+                                    <option>Bank Transfer</option>
+                                    <option>Cheque</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="expRefNo">Reference No.</label>
+                                <input type="text" id="expRefNo" placeholder="Invoice / receipt no.">
+                            </div>
+                            <div class="form-group">
+                                <label for="expNotes">Notes</label>
+                                <input type="text" id="expNotes" placeholder="Optional notes">
+                            </div>
+                        </div>
+                        <div class="btn-group" style="margin-top:8px;">
+                            <button type="submit" class="btn btn-primary" id="expSaveBtn">Save Expense</button>
+                            <button type="button" class="btn btn-secondary" id="expCancelFormBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Expense List -->
+                <div class="card">
+                    <h3 style="color:#2d3748;margin-bottom:16px;">All Expenses</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Vendor</th>
+                                    <th>Description</th>
+                                    <th style="text-align:right;">Amount</th>
+                                    <th>Payment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="expListBody">
+                                <tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">Loading…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>

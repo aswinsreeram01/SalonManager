@@ -1,0 +1,231 @@
+﻿    <div class="page-header">
+        <h1 class="page-title">Services</h1>
+        <p class="page-subtitle">Manage service groups, catalog, and pricing</p>
+    </div>
+
+    <div class="prod-tabs">
+        <button class="prod-tab active" data-tab="svc-groups"><span class="ptab-icon">🗂️</span><span class="ptab-label">Service Groups</span></button>
+        <button class="prod-tab" data-tab="svc-catalog"><span class="ptab-icon">✂️</span><span class="ptab-label">Service Catalog</span></button>
+        <button class="prod-tab" data-tab="svc-pricebooks"><span class="ptab-icon">💰</span><span class="ptab-label">Price Books</span></button>
+    </div>
+
+    <!-- ═══ TAB: SERVICE GROUPS ═══ -->
+    <div id="prod-tab-svc-groups" class="prod-tab-panel active">
+        <div id="serviceGroupMessage" class="message"></div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3 style="color:#2d3748;">Service Groups</h3>
+                <button class="btn btn-secondary" id="toggleServiceGroupForm">
+                    <span id="serviceGroupFormToggleText">Add Group</span>
+                </button>
+            </div>
+            <form id="serviceGroupForm" style="display:none;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="serviceGroupName">Group Name*</label>
+                        <input type="text" id="serviceGroupName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupGstPct">GST (%)*</label>
+                        <input type="number" id="serviceGroupGstPct" min="0" max="100" step="0.01" placeholder="18" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupSacCode">SAC Code</label>
+                        <input type="text" id="serviceGroupSacCode" placeholder="e.g. 999721">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupDirectIncentivePct">Direct Incentive (%)</label>
+                        <input type="number" id="serviceGroupDirectIncentivePct" min="0" max="100" step="0.01" value="0" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupSortOrder">Sort Order</label>
+                        <input type="number" id="serviceGroupSortOrder" min="0" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupStatus">Status</label>
+                        <select id="serviceGroupStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="serviceGroupCountForTarget" style="margin-right:6px;">
+                        Counts towards staff target revenue
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label for="serviceGroupDescription">Description</label>
+                    <textarea id="serviceGroupDescription" placeholder="Optional"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" id="saveServiceGroupBtn">Save Group</button>
+                    <button type="button" class="btn btn-secondary" id="cancelServiceGroupBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>SAC Code</th><th>GST%</th>
+                        <th>Target?</th><th>Direct%</th><th>Sort</th>
+                        <th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="serviceGroupsTableBody">
+                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: SERVICE CATALOG ═══ -->
+    <div id="prod-tab-svc-catalog" class="prod-tab-panel">
+        <div id="serviceMessage" class="message"></div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3 style="color:#2d3748;">Add New Service</h3>
+                <button class="btn btn-secondary" id="toggleServiceForm">
+                    <span id="serviceFormToggleText">Show Form</span>
+                </button>
+            </div>
+            <form id="serviceForm" style="display:none;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+                    <div class="form-group">
+                        <label for="serviceName">Service Name*</label>
+                        <input type="text" id="serviceName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupId">Service Group*</label>
+                        <select id="serviceGroupId" required>
+                            <option value="">Select Service Group</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceDefaultPrice">Default Price*</label>
+                        <input type="number" id="serviceDefaultPrice" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceDuration">Duration (mins)*</label>
+                        <input type="number" id="serviceDuration" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceStatus">Status</label>
+                        <select id="serviceStatus">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="serviceDescription">Description</label>
+                    <textarea id="serviceDescription"></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary" id="saveServiceBtn">Save Service</button>
+                    <button type="button" class="btn btn-secondary" id="cancelServiceBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        <div class="card">
+            <h3 style="margin-bottom:16px;color:#2d3748;">Services List</h3>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Service Name</th><th>Service Group</th>
+                        <th>Duration</th><th>Default Price</th>
+                        <th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="servicesTableBody">
+                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading services...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: PRICE BOOKS ═══ -->
+    <div id="prod-tab-svc-pricebooks" class="prod-tab-panel">
+        <div id="priceBooksList">
+            <div id="priceBookMessage" class="message"></div>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                    <h3 style="color:#2d3748;">Add New Price Book</h3>
+                    <button class="btn btn-secondary" id="togglePriceBookForm">
+                        <span id="priceBookFormToggleText">Show Form</span>
+                    </button>
+                </div>
+                <form id="priceBookForm" style="display:none;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;">
+                        <div class="form-group">
+                            <label for="priceBookName">Price Book Name*</label>
+                            <input type="text" id="priceBookName" placeholder="e.g., Standard Pricing" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="priceBookStatus">Status</label>
+                            <select id="priceBookStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="priceBookDescription">Description</label>
+                        <textarea id="priceBookDescription"></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary" id="savePriceBookBtn">Save Price Book</button>
+                        <button type="button" class="btn btn-secondary" id="cancelPriceBookBtn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Price Books List</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr>
+                            <th>Name</th><th>Description</th><th>Status</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="priceBooksTableBody">
+                            <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading price books...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- Price Book Items View -->
+        <div id="priceBookItems" style="display:none;">
+            <div class="page-header">
+                <button class="btn btn-secondary" onclick="PriceBooks.backToPriceBooks()">← Back to Price Books</button>
+                <h1 class="page-title" id="priceBookItemsTitle">Service Prices</h1>
+            </div>
+            <div id="priceBookItemMessage" class="message"></div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Add Service Price</h3>
+                <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:16px;align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="priceBookItemService">Service</label>
+                        <select id="priceBookItemService"><option value="">Select Service</option></select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="priceBookItemPrice">Price</label>
+                        <input type="number" id="priceBookItemPrice" step="0.01" placeholder="0.00">
+                    </div>
+                    <button class="btn btn-primary" onclick="PriceBooks.addItemToCurrentPriceBook()">Add Price</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3 style="margin-bottom:16px;color:#2d3748;">Service Prices</h3>
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Service</th><th>Category</th><th>Price</th><th>Actions</th></tr></thead>
+                        <tbody id="priceBookItemsTableBody">
+                            <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading prices...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
