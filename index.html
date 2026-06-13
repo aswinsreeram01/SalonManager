@@ -62,9 +62,9 @@
         <!-- Header -->
         <div class="header">
             <div class="header-left">
-                <button class="back-btn" id="backBtn" style="display:none">
+                <button class="menu-toggle" id="menuToggle" aria-label="Toggle navigation">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
                 <div id="pageTitleHeader" class="app-title">Salon Manager</div>
@@ -74,7 +74,42 @@
                 <button class="logout-btn" id="logoutBtn">Sign out</button>
             </div>
         </div>
-        
+
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="nav-section">
+                <button class="nav-item active" data-page="home"><span class="nav-icon">🏠</span>Home</button>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Operations</div>
+                <button class="nav-item" data-page="billing"><span class="nav-icon">🧾</span>New Bill</button>
+                <button class="nav-item" data-page="appointments"><span class="nav-icon">📅</span>Appointments</button>
+                <button class="nav-item" data-page="history"><span class="nav-icon">📋</span>Bill History</button>
+                <button class="nav-item" data-page="expenses"><span class="nav-icon">💸</span>Expenses</button>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Catalogue</div>
+                <button class="nav-item" data-page="services"><span class="nav-icon">✂️</span>Services</button>
+                <button class="nav-item" data-page="products"><span class="nav-icon">📦</span>Products</button>
+                <button class="nav-item" data-page="vendors"><span class="nav-icon">🏪</span>Vendors</button>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">People</div>
+                <button class="nav-item" data-page="staff"><span class="nav-icon">👥</span>Staff & HR</button>
+                <button class="nav-item" data-page="hrapprovals"><span class="nav-icon">✅</span>Approvals</button>
+                <button class="nav-item" data-page="customers"><span class="nav-icon">🧑</span>Customers</button>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Admin</div>
+                <button class="nav-item" data-page="organizations"><span class="nav-icon">🏢</span>Org & Config</button>
+                <button class="nav-item" data-page="users"><span class="nav-icon">👤</span>Users</button>
+                <button class="nav-item" data-page="roles"><span class="nav-icon">🛡️</span>Roles</button>
+                <button class="nav-item" data-page="permissions"><span class="nav-icon">🔑</span>Permissions</button>
+                <button class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span>Sheet Setup</button>
+            </div>
+        </aside>
+        <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
         <!-- Main Content -->
         <div class="main-content" id="mainContent">
 
@@ -128,9 +163,9 @@
     </div>
 
     <div class="prod-tabs">
-        <button class="prod-tab active" data-tab="svc-groups">Service Groups</button>
-        <button class="prod-tab" data-tab="svc-catalog">Service Catalog</button>
-        <button class="prod-tab" data-tab="svc-pricebooks">Price Books</button>
+        <button class="prod-tab active" data-tab="svc-groups"><span class="ptab-icon">🗂️</span><span class="ptab-label">Service Groups</span></button>
+        <button class="prod-tab" data-tab="svc-catalog"><span class="ptab-icon">✂️</span><span class="ptab-label">Service Catalog</span></button>
+        <button class="prod-tab" data-tab="svc-pricebooks"><span class="ptab-icon">💰</span><span class="ptab-label">Price Books</span></button>
     </div>
 
     <!-- ═══ TAB: SERVICE GROUPS ═══ -->
@@ -365,11 +400,11 @@
     <div id="staffMessage" class="message"></div>
 
     <div class="prod-tabs">
-        <button class="prod-tab active" data-tab="hr-staff">Staff</button>
-        <button class="prod-tab" data-tab="hr-profiles">Incentive Profiles</button>
-        <button class="prod-tab" data-tab="hr-shifts">Shifts</button>
-        <button class="prod-tab" data-tab="hr-attendance">Attendance</button>
-        <button class="prod-tab" data-tab="hr-payroll">Payroll</button>
+        <button class="prod-tab active" data-tab="hr-staff"><span class="ptab-icon">👥</span><span class="ptab-label">Staff</span></button>
+        <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Incentive Profiles</span></button>
+        <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
+        <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
+        <button class="prod-tab" data-tab="hr-payroll"><span class="ptab-icon">💰</span><span class="ptab-label">Payroll</span></button>
     </div>
 
     <!-- ═══ TAB: STAFF ═══ -->
@@ -877,12 +912,12 @@
 
                 <!-- Tab Bar -->
                 <div class="prod-tabs">
-                    <button class="prod-tab" data-tab="product-groups">Product Groups</button>
-                    <button class="prod-tab active" data-tab="products">Products</button>
-                    <button class="prod-tab" data-tab="purchase-orders">Purchase Orders</button>
-                    <button class="prod-tab" data-tab="receive-stock">Receive Stock</button>
-                    <button class="prod-tab" data-tab="stock-register">Stock Register</button>
-                    <button class="prod-tab" data-tab="stock-audit">Stock Audit</button>
+                    <button class="prod-tab" data-tab="product-groups"><span class="ptab-icon">🗃️</span><span class="ptab-label">Product Groups</span></button>
+                    <button class="prod-tab active" data-tab="products"><span class="ptab-icon">📦</span><span class="ptab-label">Products</span></button>
+                    <button class="prod-tab" data-tab="purchase-orders"><span class="ptab-icon">🛒</span><span class="ptab-label">Purchase Orders</span></button>
+                    <button class="prod-tab" data-tab="receive-stock"><span class="ptab-icon">📥</span><span class="ptab-label">Receive Stock</span></button>
+                    <button class="prod-tab" data-tab="stock-register"><span class="ptab-icon">📊</span><span class="ptab-label">Stock Register</span></button>
+                    <button class="prod-tab" data-tab="stock-audit"><span class="ptab-icon">🔍</span><span class="ptab-label">Stock Audit</span></button>
                 </div>
 
                 <!-- ═══════════ TAB: PRODUCT GROUPS ═══════════ -->
@@ -2090,8 +2125,8 @@
 
                 <!-- Tab bar -->
                 <div class="prod-tabs">
-                    <button class="hra-tab prod-tab active" data-tab="attendance">Attendance</button>
-                    <button class="hra-tab prod-tab" data-tab="advance">Advance Requests</button>
+                    <button class="hra-tab prod-tab active" data-tab="attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
+                    <button class="hra-tab prod-tab" data-tab="advance"><span class="ptab-icon">💵</span><span class="ptab-label">Advance Requests</span></button>
                 </div>
 
                 <!-- ═══ TAB: ATTENDANCE ═══ -->
@@ -2200,8 +2235,8 @@
         </div>
     </div>
 
-    <!-- Bottom Navigation -->
-    <nav class="bottom-nav" id="bottomNav">
+    <!-- Bottom Navigation (replaced by sidebar) -->
+    <nav class="bottom-nav" id="bottomNav" style="display:none">
         <button class="bottom-nav-btn active" data-page="home">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>

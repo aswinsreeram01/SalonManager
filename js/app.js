@@ -127,13 +127,26 @@ const Navigation = {
     _hiddenTiles: new Set(), // pages hidden by permissions
 
     init() {
-        // Back button
-        document.getElementById('backBtn')?.addEventListener('click', () => {
-            this.switchPage('home');
+        // Sidebar hamburger toggle
+        const sidebar     = document.getElementById('sidebar');
+        const backdrop    = document.getElementById('sidebarBackdrop');
+        const mainContent = document.getElementById('mainContent');
+        document.getElementById('menuToggle')?.addEventListener('click', () => {
+            if (window.innerWidth < 768) {
+                sidebar.classList.toggle('open');
+                backdrop.classList.toggle('show');
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
+        });
+        backdrop?.addEventListener('click', () => {
+            sidebar?.classList.remove('open');
+            backdrop.classList.remove('show');
         });
 
-        // Bottom nav buttons
-        document.querySelectorAll('.bottom-nav-btn[data-page]').forEach(btn => {
+        // Sidebar nav items
+        document.querySelectorAll('.nav-item[data-page]').forEach(btn => {
             btn.addEventListener('click', () => this.switchPage(btn.dataset.page));
         });
 
@@ -197,10 +210,16 @@ const Navigation = {
     switchPage(page) {
         this._currentPage = page;
 
-        // Bottom nav active state
-        document.querySelectorAll('.bottom-nav-btn[data-page]').forEach(btn => {
+        // Sidebar active state
+        document.querySelectorAll('.nav-item[data-page]').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.page === page);
         });
+
+        // Close mobile sidebar on navigate
+        if (window.innerWidth < 768) {
+            document.getElementById('sidebar')?.classList.remove('open');
+            document.getElementById('sidebarBackdrop')?.classList.remove('show');
+        }
 
         // Show/hide content sections
         document.querySelectorAll('.content-section').forEach(section => {
@@ -225,13 +244,11 @@ const Navigation = {
 
     _updateHeader(page) {
         const titleEl   = document.getElementById('pageTitleHeader');
-        const backBtn   = document.getElementById('backBtn');
         const sheetsBtn = document.getElementById('sheetsBtn');
 
         if (titleEl) titleEl.textContent = PAGE_TITLES[page] || 'Salon Manager';
 
         const isHome = page === 'home';
-        if (backBtn)   backBtn.style.display   = isHome ? 'none' : 'flex';
 
         // Sheets link
         if (sheetsBtn) {
