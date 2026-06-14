@@ -22,6 +22,86 @@ const Customers = {
     return Utils.createResponse('success', 'Customer added successfully', { phone: data.phone });
   },
 
+  loginByPhone(data) {
+    const phone = String(data.phone || '').replace(/\D/g, '');
+    if (!phone) return Utils.createResponse('error', 'Phone number required');
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
+    if (!sheet) return Utils.createResponse('error', 'Customer not found');
+
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      const rowPhone = String(rows[i][2] || '').replace(/\D/g, '');
+      if (rowPhone === phone) {
+        return Utils.createResponse('success', 'Welcome back!', {
+          name: rows[i][1],
+          phone: rows[i][2],
+          since: rows[i][0] instanceof Date ? rows[i][0].toISOString() : String(rows[i][0])
+        });
+      }
+    }
+    return Utils.createResponse('error', 'Phone number not found. Please visit the salon to register.');
+  },
+
+  getHistory(data) {
+    const phone = String(data.phone || '').replace(/\D/g, '');
+    if (!phone) return Utils.createResponse('error', 'Phone number required');
+
+    const custSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
+    if (!custSheet) return Utils.createResponse('error', 'Customer not found');
+
+    const custRows = custSheet.getDataRange().getValues();
+    let customerName = '';
+    for (let i = 1; i < custRows.length; i++) {
+      const rowPhone = String(custRows[i][2] || '').replace(/\D/g, '');
+      if (rowPhone === phone) { customerName = custRows[i][1]; break; }
+    }
+    if (!customerName) return Utils.createResponse('error', 'Customer not found');
+
+    const billSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
+    const bills = [];
+    if (billSheet) {
+      const billData = billSheet.getDataRange().getValues();
+      for (let i = 1; i < billData.length; i++) {
+        if (!billData[i][0]) continue;
+        if (billData[i][16] === 'void') continue;
+        if (String(billData[i][2] || '').trim().toLowerCase() !== customerName.trim().toLowerCase()) continue;
+        bills.push({
+          billId: billData[i][0],
+          date: String(billData[i][4]),
+          servicesSubtotal: billData[i][5],
+          retailSubtotal: billData[i][7],
+          discount: billData[i][9],
+          grandTotal: billData[i][11],
+          paymentMode: billData[i][12],
+          status: billData[i][16]
+        });
+      }
+      bills.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    let lastBillItems = [];
+    if (bills.length > 0) {
+      const itemSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('BillItems');
+      if (itemSheet) {
+        const itemRows = itemSheet.getDataRange().getValues();
+        for (let i = 1; i < itemRows.length; i++) {
+          if (itemRows[i][1] !== bills[0].billId) continue;
+          lastBillItems.push({
+            itemName: itemRows[i][4],
+            staffName: itemRows[i][6],
+            qty: itemRows[i][7],
+            unitPrice: itemRows[i][8],
+            lineTotal: itemRows[i][12],
+            type: itemRows[i][2]
+          });
+        }
+      }
+    }
+
+    return Utils.createResponse('success', 'History retrieved', { bills, customerName, lastBillItems });
+  },
+
   getAll(data) {
     const orgId = (data && data.orgId) || '';
     const cacheKey = 'customers_' + orgId;

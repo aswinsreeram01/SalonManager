@@ -1,5 +1,5 @@
 // Configuration
 const CONFIG = {
     // Replace this with your Google Apps Script Web App URL
-    API_URL: 'https://script.google.com/macros/s/AKfycbyHS6cKdtLisAb3MOgn2a_xKZYGrdvIJGz-0MfDdK3NISlBmMnmsDraOot2ocAfnFNDvw/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbw7IXHWW0_vXBTyP8EoWhpyTGsL4WxjO0Z_wVyFYD31wFhPlBhsjTVfJ55cPqR19BU5wQ/exec'
 };

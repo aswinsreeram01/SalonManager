@@ -33,7 +33,7 @@ function doPost(e) {
     }
 
     // ── Admin app: regular session validation ──────────────────────────────
-    const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password'];
+    const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password', 'customer_login', 'get_customer_history'];
     if (!publicActions.includes(action)) {
       const session = Utils.validateSession(data.sessionToken);
       if (!session) {
@@ -61,6 +61,10 @@ function doPost(e) {
         return Customers.add(data);
       case 'get_customers':
         return Customers.getAll(data);
+      case 'customer_login':
+        return Customers.loginByPhone(data);
+      case 'get_customer_history':
+        return Customers.getHistory(data);
 
       // Service Groups
       case 'get_service_groups':

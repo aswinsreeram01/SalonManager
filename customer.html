@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#667eea">
+    <title>My Visit History — Salon Manager</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #f7fafc;
+            min-height: 100dvh;
+            -webkit-tap-highlight-color: transparent;
+            color: #2d3748;
+        }
+        button, input { font-family: inherit; touch-action: manipulation; }
+
+        /* ── Login ── */
+        #loginSection {
+            min-height: 100dvh;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-box {
+            background: white; border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+            padding: 36px 28px; width: 100%; max-width: 400px;
+        }
+        .login-logo { text-align: center; margin-bottom: 28px; }
+        .login-logo .icon { font-size: 48px; display: block; margin-bottom: 10px; }
+        .login-logo h1 { font-size: 22px; font-weight: 700; color: #2d3748; }
+        .login-logo p  { font-size: 13px; color: #718096; margin-top: 4px; }
+
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #4a5568; margin-bottom: 6px; }
+        .form-group input {
+            width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0;
+            border-radius: 10px; font-size: 18px; font-weight: 500; letter-spacing: 1px;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+
+        .btn-primary {
+            width: 100%; padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: opacity 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .msg { margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none; }
+        .msg.error   { background: #fff5f5; color: #c53030; border: 1px solid #fed7d7; display: block; }
+        .msg.success { background: #f0fff4; color: #276749; border: 1px solid #c6f6d5; display: block; }
+
+        /* ── Header ── */
+        #dashSection { display: none; }
+        .cp-header {
+            position: fixed; top: 0; left: 0; right: 0; height: 60px;
+            background: white; border-bottom: 1px solid #e2e8f0;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px; z-index: 200;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .cp-header-left { display: flex; flex-direction: column; gap: 1px; }
+        .cp-header-name { font-size: 16px; font-weight: 700; color: #2d3748; }
+        .cp-header-sub  { font-size: 11px; color: #718096; }
+        .btn-logout {
+            padding: 7px 14px; border: 1px solid #e2e8f0; border-radius: 8px;
+            background: white; color: #718096; font-size: 13px; cursor: pointer;
+        }
+        .btn-logout:hover { background: #f7fafc; }
+
+        /* ── Content ── */
+        .cp-content { padding: 76px 16px 24px; max-width: 720px; margin: 0 auto; }
+
+        /* ── Last visit card ── */
+        .last-visit-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px; padding: 20px; margin-bottom: 20px;
+            color: white;
+        }
+        .lv-label { font-size: 11px; font-weight: 600; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+        .lv-date  { font-size: 18px; font-weight: 700; margin-bottom: 12px; }
+        .lv-amount { font-size: 32px; font-weight: 800; }
+        .lv-amount span { font-size: 16px; font-weight: 500; opacity: 0.8; }
+        .lv-meta  { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
+        .lv-meta-item { font-size: 12px; opacity: 0.85; }
+        .lv-meta-item strong { display: block; font-size: 14px; font-weight: 600; opacity: 1; }
+
+        .lv-items { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.2); }
+        .lv-items-title { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+        .lv-item-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 4px; }
+        .lv-item-name { opacity: 0.9; }
+        .lv-item-price { font-weight: 600; }
+
+        /* ── History ── */
+        .section-title { font-size: 14px; font-weight: 700; color: #4a5568; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px; }
+
+        .hist-list { display: flex; flex-direction: column; gap: 10px; }
+        .hist-card {
+            background: white; border-radius: 12px; padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .hist-left { flex: 1; min-width: 0; }
+        .hist-date { font-size: 13px; font-weight: 600; color: #2d3748; }
+        .hist-mode { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+        .hist-right { text-align: right; }
+        .hist-amount { font-size: 18px; font-weight: 700; color: #2d3748; }
+        .hist-discount { font-size: 11px; color: #68d391; margin-top: 2px; }
+
+        .empty-state { text-align: center; padding: 48px 16px; color: #a0aec0; }
+        .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* ── Spinner ── */
+        .spinner {
+            width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite;
+            display: inline-block; flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Summary bar ── */
+        .summary-bar {
+            background: white; border-radius: 12px; padding: 14px 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px;
+            display: flex; gap: 0;
+        }
+        .summary-item { flex: 1; text-align: center; }
+        .summary-item + .summary-item { border-left: 1px solid #e2e8f0; }
+        .summary-val { font-size: 18px; font-weight: 700; color: #2d3748; }
+        .summary-lbl { font-size: 11px; color: #a0aec0; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+<!-- ── Login ── -->
+<div id="loginSection">
+    <div class="login-box">
+        <div class="login-logo">
+            <span class="icon">💇</span>
+            <h1>My Visit History</h1>
+            <p>Enter your phone number to view your transactions</p>
+        </div>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="phoneInput">Mobile Number</label>
+                <input type="tel" id="phoneInput" placeholder="98765 43210"
+                       inputmode="numeric" autocomplete="tel" autofocus required>
+            </div>
+            <button type="submit" class="btn-primary" id="loginBtn">View My History</button>
+        </form>
+        <div class="msg" id="loginMsg"></div>
+    </div>
+</div>
+
+<!-- ── Dashboard ── -->
+<div id="dashSection">
+    <header class="cp-header">
+        <div class="cp-header-left">
+            <span class="cp-header-name" id="headerName"></span>
+            <span class="cp-header-sub">Your visit history</span>
+        </div>
+        <button class="btn-logout" id="logoutBtn">Sign out</button>
+    </header>
+
+    <div class="cp-content">
+        <!-- Summary -->
+        <div class="summary-bar" id="summaryBar" style="display:none;">
+            <div class="summary-item">
+                <div class="summary-val" id="sumVisits">0</div>
+                <div class="summary-lbl">Visits</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-val" id="sumTotal">₹0</div>
+                <div class="summary-lbl">Total Spent</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-val" id="sumSaved">₹0</div>
+                <div class="summary-lbl">Saved</div>
+            </div>
+        </div>
+
+        <!-- Last Visit -->
+        <div id="lastVisitWrap" style="display:none;">
+            <p class="section-title">Last Visit</p>
+            <div class="last-visit-card" id="lastVisitCard"></div>
+        </div>
+
+        <!-- History -->
+        <div id="historyWrap" style="margin-top:20px; display:none;">
+            <p class="section-title">All Visits</p>
+            <div class="hist-list" id="histList"></div>
+        </div>
+
+        <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-icon">🧾</div>
+            <p>No visits found yet.<br>Come visit us soon!</p>
+        </div>
+    </div>
+</div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbw7IXHWW0_vXBTyP8EoWhpyTGsL4WxjO0Z_wVyFYD31wFhPlBhsjTVfJ55cPqR19BU5wQ/exec';
+
+async function apiCall(action, data) {
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, ...data }) });
+    if (!res.ok) throw new Error('Network error');
+    return res.json();
+}
+
+function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function fmtCurrency(n) {
+    return '₹' + Number(n || 0).toLocaleString('en-IN');
+}
+
+let currentPhone = '';
+
+// ── Login ──
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const msgEl = document.getElementById('loginMsg');
+    const phone = document.getElementById('phoneInput').value.replace(/\D/g, '');
+
+    msgEl.className = 'msg';
+    msgEl.textContent = '';
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Checking...';
+
+    try {
+        const result = await apiCall('customer_login', { phone });
+        if (result.status === 'success') {
+            currentPhone = phone;
+            sessionStorage.setItem('cp_phone', phone);
+            sessionStorage.setItem('cp_name', result.name);
+            showDashboard(result.name, phone);
+        } else {
+            msgEl.className = 'msg error';
+            msgEl.textContent = result.message || 'Phone number not found.';
+        }
+    } catch (err) {
+        msgEl.className = 'msg error';
+        msgEl.textContent = 'Network error. Please try again.';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'View My History';
+    }
+});
+
+// ── Logout ──
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    sessionStorage.removeItem('cp_phone');
+    sessionStorage.removeItem('cp_name');
+    currentPhone = '';
+    document.getElementById('dashSection').style.display = 'none';
+    document.getElementById('loginSection').style.display = 'flex';
+    document.getElementById('phoneInput').value = '';
+    document.getElementById('loginMsg').className = 'msg';
+});
+
+// ── Show dashboard ──
+async function showDashboard(name, phone) {
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('dashSection').style.display = 'block';
+    document.getElementById('headerName').textContent = name;
+    await loadHistory(phone);
+}
+
+async function loadHistory(phone) {
+    try {
+        const result = await apiCall('get_customer_history', { phone });
+        if (result.status !== 'success') return;
+
+        const { bills, lastBillItems } = result;
+
+        if (!bills || bills.length === 0) {
+            document.getElementById('emptyState').style.display = 'block';
+            return;
+        }
+
+        // Summary bar
+        const totalSpent = bills.reduce((s, b) => s + Number(b.grandTotal || 0), 0);
+        const totalSaved = bills.reduce((s, b) => s + Number(b.discount || 0), 0);
+        document.getElementById('sumVisits').textContent = bills.length;
+        document.getElementById('sumTotal').textContent = fmtCurrency(totalSpent);
+        document.getElementById('sumSaved').textContent = fmtCurrency(totalSaved);
+        document.getElementById('summaryBar').style.display = 'flex';
+
+        // Last visit card
+        const last = bills[0];
+        const servicesTotal = Number(last.servicesSubtotal || 0);
+        const retailTotal   = Number(last.retailSubtotal || 0);
+        const itemsHtml = lastBillItems && lastBillItems.length > 0
+            ? `<div class="lv-items">
+                <div class="lv-items-title">Services & Products</div>
+                ${lastBillItems.map(it => `
+                    <div class="lv-item-row">
+                        <span class="lv-item-name">${it.itemName}${it.staffName ? ' <span style="opacity:.7;font-size:11px;">by ' + it.staffName + '</span>' : ''}</span>
+                        <span class="lv-item-price">${fmtCurrency(it.lineTotal)}</span>
+                    </div>
+                `).join('')}
+               </div>`
+            : '';
+
+        const discountHtml = Number(last.discount) > 0
+            ? `<div class="lv-meta-item"><strong>${fmtCurrency(last.discount)}</strong>Discount</div>` : '';
+
+        document.getElementById('lastVisitCard').innerHTML = `
+            <div class="lv-label">Last Visit</div>
+            <div class="lv-date">${fmtDate(last.date)}</div>
+            <div class="lv-amount">${fmtCurrency(last.grandTotal)} <span>total</span></div>
+            <div class="lv-meta">
+                <div class="lv-meta-item"><strong>${last.paymentMode || '-'}</strong>Payment</div>
+                ${servicesTotal > 0 ? `<div class="lv-meta-item"><strong>${fmtCurrency(servicesTotal)}</strong>Services</div>` : ''}
+                ${retailTotal > 0   ? `<div class="lv-meta-item"><strong>${fmtCurrency(retailTotal)}</strong>Products</div>` : ''}
+                ${discountHtml}
+            </div>
+            ${itemsHtml}
+        `;
+        document.getElementById('lastVisitWrap').style.display = 'block';
+
+        // History list (skip first since it's shown above)
+        const older = bills.slice(1);
+        if (older.length > 0) {
+            document.getElementById('histList').innerHTML = older.map(b => `
+                <div class="hist-card">
+                    <div class="hist-left">
+                        <div class="hist-date">${fmtDate(b.date)}</div>
+                        <div class="hist-mode">${b.paymentMode || ''}</div>
+                    </div>
+                    <div class="hist-right">
+                        <div class="hist-amount">${fmtCurrency(b.grandTotal)}</div>
+                        ${Number(b.discount) > 0 ? `<div class="hist-discount">-${fmtCurrency(b.discount)} off</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('historyWrap').style.display = 'block';
+        }
+
+    } catch (err) {
+        document.getElementById('emptyState').style.display = 'block';
+    }
+}
+
+// ── Restore session ──
+(function() {
+    const phone = sessionStorage.getItem('cp_phone');
+    const name  = sessionStorage.getItem('cp_name');
+    if (phone && name) {
+        currentPhone = phone;
+        showDashboard(name, phone);
+    }
+})();
+</script>
+</body>
+</html>
