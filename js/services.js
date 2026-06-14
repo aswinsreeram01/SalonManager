@@ -3,9 +3,9 @@ const Services = {
     serviceGroups: [],
 
     init() {
-        document.getElementById('serviceForm').addEventListener('submit', (e) => this.handleSubmit(e));
-        document.getElementById('toggleServiceForm').addEventListener('click', () => this.toggleForm());
-        document.getElementById('cancelServiceBtn').addEventListener('click', () => this.hideForm());
+        document.getElementById('serviceForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('toggleServiceForm')?.addEventListener('click', () => this.toggleForm());
+        document.getElementById('cancelServiceBtn')?.addEventListener('click', () => this.hideForm());
     },
 
     toggleForm() {

@@ -147,7 +147,7 @@ const Organizations = {
   async edit(id) {
     UI.showLoading();
     try {
-      const result = await API.getOrganizations(Auth.currentUser.orgId);
+      const result = await API.getOrganizations(Auth.currentUser?.orgId);
       const org = result.organizations.find(o => o.id === id);
       
       if (org) {

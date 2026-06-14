@@ -2,9 +2,9 @@ const Roles = {
     editingId: null,
 
     init() {
-        document.getElementById('roleForm').addEventListener('submit', (e) => this.handleSubmit(e));
-        document.getElementById('toggleRoleForm').addEventListener('click', () => this.toggleForm());
-        document.getElementById('cancelRoleBtn').addEventListener('click', () => this.hideForm());
+        document.getElementById('roleForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('toggleRoleForm')?.addEventListener('click', () => this.toggleForm());
+        document.getElementById('cancelRoleBtn')?.addEventListener('click', () => this.hideForm());
     },
 
     toggleForm() {

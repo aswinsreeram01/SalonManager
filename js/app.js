@@ -355,26 +355,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     // attached in init() find their DOM elements.
     await _loadPageHTML();
 
-    Auth.init();
-    Navigation.init();
-    Billing.init();
-    History.init();
-    Services.init();
-    Staff.init();
-    Customers.init();
-    PriceBooks.init();
-    Products.init();
-    ProductGroups.init();
-    ServiceGroups.init();
-    Organizations.init();
-    Users.init();
-    Roles.init();
-    Permissions.init();
-    Appointments.init();
-    Expenses.init();
-    Vendors.init();
-    Settings.init();
-    HRApprovals.init();
+    // Wrap every init in its own try/catch so a single failure can't abort the chain.
+    const _init = (mod, name) => { try { mod.init(); } catch(e) { console.error(`${name}.init() failed:`, e); } };
+
+    _init(Auth,          'Auth');
+    _init(Navigation,    'Navigation');
+    _init(Billing,       'Billing');
+    _init(History,       'History');
+    _init(Services,      'Services');
+    _init(Staff,         'Staff');
+    _init(Customers,     'Customers');
+    _init(PriceBooks,    'PriceBooks');
+    _init(Products,      'Products');
+    _init(ProductGroups, 'ProductGroups');
+    _init(ServiceGroups, 'ServiceGroups');
+    _init(Organizations, 'Organizations');
+    _init(Users,         'Users');
+    _init(Roles,         'Roles');
+    _init(Permissions,   'Permissions');
+    _init(Appointments,  'Appointments');
+    _init(Expenses,      'Expenses');
+    _init(Vendors,       'Vendors');
+    _init(Settings,      'Settings');
+    _init(HRApprovals,   'HRApprovals');
 
     // ── Services section tab switching ──────────────────────
     document.querySelectorAll('#services .prod-tab').forEach(btn => {

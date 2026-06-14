@@ -1,8 +1,7 @@
 // Customers Module
 const Customers = {
     init() {
-        const form = document.getElementById('customerForm');
-        form.addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('customerForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
     },
     
     async handleSubmit(e) {

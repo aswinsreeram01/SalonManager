@@ -4,9 +4,9 @@ const Users = {
     orgs: [],
 
     init() {
-        document.getElementById('userForm').addEventListener('submit', (e) => this.handleSubmit(e));
-        document.getElementById('toggleUserForm').addEventListener('click', () => this.toggleForm());
-        document.getElementById('cancelUserBtn').addEventListener('click', () => this.hideForm());
+        document.getElementById('userForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('toggleUserForm')?.addEventListener('click', () => this.toggleForm());
+        document.getElementById('cancelUserBtn')?.addEventListener('click', () => this.hideForm());
     },
 
     toggleForm() {
@@ -42,7 +42,7 @@ const Users = {
         try {
             const [rolesResult, orgsResult] = await Promise.all([
                 API.getRoles(),
-                API.getOrganizations(Auth.currentUser.orgId)
+                API.getOrganizations(Auth.currentUser?.orgId)
             ]);
             if (rolesResult.status === 'success') this.roles = rolesResult.roles;
             if (orgsResult.status === 'success') this.orgs = orgsResult.organizations;
@@ -78,7 +78,7 @@ const Users = {
         const tbody = document.getElementById('usersTableBody');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
         try {
-            const result = await API.getUsers(Auth.currentUser.orgId);
+            const result = await API.getUsers(Auth.currentUser?.orgId);
             if (result.status === 'success' && result.users.length > 0) {
                 tbody.innerHTML = result.users.map(user => `
                     <tr>
@@ -150,7 +150,7 @@ const Users = {
     async edit(id) {
         UI.showLoading();
         try {
-            const result = await API.getUsers(Auth.currentUser.orgId);
+            const result = await API.getUsers(Auth.currentUser?.orgId);
             const user = result.users.find(u => u.id === id);
             if (user) {
                 this.editingId = id;
