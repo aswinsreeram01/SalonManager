@@ -143,22 +143,27 @@ const LoyaltyPoints = {
     const nextTier     = tierIdx >= 0 && tierIdx < tiers.length - 1 ? tiers[tierIdx + 1] : null;
     const tierMult     = tierIdx >= 0 ? (Number(tiers[tierIdx].multiplier) || 1) : 1;
 
+    const currentTier = tiers[tierIdx] || tiers[0] || {};
     return Utils.createResponse('success', 'Loyalty data retrieved', {
       loyalty: {
-        pointsName:    cfg.pointsName || 'Points',
-        tier:          tierName,
-        tierIndex:     tierIdx,
+        pointsName:       cfg.pointsName || 'Points',
+        tier:             tierName,
+        tierIndex:        tierIdx,
+        tierColor:        currentTier.color || '',
         tierMult,
-        pointsBalance: pointsBal,
+        tiers:            tiers,
+        pointsBalance:    pointsBal,
         statusPoints,
-        nextTier:      nextTier ? nextTier.name : null,
-        nextThreshold: nextTier ? nextTier.threshold : null,
-        isHappyHour:   this._isHappyHour(cfg),
-        hhMultiplier:  cfg.happyHourMultiplier || 2,
-        baseEarnRate:  cfg.baseEarnRate || 10,
-        redemptionRate: cfg.redemptionRate || 100,
-        redemptionValue: cfg.redemptionValue || 10,
-        minRedemption: cfg.minRedemption || 100
+        currentThreshold: currentTier.threshold || 0,
+        nextTier:         nextTier ? nextTier.name : null,
+        nextThreshold:    nextTier ? nextTier.threshold : null,
+        nextTierColor:    nextTier ? (nextTier.color || '') : null,
+        isHappyHour:      this._isHappyHour(cfg),
+        hhMultiplier:     cfg.happyHourMultiplier || 2,
+        baseEarnRate:     cfg.baseEarnRate || 10,
+        redemptionRate:   cfg.redemptionRate || 100,
+        redemptionValue:  cfg.redemptionValue || 10,
+        minRedemption:    cfg.minRedemption || 100
       }
     });
   },
