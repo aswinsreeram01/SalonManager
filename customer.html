@@ -118,6 +118,39 @@
         .empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
         .empty-state p { font-size: 14px; }
 
+        /* ── Loyalty card ── */
+        .loyalty-card {
+            background: white; border-radius: 12px; padding: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06); margin-bottom: 20px;
+        }
+        .tier-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+        .tier-badge {
+            font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+            border: 1.5px solid currentColor; letter-spacing: 0.5px;
+        }
+        .pts-row { display: flex; align-items: baseline; gap: 6px; }
+        .pts-val { font-size: 26px; font-weight: 800; color: #2d3748; }
+        .pts-lbl { font-size: 12px; color: #718096; font-weight: 500; }
+        .pts-available { font-size: 11px; color: #38a169; font-weight: 600; background: #f0fff4; border-radius: 20px; padding: 2px 8px; }
+
+        .progress-wrap { margin-top: 12px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: #718096; margin-bottom: 5px; }
+        .progress-bar { height: 8px; background: #edf2f7; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+        .hh-banner {
+            margin-top: 10px; padding: 8px 12px; border-radius: 8px;
+            background: #fef3c7; color: #92400e; font-size: 12px; font-weight: 600;
+            border: 1px solid #fde68a; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* ── Earn/redeem pill on history cards ── */
+        .pts-pill {
+            font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px;
+        }
+        .pts-pill.earn   { background: #ebf8ff; color: #2b6cb0; }
+        .pts-pill.redeem { background: #fff3cd; color: #856404; }
+
         /* ── Spinner ── */
         .spinner {
             width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.4);
@@ -187,6 +220,27 @@
             </div>
         </div>
 
+        <!-- Loyalty card -->
+        <div class="loyalty-card" id="loyaltyCard" style="display:none;">
+            <div class="tier-row">
+                <span class="tier-badge" id="cpTierBadge"></span>
+                <span id="cpHHBanner" class="hh-banner" style="display:none;">🎉 Happy Hour active — bonus points!</span>
+            </div>
+            <div class="pts-row">
+                <span class="pts-val" id="cpPtsBalance">0</span>
+                <span class="pts-lbl" id="cpPtsName">points</span>
+                <span class="pts-available">available to redeem</span>
+            </div>
+            <div class="progress-wrap" id="cpProgressWrap" style="display:none;">
+                <div class="progress-label">
+                    <span id="cpProgressLabel">Progress to next tier</span>
+                    <span id="cpProgressPct"></span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="cpProgressFill"></div></div>
+                <div style="font-size:11px;color:#a0aec0;margin-top:4px;" id="cpProgressSub"></div>
+            </div>
+        </div>
+
         <!-- Last Visit -->
         <div id="lastVisitWrap" style="display:none;">
             <p class="section-title">Last Visit</p>
@@ -207,7 +261,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbw7IXHWW0_vXBTyP8EoWhpyTGsL4WxjO0Z_wVyFYD31wFhPlBhsjTVfJ55cPqR19BU5wQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbync-4dFac2rB6cplBU1vBTOuMxMQF7jhmZOIu2s_Zh3sPAOsCurOC-lqh25CH5XaJ_6w/exec';
 
 async function apiCall(action, data) {
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action, ...data }) });
@@ -225,6 +279,16 @@ function fmtCurrency(n) {
 }
 
 let currentPhone = '';
+let ledgerByBill = {};  // billId → { earn: n, redeem: n }
+
+// ── Loyalty helpers ──
+function tierColor(tier) {
+    const name = (tier || '').toLowerCase();
+    if (name.includes('gold'))     return { color: '#b7791f', bg: '#fefcbf' };
+    if (name.includes('silver'))   return { color: '#718096', bg: '#edf2f7' };
+    if (name.includes('plat'))     return { color: '#553c9a', bg: '#e9d8fd' };
+    return { color: '#9c4221', bg: '#feebc8' }; // bronze / default
+}
 
 // ── Login ──
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -275,7 +339,67 @@ async function showDashboard(name, phone) {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('dashSection').style.display = 'block';
     document.getElementById('headerName').textContent = name;
-    await loadHistory(phone);
+    await loadLedger(phone);
+    await Promise.all([loadHistory(phone), loadLoyalty(phone)]);
+}
+
+async function loadLoyalty(phone) {
+    try {
+        const res = await apiCall('get_customer_loyalty', { phone });
+        if (res.status !== 'success') return;
+        const { tier, pointsBalance, statusPoints, nextTier, isHappyHour, pointsName, tiers } = res;
+
+        const card = document.getElementById('loyaltyCard');
+        const badge = document.getElementById('cpTierBadge');
+        const c = tierColor(tier);
+        badge.textContent = tier || 'Member';
+        badge.style.color = c.color;
+        badge.style.background = c.bg;
+        badge.style.borderColor = c.color;
+
+        document.getElementById('cpPtsBalance').textContent = Number(pointsBalance || 0).toLocaleString('en-IN');
+        document.getElementById('cpPtsName').textContent = pointsName || 'points';
+
+        if (isHappyHour) document.getElementById('cpHHBanner').style.display = 'flex';
+
+        if (nextTier && tiers) {
+            const curIdx = tiers.findIndex(t => t.name === tier);
+            const nxtIdx = tiers.findIndex(t => t.name === nextTier);
+            if (nxtIdx > curIdx && nxtIdx >= 0) {
+                const curThresh = tiers[curIdx]?.threshold || 0;
+                const nxtThresh = tiers[nxtIdx].threshold;
+                const span = nxtThresh - curThresh;
+                const done = Math.min(statusPoints - curThresh, span);
+                const pct  = span > 0 ? Math.round((done / span) * 100) : 100;
+                const fillColor = tierColor(nextTier).color;
+
+                document.getElementById('cpProgressLabel').textContent = `Progress to ${nextTier}`;
+                document.getElementById('cpProgressPct').textContent = pct + '%';
+                document.getElementById('cpProgressFill').style.background = fillColor;
+                document.getElementById('cpProgressFill').style.width = pct + '%';
+                document.getElementById('cpProgressSub').textContent =
+                    `${Number(statusPoints).toLocaleString('en-IN')} / ${Number(nxtThresh).toLocaleString('en-IN')} status points`;
+                document.getElementById('cpProgressWrap').style.display = 'block';
+            }
+        }
+
+        card.style.display = 'block';
+    } catch (e) { /* silently skip loyalty */ }
+}
+
+async function loadLedger(phone) {
+    ledgerByBill = {};
+    try {
+        const res = await apiCall('get_loyalty_ledger', { phone });
+        if (res.status !== 'success') return;
+        (res.ledger || []).forEach(entry => {
+            const bid = entry.billId;
+            if (!bid) return;
+            if (!ledgerByBill[bid]) ledgerByBill[bid] = { earn: 0, redeem: 0 };
+            if (entry.type === 'earn')   ledgerByBill[bid].earn   += Number(entry.points || 0);
+            if (entry.type === 'redeem') ledgerByBill[bid].redeem += Math.abs(Number(entry.points || 0));
+        });
+    } catch (e) { /* silently skip ledger */ }
 }
 
 async function loadHistory(phone) {
@@ -317,6 +441,13 @@ async function loadHistory(phone) {
         const discountHtml = Number(last.discount) > 0
             ? `<div class="lv-meta-item"><strong>${fmtCurrency(last.discount)}</strong>Discount</div>` : '';
 
+        const lastLp = ledgerByBill[last.billId] || {};
+        const lastPtsHtml = (lastLp.earn || lastLp.redeem) ? `
+            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+                ${lastLp.earn   ? `<span style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">+${lastLp.earn} pts earned</span>` : ''}
+                ${lastLp.redeem ? `<span style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.5);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700;">−${lastLp.redeem} pts redeemed</span>` : ''}
+            </div>` : '';
+
         document.getElementById('lastVisitCard').innerHTML = `
             <div class="lv-label">Last Visit</div>
             <div class="lv-date">${fmtDate(last.date)}</div>
@@ -328,24 +459,32 @@ async function loadHistory(phone) {
                 ${discountHtml}
             </div>
             ${itemsHtml}
+            ${lastPtsHtml}
         `;
         document.getElementById('lastVisitWrap').style.display = 'block';
 
         // History list (skip first since it's shown above)
         const older = bills.slice(1);
         if (older.length > 0) {
-            document.getElementById('histList').innerHTML = older.map(b => `
+            document.getElementById('histList').innerHTML = older.map(b => {
+                const lp = ledgerByBill[b.billId] || {};
+                const earnPill   = lp.earn   ? `<span class="pts-pill earn">+${lp.earn} pts</span>` : '';
+                const redeemPill = lp.redeem ? `<span class="pts-pill redeem">−${lp.redeem} redeemed</span>` : '';
+                return `
                 <div class="hist-card">
                     <div class="hist-left">
                         <div class="hist-date">${fmtDate(b.date)}</div>
-                        <div class="hist-mode">${b.paymentMode || ''}</div>
+                        <div class="hist-mode" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;">
+                            <span style="color:#a0aec0;">${b.paymentMode || ''}</span>
+                            ${earnPill}${redeemPill}
+                        </div>
                     </div>
                     <div class="hist-right">
                         <div class="hist-amount">${fmtCurrency(b.grandTotal)}</div>
                         ${Number(b.discount) > 0 ? `<div class="hist-discount">-${fmtCurrency(b.discount)} off</div>` : ''}
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
             document.getElementById('historyWrap').style.display = 'block';
         }
 

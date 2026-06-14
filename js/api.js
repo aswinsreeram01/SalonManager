@@ -373,5 +373,12 @@ const API = {
     // Setup / Sheet Scaffolding
     getSetupStatus() { return this.call('get_setup_status'); },
     runSetup(actions) { return this.call('run_setup', { actions }); },
-    refreshSummarySheet() { return this.call('refresh_summary_sheet'); }
+    refreshSummarySheet() { return this.call('refresh_summary_sheet'); },
+
+    // Loyalty
+    getLoyaltyConfig() { return this.call('get_loyalty_config'); },
+    updateLoyaltyConfig(loyalty) { return this.call('update_loyalty_config', { loyalty }); },
+    toggleHappyHour(active) { return this.call('toggle_happy_hour', { active }); },
+    getCustomerLoyalty(phone) { return this.call('get_customer_loyalty', { phone }); },
+    getLoyaltyLedger(phone) { return this.call('get_loyalty_ledger', { phone }); }
 };

@@ -50,6 +50,12 @@
                     </select>
                 </div>
             </div>
+            <div class="form-group" style="margin-top:4px;">
+                <label>
+                    <input type="checkbox" id="pgPointsEligible" style="margin-right:6px;">
+                    Eligible for loyalty points
+                </label>
+            </div>
             <div class="btn-group" style="margin-top:20px;">
                 <button type="submit" class="btn btn-primary" id="pgSaveBtn">Save Group</button>
                 <button type="button" class="btn btn-secondary" id="pgCancelBtn">Cancel</button>
@@ -68,10 +74,12 @@
             <table>
                 <thead><tr>
                     <th>Name</th><th>GST%</th><th>HSN Code</th>
-                    <th>Unit Incentive</th><th>Sort</th><th>Status</th><th>Actions</th>
+                    <th>Unit Incentive</th><th>Sort</th>
+                    <th style="text-align:center;">Points?</th>
+                    <th>Status</th><th>Actions</th>
                 </tr></thead>
                 <tbody id="pgTableBody">
-                    <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                 </tbody>
             </table>
         </div>

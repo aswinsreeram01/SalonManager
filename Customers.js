@@ -1,5 +1,6 @@
 // Customers sheet columns (0-based):
-// timestamp(0), name(1), phone(2), addedBy(3), orgId(4)
+// timestamp(0), name(1), phone(2), addedBy(3), orgId(4),
+// pointsBalance(5), statusPoints(6), tier(7)
 
 const Customers = {
   add(data) {
@@ -118,11 +119,14 @@ const Customers = {
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       const raw = customerData[i][0];
       customers.push({
-        timestamp: raw instanceof Date ? raw.toISOString() : String(raw),
-        name:      customerData[i][1],
-        phone:     customerData[i][2],
-        addedBy:   customerData[i][3],
-        orgId:     rowOrg
+        timestamp:     raw instanceof Date ? raw.toISOString() : String(raw),
+        name:          customerData[i][1],
+        phone:         customerData[i][2],
+        addedBy:       customerData[i][3],
+        orgId:         rowOrg,
+        pointsBalance: Number(customerData[i][5]) || 0,
+        statusPoints:  Number(customerData[i][6]) || 0,
+        tier:          customerData[i][7] || ''
       });
     }
 

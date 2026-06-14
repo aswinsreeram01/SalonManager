@@ -56,6 +56,12 @@
                     </label>
                 </div>
                 <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="serviceGroupPointsEligible" style="margin-right:6px;">
+                        Eligible for loyalty points
+                    </label>
+                </div>
+                <div class="form-group">
                     <label for="serviceGroupDescription">Description</label>
                     <textarea id="serviceGroupDescription" placeholder="Optional"></textarea>
                 </div>
@@ -71,10 +77,11 @@
                     <thead><tr>
                         <th>Name</th><th>SAC Code</th><th>GST%</th>
                         <th>Target?</th><th>Direct%</th><th>Sort</th>
+                        <th style="text-align:center;">Points?</th>
                         <th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="serviceGroupsTableBody">
-                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>

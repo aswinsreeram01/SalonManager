@@ -14,11 +14,11 @@ const SHEET_SCHEMA = {
   Permissions:         ['id','roleId','menuItem','canAccess'],
 
   // ── Customers ───────────────────────────────────────────────────────────────
-  Customers:           ['timestamp','name','phone','addedBy','orgId'],
+  Customers:           ['timestamp','name','phone','addedBy','orgId','pointsBalance','statusPoints','tier'],
 
   // ── Service catalogue ───────────────────────────────────────────────────────
   ServiceGroups:       ['id','name','description','gstPct','sacCode','countForTarget',
-                        'directIncentivePct','sortOrder','status','orgId'],
+                        'directIncentivePct','sortOrder','status','orgId','pointsEligible'],
   Services:            ['id','name','description','duration','serviceGroupId','defaultPrice','status','orgId'],
   PriceBooks:          ['id','name','description','status','orgId'],
   PriceBookItems:      ['itemId','priceBookId','serviceId','price','orgId'],
@@ -27,7 +27,9 @@ const SHEET_SCHEMA = {
   Products:            ['id','name','category','uom','unitCost','retailPrice','gst',
                         'currentStock','baseStock','manufacturer','vendorName','vendorContact',
                         'status','vendorId','groupId','orgId'],
-  ProductGroups:       ['id','name','gstPct','hsnCode','unitIncentive','sortOrder','status','orgId'],
+  ProductGroups:       ['id','name','gstPct','hsnCode','unitIncentive','sortOrder','status','orgId','pointsEligible'],
+  PointsLedger:        ['ledgerId','customerPhone','customerName','billId','earnedDate','expiryDate',
+                        'type','points','balanceAfter','note','orgId'],
   StockMovements:      ['movementId','date','productId','productName','type','refId','qty',
                         'unitCost','notes','createdAt','vendorId','vendorName','createdBy','orgId'],
   StockAudits:         ['auditId','auditDate','notes','createdAt','createdBy','orgId'],
@@ -92,6 +94,7 @@ const SHEET_GROUPS = {
   'Product Catalogue':   ['Products','ProductGroups','StockMovements','StockAudits','AuditItems'],
   'Vendors & Purchasing':['Vendors','PurchaseOrders','POItems'],
   'Billing':             ['Bills','BillItems'],
+  'Loyalty':             ['PointsLedger'],
   'Appointments':        ['Appointments'],
   'Expenses':            ['Expenses'],
   'HR':                  ['Staff','IncentiveProfiles','Shifts','StaffShiftAllocation','WeeklySchedule',
@@ -131,6 +134,7 @@ const SHEET_DESCRIPTIONS = {
   // Billing
   Bills:               'Customer invoices — service and retail totals, taxes, discount, tip, payment mode, and split-payment breakdown.',
   BillItems:           'Line items on each bill — services and retail products with staff attribution, quantity, unit price, and GST.',
+  PointsLedger:        'Loyalty points audit trail — every earn and redeem event per customer, with expiry dates and running balance.',
 
   // Appointments
   Appointments:        'Scheduled service bookings — customer, assigned staff, service, time slot, status, and linked bill.',

@@ -24,6 +24,16 @@
                         </div>
                     </div>
                     <div id="billingCustomerName" style="font-size:14px;font-weight:500;min-height:20px;margin-top:8px;"></div>
+                    <!-- Loyalty info shown after customer lookup -->
+                    <div id="billingLoyaltyBar" style="display:none;margin-top:10px;padding:10px 14px;background:#f0f4ff;border-radius:8px;border:1px solid #c3d0f5;display:none;">
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <span id="billingTierBadge" style="font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;"></span>
+                            <span style="font-size:13px;color:#4a5568;">
+                                <strong id="billingPointsBalance">0</strong> <span id="billingPointsName">points</span> available
+                            </span>
+                            <span id="billingHHBadge" style="display:none;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">🎉 Happy Hour — <span id="billingHHMult">2</span>× points!</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Items Grid -->
@@ -81,9 +91,22 @@
                                     <span>Tip (₹)</span>
                                     <input type="number" id="billingTip" min="0" step="0.01" placeholder="0.00">
                                 </div>
+                                <!-- Loyalty redemption -->
+                                <div id="loyaltyRedeemRow" style="display:none;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #edf2f7;">
+                                    <span style="font-size:14px;color:#4a5568;">Redeem <span id="loyaltyPointsName">Points</span></span>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <input type="number" id="billingRedeemPoints" min="0" step="1" placeholder="0"
+                                            style="width:80px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;text-align:right;">
+                                        <span id="sumRedeemAmt" style="min-width:72px;text-align:right;font-size:14px;color:#38a169;font-weight:500;">₹0.00</span>
+                                    </div>
+                                </div>
                                 <div class="sum-row sum-grand">
                                     <span>GRAND TOTAL</span>
                                     <span id="sumGrandTotal">₹0.00</span>
+                                </div>
+                                <!-- Points to earn preview -->
+                                <div id="loyaltyEarnRow" style="display:none;padding:8px 0;text-align:right;">
+                                    <span style="font-size:12px;color:#667eea;font-weight:600;">✦ <span id="sumPointsToEarn">0</span> <span id="sumPointsName">points</span> will be earned on this bill</span>
                                 </div>
                             </div>
                         </div>

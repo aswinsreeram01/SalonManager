@@ -1,6 +1,6 @@
 // ServiceGroups sheet columns (0-based):
 // id(0), name(1), description(2), gstPct(3), sacCode(4), countForTarget(5),
-// directIncentivePct(6), sortOrder(7), status(8), orgId(9)
+// directIncentivePct(6), sortOrder(7), status(8), orgId(9), pointsEligible(10)
 
 const ServiceGroups = {
   getAll(data) {
@@ -28,7 +28,8 @@ const ServiceGroups = {
         directIncentivePct: Number(rows[i][6]) || 0,
         sortOrder:          Number(rows[i][7]) || 0,
         status:             rows[i][8],
-        orgId:              rowOrg
+        orgId:              rowOrg,
+        pointsEligible:     rows[i][10] === true || rows[i][10] === 'TRUE'
       });
     }
 
@@ -56,7 +57,8 @@ const ServiceGroups = {
       Number(data.directIncentivePct) || 0,
       Number(data.sortOrder)   || 0,
       data.status              || 'active',
-      data.orgId               || ''
+      data.orgId               || '',
+      data.pointsEligible      === true || data.pointsEligible === 'TRUE' ? true : false
     ]);
     Utils.clearCached('service_groups_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Service group added successfully', { id });
@@ -77,6 +79,7 @@ const ServiceGroups = {
         sheet.getRange(i + 1, 7).setValue(Number(data.directIncentivePct) || 0);
         sheet.getRange(i + 1, 8).setValue(Number(data.sortOrder)   || 0);
         sheet.getRange(i + 1, 9).setValue(data.status);
+        sheet.getRange(i + 1, 11).setValue(data.pointsEligible === true || data.pointsEligible === 'TRUE' ? true : false);
         Utils.clearCached('service_groups_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Service group updated successfully');
       }

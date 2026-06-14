@@ -50,6 +50,7 @@ const ProductGroups = {
                 <td>${g.hsnCode ? this._esc(g.hsnCode) : '-'}</td>
                 <td>${g.unitIncentive != null ? '&#8377;' + this._esc(g.unitIncentive) : '-'}</td>
                 <td>${g.sortOrder != null ? this._esc(g.sortOrder) : '-'}</td>
+                <td style="text-align:center;">${g.pointsEligible ? '<span style="color:#38a169;font-weight:700;">&#10003;</span>' : '<span style="color:#a0aec0;">&mdash;</span>'}</td>
                 <td><span class="status-badge status-${this._esc(g.status)}">${this._esc(g.status)}</span></td>
                 <td>
                     <div class="action-btns">
@@ -81,11 +82,15 @@ const ProductGroups = {
                 document.getElementById('pgUnitIncentive').value = group.unitIncentive != null ? group.unitIncentive : '';
                 document.getElementById('pgSortOrder').value = group.sortOrder != null ? group.sortOrder : '';
                 document.getElementById('pgStatus').value = group.status || 'active';
+                const peEl = document.getElementById('pgPointsEligible');
+                if (peEl) peEl.checked = !!group.pointsEligible;
             }
         } else {
             formTitle.textContent = 'Add Product Group';
             saveBtn.textContent = 'Save Group';
             document.getElementById('pgStatus').value = 'active';
+            const peEl = document.getElementById('pgPointsEligible');
+            if (peEl) peEl.checked = false;
         }
 
         formCard.style.display = 'block';
@@ -108,7 +113,8 @@ const ProductGroups = {
             hsnCode: document.getElementById('pgHsnCode').value.trim(),
             unitIncentive: parseFloat(document.getElementById('pgUnitIncentive').value) || 0,
             sortOrder: parseInt(document.getElementById('pgSortOrder').value, 10) || 0,
-            status: document.getElementById('pgStatus').value
+            status: document.getElementById('pgStatus').value,
+            pointsEligible: !!(document.getElementById('pgPointsEligible') || {}).checked
         };
 
         if (!data.name) {

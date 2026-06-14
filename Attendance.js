@@ -16,6 +16,17 @@
 // targetIncentive(5), directIncentive(6), productIncentive(7), totalIncentive(8),
 // status(9), calculatedAt(10)
 
+// Safely extract HH:mm from a cell value that may be a Date object or a string.
+function _fmtTime(val) {
+  if (!val && val !== 0) return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  const s = String(val).trim();
+  const m = s.match(/^(\d{1,2}:\d{2})/);
+  return m ? m[1] : s;
+}
+
 const Attendance = {
 
   // ── Shifts ────────────────────────────────────────────────────────────────
@@ -36,13 +47,12 @@ const Attendance = {
       const rowOrg = rows[i][6] || '';
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       shifts.push({
-        shiftId:    rows[i][0],
-        name:       rows[i][1],
-        startTime:  rows[i][2],
-        endTime:    rows[i][3],
-        breakMins:  Number(rows[i][4]) || 0,
-        status:     rows[i][5],
-        orgId:      rowOrg
+        shiftId:   rows[i][0],
+        name:      rows[i][1],
+        startTime: _fmtTime(rows[i][2]),
+        endTime:   _fmtTime(rows[i][3]),
+        status:    rows[i][5],
+        orgId:     rowOrg
       });
     }
 
@@ -166,8 +176,8 @@ const Attendance = {
         staffId:      rows[i][1],
         date:         dateStr,
         shiftId:      rows[i][3],
-        clockIn:      rows[i][4],
-        clockOut:     rows[i][5],
+        clockIn:      _fmtTime(rows[i][4]),
+        clockOut:     _fmtTime(rows[i][5]),
         hoursWorked:  Number(rows[i][6]) || 0,
         otHours:      Number(rows[i][7]) || 0,
         dayStatus:    rows[i][8],
@@ -184,21 +194,6 @@ const Attendance = {
   saveAttendance(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
-
-    // Load shifts once for breakMins lookup
-    const shiftsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shifts');
-    const shiftMap = {};
-    if (shiftsSheet) {
-      const shiftRows = shiftsSheet.getDataRange().getValues();
-      for (let s = 1; s < shiftRows.length; s++) {
-        if (!shiftRows[s][0]) continue;
-        shiftMap[shiftRows[s][0]] = {
-          startTime: String(shiftRows[s][2]),
-          endTime:   String(shiftRows[s][3]),
-          breakMins: Number(shiftRows[s][4]) || 0
-        };
-      }
-    }
 
     // Helper: parse "HH:MM" → total minutes from midnight
     function toMinutes(timeStr) {
@@ -224,18 +219,12 @@ const Attendance = {
     const now = new Date().toISOString();
 
     records.forEach(rec => {
-      const shiftInfo   = shiftMap[rec.shiftId] || { startTime: '09:00', endTime: '18:00', breakMins: 0 };
-      const startMins   = toMinutes(shiftInfo.startTime);
-      const endMins     = toMinutes(shiftInfo.endTime);
-      const breakMins   = shiftInfo.breakMins;
-      const shiftHours  = Math.max(0, (endMins - startMins - breakMins) / 60);
-
+      // OT = max(0, hoursWorked − 9). No break deduction.
       let hoursWorked = 0;
       if (rec.clockIn && rec.clockOut) {
-        const workedMins = toMinutes(rec.clockOut) - toMinutes(rec.clockIn) - breakMins;
-        hoursWorked = Math.max(0, workedMins / 60);
+        hoursWorked = Math.max(0, (toMinutes(rec.clockOut) - toMinutes(rec.clockIn)) / 60);
       }
-      const otHours = Math.max(0, hoursWorked - shiftHours);
+      const otHours = Math.max(0, hoursWorked - 9);
 
       const recDate = rec.date instanceof Date ? rec.date.toISOString().slice(0, 10) : String(rec.date).slice(0, 10);
       const key = rec.staffId + '|' + recDate;

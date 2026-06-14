@@ -33,7 +33,8 @@ function doPost(e) {
     }
 
     // ── Admin app: regular session validation ──────────────────────────────
-    const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password', 'customer_login', 'get_customer_history'];
+    const publicActions = ['login', 'request_password_reset', 'validate_reset_token', 'reset_password',
+                           'customer_login', 'get_customer_history', 'get_customer_loyalty', 'get_loyalty_ledger'];
     if (!publicActions.includes(action)) {
       const session = Utils.validateSession(data.sessionToken);
       if (!session) {
@@ -65,6 +66,13 @@ function doPost(e) {
         return Customers.loginByPhone(data);
       case 'get_customer_history':
         return Customers.getHistory(data);
+
+      // Loyalty
+      case 'get_loyalty_config':     return LoyaltyPoints.getConfig();
+      case 'update_loyalty_config':  return LoyaltyPoints.updateConfig(data);
+      case 'toggle_happy_hour':      return LoyaltyPoints.toggleHappyHour(data);
+      case 'get_customer_loyalty':   return LoyaltyPoints.getCustomerLoyalty(data);
+      case 'get_loyalty_ledger':     return LoyaltyPoints.getLedger(data);
 
       // Service Groups
       case 'get_service_groups':

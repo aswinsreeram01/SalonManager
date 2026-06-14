@@ -60,6 +60,14 @@ const Bills = {
 
     this._deductStock(billId, date.slice(0, 10), items, userId, orgId);
 
+    // Loyalty: earn points and process any redemption
+    const pointsToEarn  = Number(data.pointsToEarn)  || 0;
+    const redeemPoints  = Number(data.redeemPoints)   || 0;
+    const customerPhone = data.customerPhone || data.customerId || '';
+    if (customerPhone) {
+      LoyaltyPoints.processAfterBill(billId, customerPhone, data.customerName || '', pointsToEarn, redeemPoints, orgId);
+    }
+
     return Utils.createResponse('success', 'Bill saved successfully', { billId, grandTotal });
   },
 

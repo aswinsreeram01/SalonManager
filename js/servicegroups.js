@@ -44,6 +44,7 @@ const ServiceGroups = {
                         <td style="text-align:center;">${g.countForTarget ? '&#10003;' : '&mdash;'}</td>
                         <td>${g.directIncentivePct != null ? g.directIncentivePct + '%' : '-'}</td>
                         <td>${g.sortOrder != null ? g.sortOrder : '-'}</td>
+                        <td style="text-align:center;">${g.pointsEligible ? '<span style="color:#38a169;font-weight:700;">&#10003;</span>' : '<span style="color:#a0aec0;">&mdash;</span>'}</td>
                         <td><span class="status-badge status-${g.status}">${g.status}</span></td>
                         <td>
                             <div class="action-btns">
@@ -73,7 +74,8 @@ const ServiceGroups = {
             countForTarget: !!(document.getElementById('serviceGroupCountForTarget') || {}).checked,
             directIncentivePct: parseFloat((document.getElementById('serviceGroupDirectIncentivePct') || {}).value) || 0,
             sortOrder: parseInt((document.getElementById('serviceGroupSortOrder') || {}).value, 10) || 0,
-            status: document.getElementById('serviceGroupStatus').value
+            status: document.getElementById('serviceGroupStatus').value,
+            pointsEligible: !!(document.getElementById('serviceGroupPointsEligible') || {}).checked
         };
         if (this.editingId) data.id = this.editingId;
 
@@ -119,6 +121,8 @@ const ServiceGroups = {
                 const sortOrderEl = document.getElementById('serviceGroupSortOrder');
                 if (sortOrderEl) sortOrderEl.value = group.sortOrder != null ? group.sortOrder : 0;
                 document.getElementById('serviceGroupStatus').value = group.status;
+                const peEl = document.getElementById('serviceGroupPointsEligible');
+                if (peEl) peEl.checked = !!group.pointsEligible;
                 document.getElementById('saveServiceGroupBtn').textContent = 'Update Group';
                 document.getElementById('serviceGroupForm').style.display = 'block';
                 document.getElementById('serviceGroupFormToggleText').textContent = 'Hide Form';

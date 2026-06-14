@@ -14,6 +14,11 @@ const Billing = {
     _phoneDebounce: null,
     _invoiceCloseCallback: null,
     _apptPrefill: null,
+    // Loyalty state
+    loyaltyConfig: null,
+    customerLoyalty: null,
+    sgEligible: {},    // serviceGroupId → true/false
+    pgEligible: {},    // productGroupId → true/false
 
     init() {
         document.getElementById('billingPhone').addEventListener('input', e => {
@@ -38,25 +43,34 @@ const Billing = {
         });
         document.getElementById('newCustomerForm').addEventListener('submit', e => this.saveNewCustomer(e));
         document.getElementById('cancelNewCustomer').addEventListener('click', () => this.closeNewCustomerModal());
+        document.getElementById('billingRedeemPoints')?.addEventListener('input', () => this.recalcTotals());
     },
 
     async load() {
         UI.showLoading();
         try {
-            const [custRes, staffRes, svcRes, sgRes, prodRes, pbRes] = await Promise.all([
+            const [custRes, staffRes, svcRes, sgRes, prodRes, pbRes, pgRes, loyaltyRes] = await Promise.all([
                 API.getCustomers(), API.getStaff(), API.getServices(),
-                API.getServiceGroups(), API.getProducts(), API.getPriceBooks()
+                API.getServiceGroups(), API.getProducts(), API.getPriceBooks(),
+                API.getProductGroups(), API.getLoyaltyConfig()
             ]);
             this.customers = custRes.customers || [];
             this.staff = (staffRes.staff || []).filter(s => s.status === 'active');
             const sgMap = {};
-            (sgRes.serviceGroups || []).forEach(sg => { sgMap[sg.id] = sg; });
+            (sgRes.serviceGroups || []).forEach(sg => {
+                sgMap[sg.id] = sg;
+                this.sgEligible[sg.id] = !!sg.pointsEligible;
+            });
+            (pgRes.productGroups || []).forEach(pg => {
+                this.pgEligible[pg.id] = !!pg.pointsEligible;
+            });
             this.services = (svcRes.services || [])
                 .filter(s => s.status === 'active')
-                .map(s => ({ ...s, gstPct: Number((sgMap[s.serviceGroupId] || {}).gst) || 0 }));
+                .map(s => ({ ...s, gstPct: Number((sgMap[s.serviceGroupId] || {}).gstPct || (sgMap[s.serviceGroupId] || {}).gst) || 0 }));
             this.products     = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Retail');
             this.profProducts = (prodRes.products || []).filter(p => p.status === 'active' && p.category === 'Professional');
             this.priceBooks = (pbRes.priceBooks || []).filter(pb => pb.status === 'active');
+            this.loyaltyConfig = loyaltyRes?.loyalty || null;
             const pbSelect = document.getElementById('billingPriceBook');
             pbSelect.innerHTML = '<option value="">No Price Book (use defaults)</option>' +
                 this.priceBooks.map(pb => `<option value="${pb.id}">${pb.name}</option>`).join('');
@@ -111,6 +125,7 @@ const Billing = {
         this.selectedCustomerId = null;
         this.selectedCustomerName = '';
         this.selectedPriceBookId = null;
+        this.customerLoyalty = null;
         const phoneEl = document.getElementById('billingPhone');
         if (phoneEl) { phoneEl.value = ''; phoneEl.classList.remove('field-error'); }
         const nameEl = document.getElementById('billingCustomerName');
@@ -123,11 +138,23 @@ const Billing = {
         if (discEl) discEl.value = '';
         const tipEl = document.getElementById('billingTip');
         if (tipEl) tipEl.value = '';
+        const redeemEl = document.getElementById('billingRedeemPoints');
+        if (redeemEl) redeemEl.value = '';
         const cashRadio = document.querySelector('input[name="paymentMode"][value="Cash"]');
         if (cashRadio) cashRadio.checked = true;
         this.onPaymentModeChange('Cash');
+        this._hideLoyaltyBar();
         this.addRow();
         this.recalcTotals();
+    },
+
+    _hideLoyaltyBar() {
+        const bar = document.getElementById('billingLoyaltyBar');
+        if (bar) bar.style.display = 'none';
+        const redeemRow = document.getElementById('loyaltyRedeemRow');
+        if (redeemRow) redeemRow.style.display = 'none';
+        const earnRow = document.getElementById('loyaltyEarnRow');
+        if (earnRow) earnRow.style.display = 'none';
     },
 
     lookupCustomer(phone) {
@@ -136,20 +163,25 @@ const Billing = {
         if (!phone) {
             this.selectedCustomerId = null;
             this.selectedCustomerName = '';
+            this.customerLoyalty = null;
             if (nameEl)  nameEl.textContent = '';
             if (phoneEl) phoneEl.classList.remove('field-error');
+            this._hideLoyaltyBar();
             this.liveValidate();
             return;
         }
-        const customer = this.customers.find(c => String(c.phone).trim() === String(phone).trim());
+        const customer = this.customers.find(c => String(c.phone).replace(/\D/g,'') === String(phone).replace(/\D/g,''));
         if (customer) {
             this.selectedCustomerId   = String(customer.phone).trim();
             this.selectedCustomerName = customer.name;
             if (nameEl)  { nameEl.textContent = customer.name; nameEl.style.color = '#38a169'; }
             if (phoneEl) phoneEl.classList.remove('field-error');
+            this._loadCustomerLoyalty(String(customer.phone).replace(/\D/g,''));
         } else if (phone.length >= 10) {
             this.selectedCustomerId   = null;
             this.selectedCustomerName = '';
+            this.customerLoyalty = null;
+            this._hideLoyaltyBar();
             if (nameEl) {
                 nameEl.textContent = 'Customer not found — ';
                 nameEl.style.color = '#e53e3e';
@@ -161,10 +193,57 @@ const Billing = {
             if (phoneEl) phoneEl.classList.add('field-error');
         } else {
             this.selectedCustomerId = null;
+            this.customerLoyalty = null;
             if (nameEl)  nameEl.textContent = '';
             if (phoneEl) phoneEl.classList.remove('field-error');
+            this._hideLoyaltyBar();
         }
         this.liveValidate();
+    },
+
+    async _loadCustomerLoyalty(phone) {
+        if (!this.loyaltyConfig?.enabled) { this._hideLoyaltyBar(); return; }
+        try {
+            const res = await API.getCustomerLoyalty(phone);
+            this.customerLoyalty = res?.loyalty || null;
+        } catch(e) { this.customerLoyalty = null; }
+        this._renderLoyaltyBar();
+        this.recalcTotals();
+    },
+
+    _renderLoyaltyBar() {
+        const bar = document.getElementById('billingLoyaltyBar');
+        if (!bar || !this.customerLoyalty) { this._hideLoyaltyBar(); return; }
+        const loy = this.customerLoyalty;
+        const tierColors = ['#cd7f32','#a8a9ad','#ffd700','#b9f2ff'];
+        const tierIdx = loy.tierIndex >= 0 ? loy.tierIndex : 0;
+        const bg  = tierColors[Math.min(tierIdx, tierColors.length - 1)];
+
+        const badge = document.getElementById('billingTierBadge');
+        if (badge) { badge.textContent = loy.tier; badge.style.cssText = `background:${bg};color:white;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;`; }
+
+        const balEl = document.getElementById('billingPointsBalance');
+        if (balEl) balEl.textContent = loy.pointsBalance.toLocaleString('en-IN');
+
+        const nameEl = document.getElementById('billingPointsName');
+        if (nameEl) nameEl.textContent = loy.pointsName || 'points';
+
+        const hhBadge = document.getElementById('billingHHBadge');
+        if (hhBadge) {
+            hhBadge.style.display = loy.isHappyHour ? 'inline-flex' : 'none';
+            const multEl = document.getElementById('billingHHMult');
+            if (multEl) multEl.textContent = loy.hhMultiplier || 2;
+        }
+
+        bar.style.display = 'flex';
+
+        // Show redemption row if they have points
+        const redeemRow = document.getElementById('loyaltyRedeemRow');
+        const ptsNameEl = document.getElementById('loyaltyPointsName');
+        if (redeemRow) {
+            redeemRow.style.display = loy.pointsBalance > 0 ? 'flex' : 'none';
+            if (ptsNameEl) ptsNameEl.textContent = loy.pointsName || 'Points';
+        }
     },
 
     showNewCustomerModal(phone) {
@@ -430,14 +509,60 @@ const Billing = {
         const discAmtEl = document.getElementById('sumDiscountAmt');
         if (discAmtEl) discAmtEl.textContent = disc > 0 ? `−₹${disc.toFixed(2)}` : '₹0.00';
 
+        // Loyalty redemption
+        const loy        = this.loyaltyConfig;
+        const custLoy    = this.customerLoyalty;
+        let redeemDisc   = 0;
+        if (loy?.enabled && custLoy) {
+            const redeemPts  = Math.max(0, Math.floor(Number((document.getElementById('billingRedeemPoints') || {}).value) || 0));
+            const maxRedeem  = Math.min(redeemPts, custLoy.pointsBalance || 0);
+            const rate       = Number(loy.redemptionRate)  || 100;
+            const val        = Number(loy.redemptionValue) || 10;
+            redeemDisc       = Math.floor(maxRedeem / rate) * val;
+            const redeemAmtEl = document.getElementById('sumRedeemAmt');
+            if (redeemAmtEl) redeemAmtEl.textContent = redeemDisc > 0 ? `−₹${redeemDisc.toFixed(2)}` : '₹0.00';
+        }
+
         const tip   = Math.max(0, Number((document.getElementById('billingTip') || {}).value) || 0);
-        const grand = Math.max(0, baseAmt - disc + tip);
+        const grand = Math.max(0, baseAmt - disc - redeemDisc + tip);
 
         const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = '₹' + v.toFixed(2); };
         set('sumSvcSubtotal', svcSub); set('sumSvcGst', svcGst);
         set('sumPrdSubtotal', prdSub); set('sumPrdGst', prdGst);
         set('sumGrandTotal', grand);
+
+        // Points-to-earn preview
+        if (loy?.enabled && custLoy) {
+            const earnRow = document.getElementById('loyaltyEarnRow');
+            const pts = this._calcPointsToEarn(svcRows, prdRows, custLoy, loy);
+            const earnSpan = document.getElementById('sumPointsToEarn');
+            const nameSpan = document.getElementById('sumPointsName');
+            if (earnSpan) earnSpan.textContent = pts.toLocaleString('en-IN');
+            if (nameSpan) nameSpan.textContent = loy.pointsName || 'points';
+            if (earnRow) earnRow.style.display = pts > 0 ? 'block' : 'none';
+        }
+
         this.liveValidate();
+    },
+
+    _calcPointsToEarn(svcRows, prdRows, custLoy, loy) {
+        const baseRate  = Number(loy.baseEarnRate) || 10;
+        const tierMult  = Number(custLoy.tierMult) || 1;
+        const hhMult    = custLoy.isHappyHour ? (Number(loy.happyHourMultiplier) || 2) : 1;
+        let eligible    = 0;
+        svcRows.forEach(r => { if (r.itemId && this.sgEligible[this._getSvcGroupId(r.itemId)]) eligible += r.lineSubtotal; });
+        prdRows.forEach(r => { if (r.itemId && this.pgEligible[this._getProdGroupId(r.itemId)]) eligible += r.lineSubtotal; });
+        return Math.floor(eligible / 100) * baseRate * tierMult * hhMult;
+    },
+
+    _getSvcGroupId(serviceId) {
+        const svc = this.services.find(s => s.id === serviceId);
+        return svc ? svc.serviceGroupId : '';
+    },
+
+    _getProdGroupId(productId) {
+        const prod = this.products.find(p => p.id === productId);
+        return prod ? (prod.groupId || '') : '';
     },
 
     liveValidate() {
@@ -585,6 +710,7 @@ const Billing = {
                 ${prdSub > 0 ? sumRow('Retail Subtotal', '₹'+prdSub.toFixed(2)) : ''}
                 ${prdGst > 0 ? sumRow('Retail GST', '₹'+prdGst.toFixed(2)) : ''}
                 ${discount > 0 ? sumRow(discLabel, `<span style="color:#e53e3e;">−₹${discount.toFixed(2)}</span>`) : ''}
+                ${(() => { const loy = this.loyaltyConfig; const custLoy = this.customerLoyalty; if (!loy?.enabled || !custLoy) return ''; const rp = Math.min(Math.max(0,Math.floor(Number((document.getElementById('billingRedeemPoints')||{}).value)||0)),custLoy.pointsBalance||0); const rd = rp > 0 ? Math.floor(rp/(Number(loy.redemptionRate)||100))*(Number(loy.redemptionValue)||10) : 0; return rd > 0 ? sumRow(`Redeem (${rp.toLocaleString('en-IN')} ${loy.pointsName||'pts'})`, `<span style="color:#38a169;">−₹${rd.toFixed(2)}</span>`) : ''; })()}
                 ${tip > 0 ? sumRow('Tip', '₹'+tip.toFixed(2)) : ''}
                 <div class="conf-sum-row" style="font-size:18px;font-weight:700;color:#2d3748;border-top:1px solid #e2e8f0;padding-top:10px;margin-top:6px;">
                     <span>GRAND TOTAL</span><span style="color:#667eea;">₹${grand.toFixed(2)}</span>
@@ -606,17 +732,36 @@ const Billing = {
         const grand = this._getGrandTotal();
         const filledRows = this.rows.filter(r => r.itemId && r.qty > 0);
         const pbName = (this.priceBooks.find(pb => pb.id === this.selectedPriceBookId) || {}).name || '';
+
+        // Loyalty — redemption and points to earn
+        const loy         = this.loyaltyConfig;
+        const custLoy     = this.customerLoyalty;
+        const redeemPts   = loy?.enabled && custLoy
+            ? Math.min(Math.max(0, Math.floor(Number((document.getElementById('billingRedeemPoints')||{}).value)||0)), custLoy.pointsBalance||0)
+            : 0;
+        const redeemDisc  = redeemPts > 0
+            ? Math.floor(redeemPts / (Number(loy.redemptionRate)||100)) * (Number(loy.redemptionValue)||10)
+            : 0;
+        const svcFilled   = filledRows.filter(r => r.type === 'service');
+        const prdFilled   = filledRows.filter(r => r.type === 'product');
+        const pointsToEarn = loy?.enabled && custLoy
+            ? this._calcPointsToEarn(svcFilled, prdFilled, custLoy, loy)
+            : 0;
+
         const payload = {
             customerId: this.selectedCustomerId,
+            customerPhone: this.selectedCustomerId,
             customerName: this.selectedCustomerName,
             priceBookId: this.selectedPriceBookId || '',
             priceBookName: pbName,
-            discount, discountType, discountInput, tip,
+            discount: discount + redeemDisc, discountType, discountInput, tip,
             paymentMode: mode,
             cashAmt: mode === 'Cash' ? grand : (mode === 'Split' ? (Number((document.getElementById('splitCash')||{}).value)||0) : 0),
             cardAmt: mode === 'Card' ? grand : (mode === 'Split' ? (Number((document.getElementById('splitCard')||{}).value)||0) : 0),
             upiAmt:  mode === 'UPI'  ? grand : (mode === 'Split' ? (Number((document.getElementById('splitUpi') ||{}).value)||0) : 0),
-            items: filledRows
+            items: filledRows,
+            pointsToEarn,
+            redeemPoints: redeemPts
         };
         const btn = document.getElementById('saveBillBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…'; }

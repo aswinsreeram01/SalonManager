@@ -1,5 +1,5 @@
 // ProductGroups sheet columns (0-based):
-// id(0), name(1), gstPct(2), hsnCode(3), unitIncentive(4), sortOrder(5), status(6), orgId(7)
+// id(0), name(1), gstPct(2), hsnCode(3), unitIncentive(4), sortOrder(5), status(6), orgId(7), pointsEligible(8)
 
 const ProductGroups = {
   getAll(data) {
@@ -18,14 +18,15 @@ const ProductGroups = {
       const rowOrg = rows[i][7] || '';
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       productGroups.push({
-        id:            rows[i][0],
-        name:          rows[i][1],
-        gstPct:        Number(rows[i][2]) || 0,
-        hsnCode:       rows[i][3] || '',
-        unitIncentive: Number(rows[i][4]) || 0,
-        sortOrder:     Number(rows[i][5]) || 0,
-        status:        rows[i][6],
-        orgId:         rowOrg
+        id:             rows[i][0],
+        name:           rows[i][1],
+        gstPct:         Number(rows[i][2]) || 0,
+        hsnCode:        rows[i][3] || '',
+        unitIncentive:  Number(rows[i][4]) || 0,
+        sortOrder:      Number(rows[i][5]) || 0,
+        status:         rows[i][6],
+        orgId:          rowOrg,
+        pointsEligible: rows[i][8] === true || rows[i][8] === 'TRUE'
       });
     }
 
@@ -51,7 +52,8 @@ const ProductGroups = {
       Number(data.unitIncentive) || 0,
       Number(data.sortOrder)     || 0,
       data.status                || 'active',
-      data.orgId                 || ''
+      data.orgId                 || '',
+      data.pointsEligible        === true || data.pointsEligible === 'TRUE' ? true : false
     ]);
     Utils.clearCached('product_groups_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Product group added successfully', { id });
@@ -70,6 +72,7 @@ const ProductGroups = {
         sheet.getRange(i + 1, 5).setValue(Number(data.unitIncentive) || 0);
         sheet.getRange(i + 1, 6).setValue(Number(data.sortOrder)     || 0);
         sheet.getRange(i + 1, 7).setValue(data.status);
+        sheet.getRange(i + 1, 9).setValue(data.pointsEligible === true || data.pointsEligible === 'TRUE' ? true : false);
         Utils.clearCached('product_groups_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Product group updated successfully');
       }
