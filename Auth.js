@@ -23,6 +23,11 @@ const Auth = {
           // list, regardless of what was configured).
           const permissions = Permissions._getByRoleRaw(roleId, true);
           const sessionToken = Utils.createSession(userId, orgId, roleId);
+          // Resolved here (not via get_organizations) so the header can show
+          // the org name for every role, including ones without Organizations
+          // read access — this is just a display label for the user's own
+          // org, not the org directory itself.
+          const orgName = this._lookupOrgName(orgId);
 
           return Utils.createResponse('success', 'Login successful', {
             sessionToken: sessionToken,
@@ -32,6 +37,7 @@ const Auth = {
             phone: phone,
             whatsapp: whatsapp,
             orgId: orgId,
+            orgName: orgName,
             roleId: roleId,
             permissions: permissions
           });
@@ -156,5 +162,19 @@ const Auth = {
   logout(data) {
     Utils.invalidateSession(data.sessionToken);
     return Utils.createResponse('success', 'Logged out successfully');
+  },
+
+  // Plain-string lookup, not gated behind the 'organizations' permission —
+  // this only resolves the display name of the user's OWN org for the
+  // header, not the org directory.
+  _lookupOrgName(orgId) {
+    if (!orgId) return '';
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Organizations');
+    if (!sheet) return '';
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === orgId) return rows[i][1] || '';
+    }
+    return '';
   }
 };

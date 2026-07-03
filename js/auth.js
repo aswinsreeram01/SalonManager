@@ -47,6 +47,7 @@ const Auth = {
           phone: result.phone,
           whatsapp: result.whatsapp,
           orgId: result.orgId,
+          orgName: result.orgName || '',
           roleId: result.roleId,
           permissions: result.permissions || []
         };
@@ -95,7 +96,7 @@ const Auth = {
     document.getElementById('loginSection').style.display = 'none';
     document.getElementById('appSection').style.display = 'block';
     const userNameSpan = document.getElementById('userName');
-    if (userNameSpan) userNameSpan.textContent = this.currentUser.fullName;
+    if (userNameSpan) userNameSpan.textContent = 'Logged in as ' + (this.currentUser.fullName || this.currentUser.email);
     Navigation.applyPermissions(this.currentUser.permissions);
     Navigation.switchPage('home');
     Navigation.startPreload();

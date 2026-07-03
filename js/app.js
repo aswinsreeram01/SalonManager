@@ -246,7 +246,13 @@ const Navigation = {
         const titleEl   = document.getElementById('pageTitleHeader');
         const sheetsBtn = document.getElementById('sheetsBtn');
 
-        if (titleEl) titleEl.textContent = PAGE_TITLES[page] || 'Salon Manager';
+        // On Home, show the logged-in user's org name instead of the generic
+        // app name (falls back to it if the org name isn't available yet).
+        if (titleEl) {
+            titleEl.textContent = page === 'home'
+                ? ((Auth.currentUser && Auth.currentUser.orgName) || 'Salon Manager')
+                : (PAGE_TITLES[page] || 'Salon Manager');
+        }
 
         const isHome = page === 'home';
 
