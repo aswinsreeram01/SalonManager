@@ -414,7 +414,10 @@ const Billing = {
         const prod = this.profProducts.find(p => p.id === productId);
         row.profProductId   = productId;
         row.profProductName = prod ? prod.name : '';
-        row.profUom         = prod ? (prod.uom || '') : '';
+        // Prefer the product's usage unit (e.g. "g" for a bottle inventoried
+        // in "each") so staff enter how much was used, not how many bottles.
+        // Falls back to the inventory UOM when usageUom isn't configured.
+        row.profUom         = prod ? (prod.usageUom || prod.uom || '') : '';
         if (!productId) row.profQty = '';
         const subRow = document.querySelector(`tr[data-row-prof="${rowId}"]`);
         if (!subRow) return;
@@ -426,11 +429,60 @@ const Billing = {
             if (!productId) qtyInput.value = '';
         }
         if (uomCell) uomCell.textContent = row.profUom || '—';
+        this._checkStockWarnings();
     },
 
     onProfQtyChange(rowId, val) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (row) row.profQty = val;
+        this._checkStockWarnings();
+    },
+
+    // Non-blocking advisory: warns if this bill would take a product's stock
+    // to/below its reorder point (or negative), using the stock snapshot
+    // loaded when billing opened — may be slightly stale if another till
+    // sold the same product seconds ago, which is fine for an advisory.
+    // Mirrors Bills._deductStock's fractional math for professional-product
+    // usage so the warning matches what will actually happen on save.
+    _checkStockWarnings() {
+        const warnEl = document.getElementById('billingStockWarning');
+        if (!warnEl) return;
+
+        const deltaByProduct = {}; // productId -> inventory units this bill will deduct
+        this.rows.forEach(row => {
+            if (row.type === 'product' && row.itemId && row.qty > 0) {
+                deltaByProduct[row.itemId] = (deltaByProduct[row.itemId] || 0) + row.qty;
+            }
+            if (row.profProductId && row.profQty !== '' && row.profQty !== undefined) {
+                const usageQty = Number(row.profQty);
+                if (usageQty > 0) {
+                    const prod = this.profProducts.find(p => p.id === row.profProductId);
+                    const contentQty = prod ? Number(prod.contentQty) || 0 : 0;
+                    const fraction = contentQty > 0 ? usageQty / contentQty : usageQty;
+                    deltaByProduct[row.profProductId] = (deltaByProduct[row.profProductId] || 0) + fraction;
+                }
+            }
+        });
+
+        const warnings = [];
+        Object.keys(deltaByProduct).forEach(productId => {
+            const prod = this.products.find(p => p.id === productId) || this.profProducts.find(p => p.id === productId);
+            if (!prod) return;
+            const projected = (Number(prod.currentStock) || 0) - deltaByProduct[productId];
+            const base = Number(prod.baseStock) || 0;
+            if (projected < 0) {
+                warnings.push(`${prod.name}: would go negative (${projected.toFixed(2)} left)`);
+            } else if (base > 0 && projected <= base) {
+                warnings.push(`${prod.name}: would drop to ${projected.toFixed(2)} (reorder at ${base})`);
+            }
+        });
+
+        if (warnings.length) {
+            warnEl.innerHTML = '⚠️ Low stock after this bill — ' + warnings.join(' · ');
+            warnEl.style.display = 'block';
+        } else {
+            warnEl.style.display = 'none';
+        }
     },
 
     recalcRow(row) {
@@ -520,6 +572,7 @@ const Billing = {
     },
 
     recalcTotals() {
+        this._checkStockWarnings();
         const svcRows = this.rows.filter(r => r.type === 'service');
         const prdRows = this.rows.filter(r => r.type === 'product');
         const svcSub  = svcRows.reduce((s, r) => s + r.lineSubtotal, 0);

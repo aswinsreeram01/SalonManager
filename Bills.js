@@ -12,6 +12,23 @@
 
 const Bills = {
   save(data) {
+    // Serialize bill saves: multiple concurrent bills touching the same
+    // product's stock or the same customer's loyalty balance would
+    // otherwise read-modify-write on stale data and lose an update.
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (e) {
+      return Utils.createResponse('error', 'System is busy processing another bill. Please try again.');
+    }
+    try {
+      return this._saveLocked(data);
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  _saveLocked(data) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const billsSheet = ss.getSheetByName('Bills');
     const itemsSheet = ss.getSheetByName('BillItems');
@@ -108,7 +125,7 @@ const Bills = {
       ]);
     });
 
-    this._deductStock(billId, date.slice(0, 10), items, userId, orgId);
+    this._deductStock(billId, Utils.businessDate(), items, userId, orgId);
 
     if (customerPhone) {
       LoyaltyPoints.processAfterBill(
@@ -158,9 +175,17 @@ const Bills = {
         deduct(item.itemId, item.itemName || '', Number(item.qty) || 1, unitCost);
       }
       if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
-        const profQty = Number(item.profQty);
-        if (profQty > 0) {
-          deduct(item.profProductId, item.profProductName || '', profQty, 0);
+        // profQty is a USAGE quantity in the product's usageUom (e.g. 100 g
+        // used from a 1000 g bottle), not inventory units. contentQty tells
+        // us how much of the inventory unit that represents; blank/0 means
+        // "whole unit per use" (legacy behavior — profQty deducted as-is).
+        const usageQty = Number(item.profQty);
+        if (usageQty > 0) {
+          const i = prodIdx[item.profProductId];
+          const unitCost   = i !== undefined ? (Number(prodData[i][4])  || 0) : 0;
+          const contentQty = i !== undefined ? (Number(prodData[i][16]) || 0) : 0;
+          const fraction = contentQty > 0 ? usageQty / contentQty : usageQty;
+          deduct(item.profProductId, item.profProductName || '', fraction, unitCost);
         }
       }
     });
@@ -187,7 +212,7 @@ const Bills = {
       if (!productId || qty <= 0) return;
       const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
       movSheet.appendRow([
-        movId, now.slice(0, 10), productId, productName, 'billing',
+        movId, Utils.businessDate(), productId, productName, 'billing',
         billId, qty, 0, 'Restored — bill ' + billId + ' voided', now, '', '',
         userId || '', orgId || ''
       ]);
@@ -204,8 +229,15 @@ const Bills = {
         restore(item.itemId, item.itemName || '', Number(item.qty) || 0);
       }
       if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
-        const profQty = Number(item.profQty);
-        if (profQty > 0) restore(item.profProductId, item.profProductName || '', profQty);
+        // Must mirror _deductStock's fraction math exactly, or a void would
+        // restore the wrong amount of stock for partially-used products.
+        const usageQty = Number(item.profQty);
+        if (usageQty > 0) {
+          const i = prodIdx[item.profProductId];
+          const contentQty = i !== undefined ? (Number(prodData[i][16]) || 0) : 0;
+          const fraction = contentQty > 0 ? usageQty / contentQty : usageQty;
+          restore(item.profProductId, item.profProductName || '', fraction);
+        }
       }
     });
 
@@ -213,6 +245,23 @@ const Bills = {
   },
 
   voidBill(data) {
+    // Same rationale as save(): voiding restores stock and reverses loyalty,
+    // both read-modify-write, and must not interleave with a concurrent
+    // save() or another void() touching the same product/customer.
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (e) {
+      return Utils.createResponse('error', 'System is busy. Please try again.');
+    }
+    try {
+      return this._voidBillLocked(data);
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  _voidBillLocked(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
     if (!sheet) return Utils.createResponse('error', 'Bills sheet not found');
 
@@ -268,7 +317,11 @@ const Bills = {
     const bills = [];
     for (let i = 1; i < billData.length; i++) {
       if (!billData[i][0]) continue;
-      const rawDate = String(billData[i][4]).slice(0, 10);
+      // Re-derive the calendar day from the stored UTC instant via the
+      // configured timezone — do NOT slice the raw ISO string's first 10
+      // chars, which is the UTC date and can be a day off from the local
+      // (Kolkata) date near midnight.
+      const rawDate = Utils.businessDate(new Date(billData[i][4]));
       const billDate = new Date(rawDate + 'T00:00:00');
       if (billDate < fromDate) continue;
       if (toDate && billDate > toDate) continue;

@@ -8,12 +8,41 @@ const Settings = {
         document.getElementById('setupSummaryBtn')?.addEventListener('click', () => this.refreshSummarySheet());
         document.getElementById('loyaltyHHAddRow')?.addEventListener('click', () => this._addHHRow());
         document.getElementById('loyaltySaveBtn')?.addEventListener('click', () => this.saveLoyalty());
+        document.getElementById('loyaltyHHToggleBtn')?.addEventListener('click', () => this._toggleHappyHourNow());
+        document.getElementById('genSettingsSaveBtn')?.addEventListener('click', () => this.saveGeneralSettings());
     },
 
     _loyaltyCfg: null,
 
     async load() {
-        await Promise.all([this.loadSetupStatus(), this.loadLoyalty()]);
+        await Promise.all([this.loadSetupStatus(), this.loadLoyalty(), this.loadGeneralSettings()]);
+    },
+
+    // ── General Settings ────────────────────────────────────────────────────────
+
+    async loadGeneralSettings() {
+        try {
+            const res = await API.getOrgSettings();
+            if (res.status !== 'success') return;
+            const s = res.settings || {};
+            const el = document.getElementById('genOTThreshold');
+            if (el) el.value = s.otThresholdHours ?? 9;
+        } catch (e) { /* silently ignore on settings load */ }
+    },
+
+    async saveGeneralSettings() {
+        const btn = document.getElementById('genSettingsSaveBtn');
+        const val = parseFloat(document.getElementById('genOTThreshold')?.value);
+        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+        try {
+            const res = await API.updateOrgSettings({ otThresholdHours: (val > 0 ? val : 9) });
+            if (res.status !== 'success') throw new Error(res.message);
+            UI.showMessage('settingsMessage', 'General settings saved.', 'success');
+        } catch (err) {
+            UI.showMessage('settingsMessage', 'Failed to save: ' + err.message, 'error');
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = 'Save General Settings'; }
+        }
     },
 
     // ── Sheet Setup ──────────────────────────────────────────────────────────────
@@ -248,8 +277,8 @@ const Settings = {
         set('loyaltyRedemptionRate', cfg.redemptionRate ?? 100);
         set('loyaltyRedemptionValue', cfg.redemptionValue ?? 1);
         set('loyaltyMinRedemption', cfg.minRedemption ?? 100);
-        chk('loyaltyHappyHourActive', cfg.happyHourActive);
         set('loyaltyHHMultiplier', cfg.happyHourMultiplier ?? 2);
+        this._renderHHStatus(cfg);
 
         const tiers = cfg.tiers || [
             { name: 'Bronze',   threshold: 0,    multiplier: 1.0,  color: '#cd7f32' },
@@ -275,10 +304,57 @@ const Settings = {
             `).join('');
         }
 
+        // Backend stores { days: ['mon',...], startTime, endTime, effectiveFrom }
+        // (LoyaltyPoints._isHappyHour reads exactly this shape/key name). The
+        // UI shows one row per day, so a multi-day rule becomes N rows here.
         const schedDiv = document.getElementById('loyaltyHHSchedule');
         if (schedDiv) {
             schedDiv.innerHTML = '';
-            (cfg.happyHourSchedule || []).forEach(s => this._addHHRow(s));
+            (cfg.happyHourSchedules || []).forEach(s => {
+                const days = (s.days && s.days.length) ? s.days : [''];
+                days.forEach(dayCode => {
+                    const label = dayCode ? dayCode.charAt(0).toUpperCase() + dayCode.slice(1) : '';
+                    this._addHHRow({ day: label, from: s.startTime, to: s.endTime, effectiveFrom: s.effectiveFrom });
+                });
+            });
+        }
+    },
+
+    _renderHHStatus(cfg) {
+        const statusEl = document.getElementById('loyaltyHHStatus');
+        const btn      = document.getElementById('loyaltyHHToggleBtn');
+        const durEl    = document.getElementById('loyaltyHHDuration');
+        // getLoyaltyConfig() already returns the expiry-corrected live state
+        // (see LoyaltyPoints.getConfig), so this boolean can be trusted as-is.
+        const live = !!cfg.happyHourActive;
+        if (statusEl) {
+            if (live && cfg.happyHourUntil) {
+                const until = new Date(cfg.happyHourUntil);
+                statusEl.textContent = '🎉 Active until ' + until.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                statusEl.style.color = '#38a169';
+            } else {
+                statusEl.textContent = 'Not active';
+                statusEl.style.color = '#718096';
+            }
+        }
+        if (btn) btn.textContent = live ? 'Stop Happy Hour' : 'Start Happy Hour';
+        if (durEl) durEl.style.display = live ? 'none' : '';
+    },
+
+    async _toggleHappyHourNow() {
+        const btn = document.getElementById('loyaltyHHToggleBtn');
+        const isLive = !!(this._loyaltyCfg || {}).happyHourActive;
+        const duration = document.getElementById('loyaltyHHDuration')?.value || '2h';
+        if (btn) btn.disabled = true;
+        try {
+            const res = await API.toggleHappyHour(!isLive, duration);
+            if (res.status !== 'success') throw new Error(res.message);
+            await this.loadLoyalty(); // refetch so the button/status reflect the authoritative server state
+            UI.showMessage('settingsMessage', !isLive ? 'Happy Hour started.' : 'Happy Hour stopped.', 'success');
+        } catch (err) {
+            UI.showMessage('settingsMessage', 'Failed to toggle Happy Hour: ' + err.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
         }
     },
 
@@ -316,13 +392,22 @@ const Settings = {
         });
         if (tiers.length > 0) tiers[0].threshold = 0;
 
+        // Must match LoyaltyPoints._isHappyHour's expected shape exactly:
+        // { days: [...], startTime, endTime, effectiveFrom, effectiveUntil }.
+        // One row = one day; a rule spanning multiple days is just several
+        // rows with the same time window.
         const schedule = [];
         document.querySelectorAll('#loyaltyHHSchedule .loy-hh-row').forEach(row => {
+            const dayLabel = row.querySelector('.loy-hh-day')?.value  || '';
+            const from     = row.querySelector('.loy-hh-from')?.value || '';
+            const to       = row.querySelector('.loy-hh-to')?.value   || '';
+            const eff      = row.querySelector('.loy-hh-eff')?.value  || '';
+            if (!dayLabel || !from || !to) return; // skip incomplete rows
             schedule.push({
-                day:           row.querySelector('.loy-hh-day')?.value  || '',
-                from:          row.querySelector('.loy-hh-from')?.value || '',
-                to:            row.querySelector('.loy-hh-to')?.value   || '',
-                effectiveFrom: row.querySelector('.loy-hh-eff')?.value  || ''
+                days: [dayLabel.toLowerCase()],
+                startTime: from,
+                endTime: to,
+                effectiveFrom: eff || ''
             });
         });
 
@@ -334,10 +419,15 @@ const Settings = {
             redemptionRate:      parseFloat(get('loyaltyRedemptionRate')?.value)  || 100,
             redemptionValue:     parseFloat(get('loyaltyRedemptionValue')?.value) || 1,
             minRedemption:       parseInt(get('loyaltyMinRedemption')?.value, 10) || 100,
-            happyHourActive:     !!(get('loyaltyHappyHourActive')?.checked),
+            // The manual on/off toggle is owned by the dedicated Start/Stop
+            // Happy Hour button (toggleHappyHour action), not this bulk save
+            // — carry over whatever it last set so saving tiers/rates here
+            // doesn't silently cancel an in-progress happy hour.
+            happyHourActive:     !!(this._loyaltyCfg || {}).happyHourActive,
+            happyHourUntil:      (this._loyaltyCfg || {}).happyHourUntil || '',
             happyHourMultiplier: parseFloat(get('loyaltyHHMultiplier')?.value) || 2,
             tiers,
-            happyHourSchedule:   schedule
+            happyHourSchedules:  schedule
         };
 
         const btn = get('loyaltySaveBtn');

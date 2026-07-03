@@ -1,3 +1,10 @@
+// Local calendar date "yyyy-MM-dd" (NOT toISOString, which is UTC and can
+// be a day off from local near midnight — matches _hraToday in hrapprovals.js).
+function _expToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 const Expenses = {
   _expenses: [],
   _editingId: null,
@@ -129,7 +136,7 @@ const Expenses = {
     document.getElementById('expFormTitle').textContent = expenseId ? 'Edit Expense' : 'Add Expense';
     document.getElementById('expSaveBtn').textContent = expenseId ? 'Update Expense' : 'Save Expense';
     document.getElementById('expenseForm').reset();
-    document.getElementById('expDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('expDate').value = _expToday();
 
     if (expenseId) {
       const e = this._expenses.find(x => x.expenseId === expenseId);

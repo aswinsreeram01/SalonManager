@@ -38,7 +38,11 @@ const Products = {
         vendorName: rows[i][10], vendorContact: rows[i][11], status: rows[i][12],
         vendorId: rows[i][13] || '',
         groupId:  rows[i][14] || '',
-        orgId:    rowOrg
+        orgId:    rowOrg,
+        // Professional-product fractional usage — blank contentQty means
+        // "whole unit per use" (legacy behavior), see Bills._deductStock.
+        contentQty: Number(rows[i][16]) || 0,
+        usageUom:   rows[i][17] || ''
       });
     }
 
@@ -57,7 +61,8 @@ const Products = {
       Number(data.currentStock) || 0, Number(data.baseStock) || 0,
       data.manufacturer || '', data.vendorName || '', data.vendorContact || '',
       data.status || 'active', data.vendorId || '', data.groupId || '',
-      data.orgId || ''
+      data.orgId || '',
+      Number(data.contentQty) || 0, data.usageUom || ''
     ]);
     Utils.clearCached('products_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Product added successfully', { id });
@@ -70,6 +75,14 @@ const Products = {
     const sheetData = sheet.getDataRange().getValues();
     for (let i = 1; i < sheetData.length; i++) {
       if (sheetData[i][0] === data.id) {
+        const oldOrgId = sheetData[i][15] || '';
+        // targetOrgId is the explicit "move to this org" value from an org
+        // picker. data.orgId is NOT usable here — Main.js's session
+        // middleware overwrites it with the CALLER's own org on every
+        // request, so using it would silently reassign every cross-org edit
+        // to the editor's own org instead of leaving it alone.
+        const newOrgId = data.targetOrgId !== undefined ? (data.targetOrgId || '') : oldOrgId;
+
         sheet.getRange(i + 1, 2).setValue(data.name);
         sheet.getRange(i + 1, 3).setValue(data.category);
         sheet.getRange(i + 1, 4).setValue(data.uom);
@@ -84,7 +97,12 @@ const Products = {
         sheet.getRange(i + 1, 13).setValue(data.status);
         sheet.getRange(i + 1, 14).setValue(data.vendorId || '');
         sheet.getRange(i + 1, 15).setValue(data.groupId  || '');
-        Utils.clearCached('products_' + (data.orgId || ''));
+        sheet.getRange(i + 1, 16).setValue(newOrgId);
+        sheet.getRange(i + 1, 17).setValue(Number(data.contentQty) || 0);
+        sheet.getRange(i + 1, 18).setValue(data.usageUom || '');
+
+        Utils.clearCached('products_' + oldOrgId);
+        if (newOrgId !== oldOrgId) Utils.clearCached('products_' + newOrgId);
         return Utils.createResponse('success', 'Product updated successfully');
       }
     }
@@ -124,6 +142,23 @@ const Products = {
 
   // Receive stock: creates StockMovements rows, updates currentStock, updates POItems if poId given
   receiveStock(data) {
+    // Serialize against other stock-mutating calls (bill save/void, audits,
+    // other receipts) so two concurrent writes to the same product's
+    // currentStock can't read-modify-write on stale data.
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (e) {
+      return Utils.createResponse('error', 'System is busy. Please try again.');
+    }
+    try {
+      return this._receiveStockLocked(data);
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  _receiveStockLocked(data) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const movSheet = ss.getSheetByName('StockMovements');
     const prodSheet = ss.getSheetByName('Products');
@@ -198,6 +233,22 @@ const Products = {
 
   // Save stock audit: writes AuditItems, creates StockMovements for variances, updates currentStock
   saveAudit(data) {
+    // Same rationale as receiveStock() — audits overwrite currentStock
+    // directly and must not interleave with a concurrent stock mutation.
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (e) {
+      return Utils.createResponse('error', 'System is busy. Please try again.');
+    }
+    try {
+      return this._saveAuditLocked(data);
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  _saveAuditLocked(data) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const auditSheet = ss.getSheetByName('StockAudits');
     const itemsSheet = ss.getSheetByName('AuditItems');

@@ -378,7 +378,7 @@ const API = {
     // Loyalty
     getLoyaltyConfig() { return this.call('get_loyalty_config'); },
     updateLoyaltyConfig(loyalty) { return this.call('update_loyalty_config', { loyalty }); },
-    toggleHappyHour(active) { return this.call('toggle_happy_hour', { active }); },
+    toggleHappyHour(active, duration) { return this.call('toggle_happy_hour', { active, duration }); },
     getCustomerLoyalty(phone) { return this.call('get_customer_loyalty', { phone }); },
     getLoyaltyLedger(phone) { return this.call('get_loyalty_ledger', { phone }); }
 };

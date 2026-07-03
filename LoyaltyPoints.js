@@ -25,6 +25,7 @@ const LoyaltyPoints = {
       ],
       happyHourMultiplier: 2.0,
       happyHourActive: false,
+      happyHourUntil: '', // ISO timestamp — when the manual toggle auto-expires
       happyHourSchedules: [],
       redemptionRate: 100,
       redemptionValue: 10,
@@ -49,8 +50,11 @@ const LoyaltyPoints = {
   },
 
   getConfig() {
+    const cfg = this._loadConfig();
+    // Report the LIVE manual-toggle state (not the raw stored flag) so the
+    // Settings screen doesn't show "Active" after it has auto-expired.
     return Utils.createResponse('success', 'Loyalty config retrieved', {
-      loyalty: this._loadConfig()
+      loyalty: Object.assign({}, cfg, { happyHourActive: this._isManualHappyHourLive(cfg) })
     });
   },
 
@@ -74,14 +78,39 @@ const LoyaltyPoints = {
 
   toggleHappyHour(data) {
     const cfg = this._loadConfig();
-    cfg.happyHourActive = !!data.active;
+    const active = !!data.active;
+    cfg.happyHourActive = active;
+    // Turning it on requires a duration so it can't be left running forever
+    // by mistake; turning it off clears the expiry.
+    cfg.happyHourUntil = active ? this._computeHappyHourUntil(data.duration).toISOString() : '';
     return this.updateConfig({ loyalty: cfg });
   },
 
   // ── Happy Hour ────────────────────────────────────────────────────────────────
 
+  // duration: '1h' | '2h' | '4h' | 'eod' (end of day). Unrecognized/missing
+  // values default to 2h rather than leaving happy hour open-ended.
+  _computeHappyHourUntil(duration) {
+    const now = new Date();
+    const hours = { '1h': 1, '2h': 2, '4h': 4 }[duration];
+    if (hours) return new Date(now.getTime() + hours * 60 * 60 * 1000);
+    if (duration === 'eod') {
+      const tz = Session.getScriptTimeZone();
+      const ymd = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+      return new Date(ymd + 'T23:59:59');
+    }
+    return new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  },
+
+  // Whether the manual toggle is both switched on AND not yet expired.
+  _isManualHappyHourLive(cfg) {
+    if (!cfg.happyHourActive) return false;
+    if (cfg.happyHourUntil && new Date() > new Date(cfg.happyHourUntil)) return false;
+    return true;
+  },
+
   _isHappyHour(cfg) {
-    if (cfg.happyHourActive) return true;
+    if (this._isManualHappyHourLive(cfg)) return true;
     const schedules = cfg.happyHourSchedules || [];
     const now = new Date();
     const dayMap = ['sun','mon','tue','wed','thu','fri','sat'];

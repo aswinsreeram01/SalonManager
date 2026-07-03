@@ -111,8 +111,8 @@ const Attendance = {
         allocationId:  rows[i][0],
         staffId:       rows[i][1],
         shiftId:       rows[i][2],
-        effectiveFrom: rows[i][3] instanceof Date ? rows[i][3].toISOString().slice(0, 10) : String(rows[i][3]).slice(0, 10),
-        effectiveTo:   rows[i][4] instanceof Date ? rows[i][4].toISOString().slice(0, 10) : String(rows[i][4]).slice(0, 10)
+        effectiveFrom: rows[i][3] instanceof Date ? Utils.businessDate(rows[i][3]) : String(rows[i][3]).slice(0, 10),
+        effectiveTo:   rows[i][4] instanceof Date ? Utils.businessDate(rows[i][4]) : String(rows[i][4]).slice(0, 10)
       });
     }
 
@@ -167,7 +167,7 @@ const Attendance = {
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
 
       const d = rows[i][2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       if (fromDate && dateStr < fromDate) continue;
       if (toDate   && dateStr > toDate)   continue;
 
@@ -195,14 +195,7 @@ const Attendance = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
 
-    // Helper: parse "HH:MM" → total minutes from midnight
-    function toMinutes(timeStr) {
-      const t = String(timeStr || '');
-      const parts = t.split(':');
-      if (parts.length < 2) return 0;
-      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-    }
-
+    const otThreshold = OrgSettings.getOTThreshold(); // one read for the whole batch
     const records = Array.isArray(data.records) ? data.records : [data];
     const existingRows = sheet.getDataRange().getValues();
 
@@ -211,7 +204,7 @@ const Attendance = {
     for (let i = 1; i < existingRows.length; i++) {
       if (!existingRows[i][0]) continue;
       const d = existingRows[i][2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       existingMap[existingRows[i][1] + '|' + dateStr] = i + 1; // 1-based
     }
 
@@ -219,14 +212,9 @@ const Attendance = {
     const now = new Date().toISOString();
 
     records.forEach(rec => {
-      // OT = max(0, hoursWorked − 9). No break deduction.
-      let hoursWorked = 0;
-      if (rec.clockIn && rec.clockOut) {
-        hoursWorked = Math.max(0, (toMinutes(rec.clockOut) - toMinutes(rec.clockIn)) / 60);
-      }
-      const otHours = Math.max(0, hoursWorked - 9);
+      const { hoursWorked, otHours } = Utils.computeHoursAndOT(rec.clockIn, rec.clockOut, otThreshold);
 
-      const recDate = rec.date instanceof Date ? rec.date.toISOString().slice(0, 10) : String(rec.date).slice(0, 10);
+      const recDate = rec.date instanceof Date ? Utils.businessDate(rec.date) : String(rec.date).slice(0, 10);
       const key = rec.staffId + '|' + recDate;
 
       if (existingMap[key]) {
@@ -278,7 +266,7 @@ const Attendance = {
       if (!rows[i][0]) continue;
       if (rows[i][1] !== data.staffId) continue;
       const d = rows[i][2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       advances.push({
         advanceId:       rows[i][0],
         staffId:         rows[i][1],
@@ -360,7 +348,7 @@ const Attendance = {
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
-      const ws = rows[i][2] instanceof Date ? rows[i][2].toISOString().slice(0, 10) : String(rows[i][2]).slice(0, 10);
+      const ws = rows[i][2] instanceof Date ? Utils.businessDate(rows[i][2]) : String(rows[i][2]).slice(0, 10);
       if (rows[i][1] === data.staffId && ws === data.weekStart) {
         sheet.getRange(i + 1, 4).setValue(data.weekEnd          || '');
         sheet.getRange(i + 1, 5).setValue(data.revenueBase      || '');
@@ -406,10 +394,10 @@ const Attendance = {
       if (!rows[i][0]) continue;
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
 
-      const ws = rows[i][2] instanceof Date ? rows[i][2].toISOString().slice(0, 10) : String(rows[i][2]).slice(0, 10);
+      const ws = rows[i][2] instanceof Date ? Utils.businessDate(rows[i][2]) : String(rows[i][2]).slice(0, 10);
       if (fromDate && ws < fromDate) continue;
 
-      const we = rows[i][3] instanceof Date ? rows[i][3].toISOString().slice(0, 10) : String(rows[i][3]).slice(0, 10);
+      const we = rows[i][3] instanceof Date ? Utils.businessDate(rows[i][3]) : String(rows[i][3]).slice(0, 10);
 
       weeklyIncentives.push({
         snapshotId:        rows[i][0],

@@ -21,7 +21,7 @@ const WeeklySchedule = {
       const rowOrg = String(rows[i][5] || '');
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       const ws = rows[i][2] instanceof Date
-        ? rows[i][2].toISOString().slice(0, 10)
+        ? Utils.businessDate(rows[i][2])
         : String(rows[i][2] || '').slice(0, 10);
       if (weekStart && ws !== weekStart) continue;
       schedules.push({
@@ -56,7 +56,7 @@ const WeeklySchedule = {
       const rowOrg = String(rows[i][5] || '');
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       const ws = rows[i][2] instanceof Date
-        ? rows[i][2].toISOString().slice(0, 10)
+        ? Utils.businessDate(rows[i][2])
         : String(rows[i][2] || '').slice(0, 10);
       if (ws === weekStart) existMap[String(rows[i][1])] = i + 1;
     }

@@ -28,6 +28,48 @@ const Utils = {
     return digits ? '+' + digits : ''; // unexpected length — best effort, still stable/idempotent
   },
 
+  // ── Overtime calculation (shared by Attendance and HRApprovals) ──────────
+  // Was previously duplicated with a hardcoded 9h threshold in both places;
+  // now a single implementation, threshold configurable via OrgSettings.
+  // No break-time deduction — Shifts.breakMins is intentionally not used.
+  _timeStrToMinutes(timeStr) {
+    const t = String(timeStr || '');
+    const parts = t.split(':');
+    if (parts.length < 2) return 0;
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  },
+
+  // thresholdHours: fetch once per request via OrgSettings.getOTThreshold()
+  // and pass it in — avoids re-reading the OrgSettings sheet per attendance
+  // row in a bulk save.
+  computeHoursAndOT(clockIn, clockOut, thresholdHours) {
+    if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
+    const workedMins  = this._timeStrToMinutes(clockOut) - this._timeStrToMinutes(clockIn);
+    const hoursWorked = Math.max(0, workedMins / 60);
+    const threshold   = Number(thresholdHours) || 9;
+    const otHours     = Math.max(0, hoursWorked - threshold);
+    return { hoursWorked: Math.round(hoursWorked * 100) / 100, otHours: Math.round(otHours * 100) / 100 };
+  },
+
+  // ── Timezone ───────────────────────────────────────────────────────────
+  // Single source of truth for "what calendar day is it" across the app.
+  // Defaults to the script project's timezone (Asia/Kolkata, see
+  // appsscript.json); can be overridden without a redeploy via an
+  // OrgSettings row with key 'timezone' (any IANA name, e.g. 'Asia/Kolkata').
+  getTimezone() {
+    const override = OrgSettings._getRaw().timezone;
+    return override || Session.getScriptTimeZone();
+  },
+
+  // Returns the 'yyyy-MM-dd' calendar date for `date` (defaults to now) in
+  // the configured timezone — NOT UTC. Replaces the old
+  // date.toISOString().slice(0,10) pattern, which silently assigns a bill,
+  // attendance record, etc. to the wrong calendar day near midnight in any
+  // timezone ahead of UTC (which India always is).
+  businessDate(date) {
+    return Utilities.formatDate(date || new Date(), this.getTimezone(), 'yyyy-MM-dd');
+  },
+
   hashPassword(password) {
     const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password);
     return digest.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');

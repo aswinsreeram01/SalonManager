@@ -27,6 +27,7 @@ const HRApprovals = {
     const date  = String(data.date || today);
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const otThreshold = OrgSettings.getOTThreshold();
     const shiftMap = this._buildShiftMap(ss, orgId);
     const staffMap = this._buildStaffMap(ss, orgId);
     const allocMap = this._buildAllocMap(ss, orgId, date);
@@ -44,7 +45,7 @@ const HRApprovals = {
         if (orgId && rowOrg && rowOrg !== orgId) continue;
 
         const d = r[2];
-        const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
         if (dateStr !== date) continue;
 
         const staffId = String(r[1]);
@@ -57,7 +58,7 @@ const HRApprovals = {
           const shiftInfo = shiftMap[shiftId] || null;
           const clockIn   = this._formatTime(r[4]);
           const clockOut  = this._formatTime(r[5]);
-          const otCalc    = this._calcHours(clockIn, clockOut);
+          const otCalc    = Utils.computeHoursAndOT(clockIn, clockOut, otThreshold);
           pending.push({
             attendanceId: String(r[0]),
             staffId,
@@ -108,7 +109,7 @@ const HRApprovals = {
     const sheet = ss.getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
 
-    const shiftMap = this._buildShiftMap(ss, orgId);
+    const otThreshold = OrgSettings.getOTThreshold();
 
     // Support both single record and bulk
     const records = Array.isArray(data.records) ? data.records : [data];
@@ -118,8 +119,7 @@ const HRApprovals = {
     let   approved = 0;
 
     records.forEach(rec => {
-      const shiftInfo = shiftMap[String(rec.shiftId || '')] || null;
-      const otCalc    = this._calcHours(String(rec.clockIn || ''), String(rec.clockOut || ''), shiftInfo);
+      const otCalc    = Utils.computeHoursAndOT(String(rec.clockIn || ''), String(rec.clockOut || ''), otThreshold);
       const clockIn   = String(rec.clockIn  || '');
       const clockOut  = String(rec.clockOut || '');
       const dayStatus = String(rec.dayStatus || (clockIn ? 'present' : 'absent'));
@@ -149,7 +149,7 @@ const HRApprovals = {
         for (let i = 1; i < rows.length; i++) {
           if (String(rows[i][1]) !== String(rec.staffId)) continue;
           const d = rows[i][2];
-          const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+          const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
           if (dateStr !== date) continue;
           sheet.getRange(i + 1, 4).setValue(rec.shiftId || '');
           sheet.getRange(i + 1, 5).setValue(clockIn);
@@ -219,7 +219,7 @@ const HRApprovals = {
       if (status !== 'pending' && status !== 'approved') continue;
 
       const d = r[2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       const staffId = String(r[1]);
       const rec = {
         advanceId:      String(r[0]),
@@ -382,28 +382,12 @@ const HRApprovals = {
       const rowOrg = String(rows[i][5] || '');
       if (orgId && rowOrg && rowOrg !== orgId) continue;
       const ws = rows[i][2] instanceof Date
-        ? rows[i][2].toISOString().slice(0, 10)
+        ? Utils.businessDate(rows[i][2])
         : String(rows[i][2] || '').slice(0, 10);
       if (ws !== weekStart) continue;
       map[String(rows[i][1])] = String(rows[i][3] || '');  // staffId → shiftId
     }
     return map;
-  },
-
-  // Returns { hoursWorked, otHours }. OT = max(0, hoursWorked − 9). No break deduction.
-  _calcHours(clockIn, clockOut) {
-    if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
-    const workedMins  = this._toMinutes(clockOut) - this._toMinutes(clockIn);
-    const hoursWorked = Math.max(0, workedMins / 60);
-    const otHours     = Math.max(0, hoursWorked - 9);
-    return { hoursWorked: Math.round(hoursWorked * 100) / 100, otHours: Math.round(otHours * 100) / 100 };
-  },
-
-  _toMinutes(timeStr) {
-    const t = String(timeStr || '');
-    const parts = t.split(':');
-    if (parts.length < 2) return 0;
-    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
   },
 
   // Safely convert a GAS cell value to HH:mm string.

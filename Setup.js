@@ -26,7 +26,7 @@ const SHEET_SCHEMA = {
   // ── Product catalogue ───────────────────────────────────────────────────────
   Products:            ['id','name','category','uom','unitCost','retailPrice','gst',
                         'currentStock','baseStock','manufacturer','vendorName','vendorContact',
-                        'status','vendorId','groupId','orgId'],
+                        'status','vendorId','groupId','orgId','contentQty','usageUom'],
   ProductGroups:       ['id','name','gstPct','hsnCode','unitIncentive','sortOrder','status','orgId','pointsEligible'],
   PointsLedger:        ['ledgerId','customerPhone','customerName','billId','earnedDate','expiryDate',
                         'type','points','balanceAfter','note','orgId'],

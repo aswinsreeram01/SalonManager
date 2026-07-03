@@ -5,7 +5,7 @@
 A multi-tenant salon management SPA. Backend is Google Apps Script (GAS) running as a web app; frontend is a static GitHub Pages site.
 
 - **Frontend**: `https://aswinsreeram01.github.io/SalonManager/`
-- **Backend deploy ID**: `AKfycbzHHdrH1v0ls4MZptDSDWKKuKbGSCZVj-wLKPbbdo9JASyhZCutcWmtaPRdU6ik2dIKUw` (version @48)
+- **Backend deploy ID**: `AKfycbw1kF0tC3U82zDCBKbNyJWVsGobOvNbkOnxBCrvAtd9zphloMssOQg9l_2e_ZwdOK_WYg` (version @49)
 - **GAS project**: `10BKxCLeGeCfNpkvFqtLGkY0d4tSMQMAaBmSTSOMc_KMEih8OsK5exlVo`
 - **Deploy**: `npx clasp push && npx clasp deploy --description "..."` from repo root
 
@@ -250,3 +250,8 @@ git push   # GitHub Actions deploys to Pages automatically
 - **Sessions are stateless (since @48)**: `Utils.createSession`/`createStaffSession` return HMAC-signed tokens (24h, no server-side storage, no revoke). The signing secret lazy-inits into Script Properties (`SESSION_SECRET`) on first use — nothing to configure manually.
 - **Permissions schema changed (since @48)**: `Permissions` sheet is now `id, roleId, menuItem, canRead, canUpdate` (was `canAccess`). Existing roles' old `canAccess` column carries over as `canRead`; `canUpdate` starts blank/false for everyone. Run Settings → Sheet Setup → Add Columns to append the new column, then revisit Roles & Permissions to grant Update access where needed. Server-side enforcement is fail-closed: an action with no matching row for a role is denied.
 - **Customer phone identity**: `Utils.normalizePhone()` is the canonical form (E.164, `+91` default) used for Customers, Bills.customerId, and the loyalty ledger. Bill history now matches by phone, not customer name.
+- **Products schema changed (since @49)**: two new columns appended — `contentQty`, `usageUom` (for professional products only partially used per service, e.g. 100 g out of a 1000 g bottle). Blank `contentQty` = legacy whole-unit behavior, no migration needed. Run Settings → Sheet Setup → Add Columns on existing installs.
+- **Org reassignment**: `Products.update`/`Staff.update` accept an explicit `targetOrgId` field (org picker in each form) to move a record between outlets. Never reuse `data.orgId` for this — `Main.js`'s session middleware overwrites it with the *caller's own* org on every request, so using it would silently reassign every cross-org edit to the editor's org.
+- **Timezone (since @49)**: `appsscript.json` timeZone is `Asia/Kolkata`. All calendar-day logic (bill dates, attendance, payroll periods) goes through `Utils.businessDate(date)` — never slice `.toISOString()` directly, which is UTC and drifts a day near midnight in IST. Optional per-install override via an `OrgSettings` row with key `timezone`.
+- **OT threshold is configurable**: `OrgSettings.otThresholdHours` (default 9, editable in Settings → General Settings). `Utils.computeHoursAndOT(clockIn, clockOut, threshold)` is the single implementation — don't reimplement inline.
+- **Locking**: `Bills.save`, `Bills.voidBill`, `Products.receiveStock`, `Products.saveAudit` acquire `LockService.getScriptLock()` and delegate to a `_xxxLocked` internal method. Add new stock/loyalty-mutating actions the same way.

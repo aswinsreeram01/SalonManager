@@ -51,6 +51,14 @@ const Staff = {
     const dataRange = sheet.getDataRange().getValues();
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
+        const oldOrgId = dataRange[i][17] || '';
+        // targetOrgId is the explicit "move to this org" value from an org
+        // picker. data.orgId is NOT usable here — Main.js's session
+        // middleware overwrites it with the CALLER's own org on every
+        // request, so using it would silently reassign every cross-org edit
+        // to the editor's own org instead of leaving it alone.
+        const newOrgId = data.targetOrgId !== undefined ? (data.targetOrgId || '') : oldOrgId;
+
         sheet.getRange(i + 1, 2).setValue(data.userId || '');
         sheet.getRange(i + 1, 3).setValue(data.name);
         sheet.getRange(i + 1, 4).setValue(data.phone);
@@ -67,7 +75,10 @@ const Staff = {
         sheet.getRange(i + 1, 15).setValue(data.staffType    || 'service_provider');
         sheet.getRange(i + 1, 16).setValue(data.profileId    || '');
         sheet.getRange(i + 1, 17).setValue(data.targetPeriod || 'monthly');
-        Utils.clearCached('staff_' + (data.orgId || ''));
+        sheet.getRange(i + 1, 18).setValue(newOrgId);
+
+        Utils.clearCached('staff_' + oldOrgId);
+        if (newOrgId !== oldOrgId) Utils.clearCached('staff_' + newOrgId);
         return Utils.createResponse('success', 'Staff member updated successfully');
       }
     }

@@ -8,18 +8,19 @@ const OrgSettings = {
     currencySymbol:       '₹',
     defaultTargetPeriod:  'weekly',
     salaryPayDay:         10,
-    defaultEligibleOffs:  4
+    defaultEligibleOffs:  4,
+    otThresholdHours:     9 // hours worked per day before overtime kicks in
   },
 
-  get() {
+  // Plain-object settings read, shared by get() (public) and other backend
+  // modules that need a config value without going through a wrapped
+  // ContentService response (e.g. Utils.computeHoursAndOT).
+  _getRaw() {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('OrgSettings');
-    if (!sheet) return Utils.createResponse('success', 'Org settings retrieved', { settings: Object.assign({}, this._defaults) });
+    if (!sheet) return Object.assign({}, this._defaults);
 
     const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-      // Sheet exists but has only a header (or is empty) — return defaults
-      return Utils.createResponse('success', 'Org settings retrieved', { settings: Object.assign({}, this._defaults) });
-    }
+    if (data.length <= 1) return Object.assign({}, this._defaults); // header-only or empty
 
     const settings = Object.assign({}, this._defaults);
     for (let i = 1; i < data.length; i++) {
@@ -27,13 +28,20 @@ const OrgSettings = {
       const key   = String(data[i][0]);
       let   value = data[i][1];
       // Coerce numeric defaults to numbers
-      if (key === 'salaryPayDay' || key === 'defaultEligibleOffs') {
+      if (key === 'salaryPayDay' || key === 'defaultEligibleOffs' || key === 'otThresholdHours') {
         value = Number(value) || this._defaults[key];
       }
       settings[key] = value;
     }
+    return settings;
+  },
 
-    return Utils.createResponse('success', 'Org settings retrieved', { settings });
+  get() {
+    return Utils.createResponse('success', 'Org settings retrieved', { settings: this._getRaw() });
+  },
+
+  getOTThreshold() {
+    return Number(this._getRaw().otThresholdHours) || 9;
   },
 
   update(data) {

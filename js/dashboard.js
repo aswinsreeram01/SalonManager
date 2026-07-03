@@ -16,7 +16,7 @@ const Dashboard = {
             if (billsRes.status === 'success') {
                 const today = new Date().toDateString();
                 const todayBills = (billsRes.bills || []).filter(b => {
-                    if (b.status === 'voided') return false;
+                    if (b.status === 'void') return false;
                     return new Date(b.date).toDateString() === today;
                 });
                 const revenue = todayBills.reduce((s, b) => s + (Number(b.grandTotal) || 0), 0);

@@ -1,3 +1,10 @@
+// Local calendar date "yyyy-MM-dd" (NOT toISOString, which is UTC and can
+// be a day off from local near midnight — matches _hraToday in hrapprovals.js).
+function _prodToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 const Products = {
   // State
   _products:   [],
@@ -21,6 +28,7 @@ const Products = {
     document.getElementById('prodForm').addEventListener('submit', e => this._handleProdSubmit(e));
     document.getElementById('prodSearch').addEventListener('input', () => this._renderProducts());
     document.getElementById('prodCatFilter').addEventListener('change', () => this._renderProducts());
+    document.getElementById('prodCategory').addEventListener('change', () => this._toggleProfessionalFields());
 
     // Purchase Orders tab
     document.getElementById('poCreateBtn').addEventListener('click', () => this._openPOForm());
@@ -51,7 +59,7 @@ const Products = {
     );
 
     // Set default dates
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _prodToday();
     document.getElementById('rcvDate').value   = today;
     document.getElementById('auditDate').value = today;
   },
@@ -71,6 +79,16 @@ const Products = {
       if (venRes.status  === 'success') this._vendors   = venRes.vendors    || [];
       if (poRes.status   === 'success') this._pos       = poRes.pos         || [];
       if (regRes.status  === 'success') this._movements = regRes.movements  || [];
+
+      // Org picker is optional — a role with Products access but no
+      // Organizations access simply won't see it (form still works fine).
+      try {
+        const orgRes = await API.getOrganizations();
+        this._orgs = orgRes.status === 'success' ? (orgRes.organizations || []) : [];
+      } catch (e) {
+        this._orgs = [];
+      }
+      this._populateOrgDropdown();
 
       this._populateVendorDropdowns();
       this._populateProductDropdowns();
@@ -97,6 +115,17 @@ const Products = {
   },
 
   // ─── PRODUCTS TAB ────────────────────────────────────────────────────────────
+
+  _populateOrgDropdown() {
+    const group = document.getElementById('prodOrgGroup');
+    const sel   = document.getElementById('prodOrgId');
+    if (!sel || !group) return;
+    // Only worth showing when there's more than one org to move a product between.
+    if (this._orgs.length < 2) { group.style.display = 'none'; return; }
+    sel.innerHTML = '<option value="">Keep current</option>' +
+      this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+    group.style.display = '';
+  },
 
   _populateVendorDropdowns() {
     const opts = '<option value="">No Vendor</option>' +
@@ -166,6 +195,14 @@ const Products = {
     }).join('');
   },
 
+  _toggleProfessionalFields() {
+    const isProf = document.getElementById('prodCategory').value === 'Professional';
+    ['prodContentQtyGroup', 'prodUsageUomGroup', 'prodUsageHint'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = isProf ? '' : 'none';
+    });
+  },
+
   _stockCell(curr, base) {
     curr = Number(curr) || 0;
     base = Number(base) || 0;
@@ -197,8 +234,12 @@ const Products = {
         document.getElementById('prodManufacturer').value = p.manufacturer || '';
         document.getElementById('prodVendorId').value     = p.vendorId || '';
         document.getElementById('prodStatus').value       = p.status;
+        document.getElementById('prodContentQty').value   = p.contentQty || '';
+        document.getElementById('prodUsageUom').value     = p.usageUom || '';
       }
     }
+
+    this._toggleProfessionalFields();
 
     const card = document.getElementById('prodFormCard');
     card.style.display = 'block';
@@ -228,8 +269,16 @@ const Products = {
       vendorId:     vendorId,
       vendorName:   vendor ? vendor.name : '',
       vendorContact: vendor ? vendor.phone : '',
-      status:       document.getElementById('prodStatus').value
+      status:       document.getElementById('prodStatus').value,
+      contentQty:   parseFloat(document.getElementById('prodContentQty').value) || 0,
+      usageUom:     document.getElementById('prodUsageUom').value
     };
+    // Only send targetOrgId when the admin explicitly picked a different
+    // org — an empty/untouched picker must never reach the backend as ''
+    // (that would look like "unassign from every org" and make the product
+    // visible/editable across all outlets). See Products.update in Products.js.
+    const orgPick = document.getElementById('prodOrgId')?.value;
+    if (orgPick) data.targetOrgId = orgPick;
     if (this._editingId) data.id = this._editingId;
 
     const btn = document.getElementById('prodSaveBtn');
@@ -322,7 +371,7 @@ const Products = {
   _openPOForm() {
     document.getElementById('poFormCard').style.display = 'block';
     document.getElementById('poForm').reset();
-    document.getElementById('poDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('poDate').value = _prodToday();
     document.getElementById('poItemsBody').innerHTML = '';
     this._addPOItem();
     document.getElementById('poFormCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -644,7 +693,7 @@ const Products = {
         if (regRes.status === 'success') this._movements = regRes.movements || [];
 
         document.getElementById('rcvForm').reset();
-        document.getElementById('rcvDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('rcvDate').value = _prodToday();
         document.getElementById('rcvItemsBody').innerHTML = '';
         this._renderProducts();
         this._renderRegister();
@@ -842,7 +891,7 @@ const Products = {
         document.getElementById('auditTableBody').innerHTML = '';
         document.getElementById('auditFormSection').style.display = 'none';
         document.getElementById('auditForm').reset();
-        document.getElementById('auditDate').value = new Date().toISOString().slice(0, 10);
+        document.getElementById('auditDate').value = _prodToday();
         this._renderProducts();
         this._renderRegister();
         UI.showMessage('prodMessage', 'Audit saved and stock updated.', 'success');

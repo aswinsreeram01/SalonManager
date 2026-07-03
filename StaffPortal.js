@@ -230,7 +230,7 @@ const StaffPortal = {
       const r = rows[i];
       if (String(r[1]) !== staffId) continue;
       const d = r[2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       if (dateStr !== today) continue;
 
       const currentStatus = String(r[12] || 'approved');
@@ -291,7 +291,7 @@ const StaffPortal = {
       const r = rows[i];
       if (String(r[1]) !== staffId) continue;
       const d = r[2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       if (dateStr < fromDate) continue;
 
       const rec = {
@@ -384,7 +384,7 @@ const StaffPortal = {
       if (!rows[i][0]) continue;
       if (String(rows[i][1]) !== staffId) continue;
       const d = rows[i][2];
-      const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+      const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       const status  = String(rows[i][9] || 'disbursed');
       const amount  = Number(rows[i][4]) || 0;
 
@@ -446,7 +446,7 @@ const StaffPortal = {
       const r      = rows[i];
       const rowOrg = String(r[19] || '');
       if (orgId && rowOrg && rowOrg !== orgId) continue;
-      if (String(r[16] || '') === 'voided') continue;
+      if (String(r[16] || '') === 'void') continue;
 
       let createdAt;
       try { createdAt = new Date(r[4]); } catch (e) { continue; }

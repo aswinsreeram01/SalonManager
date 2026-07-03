@@ -126,6 +126,18 @@
                                     <label for="prodUnitCost">Unit Cost (₹)*</label>
                                     <input type="number" id="prodUnitCost" min="0" step="0.01" required>
                                 </div>
+                                <div class="form-group" id="prodContentQtyGroup" style="display:none;">
+                                    <label for="prodContentQty">Content per Unit</label>
+                                    <input type="number" id="prodContentQty" min="0" step="0.01" placeholder="e.g. 1000">
+                                </div>
+                                <div class="form-group" id="prodUsageUomGroup" style="display:none;">
+                                    <label for="prodUsageUom">Usage Unit</label>
+                                    <select id="prodUsageUom">
+                                        <option value="">Same as UOM</option>
+                                        <option value="ml">ml</option>
+                                        <option value="g">g</option>
+                                    </select>
+                                </div>
                                 <div class="form-group">
                                     <label for="prodRetailPrice">Retail Price (₹)</label>
                                     <input type="number" id="prodRetailPrice" min="0" step="0.01">
@@ -159,7 +171,20 @@
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
+                                <div class="form-group" id="prodOrgGroup" style="display:none;">
+                                    <label for="prodOrgId">Organization</label>
+                                    <select id="prodOrgId">
+                                        <option value="">Keep current</option>
+                                    </select>
+                                </div>
                             </div>
+                            <p class="muted" id="prodUsageHint" style="display:none;margin:8px 0 0;font-size:12px;">
+                                For professional products only partially used per service — e.g. a 1000 ml bottle
+                                used in 100 ml increments. Leave blank if the whole unit is always used at once.
+                                "Content per Unit" = how much this product's UOM holds (e.g. 1000 for a 1 L bottle);
+                                billing will ask staff to enter usage in the Usage Unit, and cost/stock are deducted
+                                proportionally.
+                            </p>
                             <div class="btn-group" style="margin-top:20px;">
                                 <button type="submit" class="btn btn-primary" id="prodSaveBtn">Save Product</button>
                                 <button type="button" class="btn btn-secondary" id="prodCancelBtn">Cancel</button>

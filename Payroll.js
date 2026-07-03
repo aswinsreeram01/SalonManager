@@ -76,7 +76,7 @@ const Payroll = {
         if (!attRows[i][0]) continue;
         if (attRows[i][1] !== data.staffId) continue;
         const d = attRows[i][2];
-        const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
         if (dateStr < fromStr || dateStr > toStr) continue;
 
         const dayStatus = String(attRows[i][8] || '').toLowerCase();
@@ -119,7 +119,7 @@ const Payroll = {
         for (let i = 1; i < wkiRows.length; i++) {
           if (!wkiRows[i][0]) continue;
           if (wkiRows[i][1] !== data.staffId) continue;
-          const ws = wkiRows[i][2] instanceof Date ? wkiRows[i][2].toISOString().slice(0, 10) : String(wkiRows[i][2]).slice(0, 10);
+          const ws = wkiRows[i][2] instanceof Date ? Utils.businessDate(wkiRows[i][2]) : String(wkiRows[i][2]).slice(0, 10);
           if (ws < fromStr || ws > toStr) continue;
           targetIncentive  += Number(wkiRows[i][5]) || 0;
           directIncentive  += Number(wkiRows[i][6]) || 0;
@@ -181,9 +181,13 @@ const Payroll = {
       const billRows = billsSheet.getDataRange().getValues();
       for (let i = 1; i < billRows.length; i++) {
         if (!billRows[i][0]) continue;
-        if (String(billRows[i][/* status */5] || '').toLowerCase() === 'void') continue;
-        const d = billRows[i][1]; // date col — adjust if schema differs
-        const dateStr = d instanceof Date ? d.toISOString().slice(0, 10) : String(d).slice(0, 10);
+        // Bills columns: billId(0), customerId(1), customerName(2), priceBookId(3),
+        // createdAt(4), ..., status(16). Two indices were wrong here (5 and 1)
+        // and always missed — voided bills were never excluded, and the date
+        // filter was comparing against customerId, not createdAt.
+        if (String(billRows[i][16] || '').toLowerCase() === 'void') continue;
+        const d = billRows[i][4];
+        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
         if (dateStr >= fromStr && dateStr <= toStr) periodBillIds.add(billRows[i][0]);
       }
     }

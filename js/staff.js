@@ -91,13 +91,36 @@ const Staff = {
       await Promise.all([
         this._loadStaff(),
         this._loadProfiles(),
-        this._loadShifts()
+        this._loadShifts(),
+        this._loadOrgs()
       ]);
     } catch(e) {
       UI.showMessage('staffMessage', 'Failed to load HR data', 'error');
     } finally {
       UI.hideLoading();
     }
+  },
+
+  // Org picker is optional — a role with Staff access but no Organizations
+  // access simply won't see it (form still works fine).
+  async _loadOrgs() {
+    try {
+      const res = await API.getOrganizations();
+      this._orgs = res.status === 'success' ? (res.organizations || []) : [];
+    } catch (e) {
+      this._orgs = [];
+    }
+    this._populateOrgDropdown();
+  },
+
+  _populateOrgDropdown() {
+    const group = document.getElementById('hrStaffOrgGroup');
+    const sel   = document.getElementById('hrStaffOrgId');
+    if (!sel || !group) return;
+    if ((this._orgs || []).length < 2) { group.style.display = 'none'; return; }
+    sel.innerHTML = '<option value="">Keep current</option>' +
+      this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+    group.style.display = '';
   },
 
   async _loadStaff() {
@@ -256,6 +279,10 @@ const Staff = {
       incentiveStructure: ''
     };
     if (this._editingId) data.id = this._editingId;
+    // Only send targetOrgId when explicitly picked — see Staff.update in
+    // Staff.js for why an untouched/empty picker must never be sent as ''.
+    const orgPick = document.getElementById('hrStaffOrgId')?.value;
+    if (orgPick) data.targetOrgId = orgPick;
 
     btn.disabled = true;
     const origText = btn.textContent;
