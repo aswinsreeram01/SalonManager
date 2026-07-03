@@ -1,0 +1,218 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Functional Design — Salon Manager</title>
+<link rel="stylesheet" href="doc-style.css">
+
+<div class="doc-header">
+  <div class="wrap">
+    <a class="backlink" href="../index.html">← Back to Salon Manager</a>
+    <div class="eyebrow">Functional Design Document</div>
+    <h1>Salon Manager — Functional Design</h1>
+    <p>What the system does, for whom, and by what rules. Feature-by-feature functional specification, business rules, states, and end-to-end workflows.</p>
+    <div class="meta">Covers two Naturals salons and one FirstCry store operating under a single company, sharing one billing system and the "Gems" loyalty programme.</div>
+  </div>
+</div>
+
+<div class="shell">
+<nav class="toc">
+  <h4>Contents</h4>
+  <a href="#purpose">1. Purpose &amp; Scope</a>
+  <a href="#personas">2. Users &amp; Roles</a>
+  <a href="#modules">3. Functional Modules</a>
+  <a href="#billing">4. Billing &amp; Invoicing</a>
+  <a href="#loyalty">5. Loyalty (Gems)</a>
+  <a href="#catalog">6. Catalogues &amp; Pricing</a>
+  <a href="#inventory">7. Inventory &amp; Purchasing</a>
+  <a href="#appts">8. Appointments</a>
+  <a href="#expenses">9. Expenses</a>
+  <a href="#hr">10. Staff &amp; HR</a>
+  <a href="#payroll">11. Payroll</a>
+  <a href="#access">12. Org &amp; Access Control</a>
+  <a href="#portals">13. Self-Service Portals</a>
+  <a href="#rules">14. Business Rules Digest</a>
+  <a href="#states">15. State Machines</a>
+</nav>
+
+<main class="content">
+
+<h2 id="purpose">1. Purpose &amp; Scope</h2>
+<p class="lead">Salon Manager runs the day-to-day operations of multiple outlets from one system: taking payments, tracking inventory, rewarding customers, scheduling and paying staff, and controlling who can see what.</p>
+<p><strong>In scope:</strong> point-of-sale billing with GST, service &amp; retail catalogues, price books, inventory with purchase orders and stock audits, vendors, a four-tier loyalty programme, appointments, expenses, staff records, shifts &amp; weekly rosters, attendance with manager approval, salary advances, incentive profiles, payroll, and role-based access across an organisation tree.</p>
+<p><strong>Out of scope (today):</strong> automated reorder suggestions, tax filing/e-invoicing, SMS/WhatsApp notifications, online customer bookings, and payment-gateway integration. Payments are recorded, not processed.</p>
+
+<h2 id="personas">2. Users &amp; Roles</h2>
+<div class="table-wrap"><table>
+<tr><th>Persona</th><th>Where they work</th><th>What they do</th></tr>
+<tr><td><strong>Owner / Admin</strong></td><td>Main SPA</td><td>Full access: configures the company, outlets, users, roles, catalogues, loyalty, and views everything across the org tree.</td></tr>
+<tr><td><strong>Outlet Manager</strong></td><td>Main SPA</td><td>Runs one outlet: billing, inventory, appointments, expenses, approves attendance &amp; advances, runs payroll. Scoped to their org branch.</td></tr>
+<tr><td><strong>Front-desk / Cashier</strong></td><td>Main SPA (billing)</td><td>Creates bills, looks up customers, applies discounts and Gem redemptions, prints invoices.</td></tr>
+<tr><td><strong>Staff (stylist / sales)</strong></td><td>Staff portal</td><td>Confirms the bill items credited to them, logs attendance, requests advances, changes PIN.</td></tr>
+<tr><td><strong>Customer</strong></td><td>Customer portal</td><td>Views their Gems balance, tier, progress, and visit history — phone-only, no password.</td></tr>
+</table></div>
+<p>Access is governed by <strong>roles</strong>. Each role has a set of menu-item permissions (<code>canAccess</code> true/false). When a user logs in, disallowed features are hidden from their home screen and menu.</p>
+
+<h2 id="modules">3. Functional Modules (at a glance)</h2>
+<div class="table-wrap"><table>
+<tr><th>Module</th><th>Purpose</th></tr>
+<tr><td>Dashboard</td><td>Today's revenue, bill count, and active-staff count; quick links to New Bill and Book Appointment.</td></tr>
+<tr><td>Billing</td><td>Create itemised invoices for a customer visit, with GST, discounts, tips, split payments, Gem earn/redeem.</td></tr>
+<tr><td>History</td><td>Browse past bills; void a bill.</td></tr>
+<tr><td>Services / Service Groups / Price Books</td><td>Define what services are offered, their tax/incentive settings, and outlet-specific pricing.</td></tr>
+<tr><td>Products / Product Groups</td><td>Retail &amp; professional products, stock levels, tax and incentive settings.</td></tr>
+<tr><td>Purchase Orders / Receive Stock / Stock Register / Stock Audit</td><td>Order from vendors, receive stock, track every movement, reconcile physical counts.</td></tr>
+<tr><td>Vendors</td><td>Supplier directory.</td></tr>
+<tr><td>Loyalty (Gems)</td><td>Four-tier rewards programme with earning, redemption, expiry and happy hour.</td></tr>
+<tr><td>Appointments</td><td>Book and track customer appointments by day.</td></tr>
+<tr><td>Expenses</td><td>Record outlet expenses by category and payment mode.</td></tr>
+<tr><td>Staff / Shifts / Weekly Schedule / Attendance / Advances / Incentive Profiles / Payroll</td><td>The full HR suite.</td></tr>
+<tr><td>HR Approvals</td><td>Manager review of staff-submitted attendance and advance requests.</td></tr>
+<tr><td>Organisations / Users / Roles / Permissions</td><td>Company structure and access control.</td></tr>
+<tr><td>Settings</td><td>Loyalty configuration, sheet setup/verification, and documentation links.</td></tr>
+</table></div>
+
+<h2 id="billing">4. Billing &amp; Invoicing</h2>
+<h3>4.1 What it does</h3>
+<p>A cashier builds a bill for a customer visit: looks the customer up by phone, adds line items (services and/or products), assigns the staff member to each line, applies a discount and/or tip, optionally redeems the customer's Gems, chooses a payment mode, and saves — which generates a printable invoice and updates stock and loyalty.</p>
+<h3>4.2 Functional rules</h3>
+<ul>
+<li><strong>Customer lookup by phone.</strong> If found, the name, tier badge and Gem balance appear. If not found, the cashier can register the customer inline.</li>
+<li><strong>Line items.</strong> Each line is a service or a product, with quantity, unit price, GST%, and an assigned staff member. Services may also record a <em>professional product</em> consumed (deducted from stock at zero sale value).</li>
+<li><strong>Pricing.</strong> A selected price book overrides default service prices; otherwise the service's default price is used.</li>
+<li><strong>Discount</strong> can be a flat amount or a percentage. <strong>Tip</strong> is added on top.</li>
+<li><strong>Gem redemption.</strong> The cashier enters Gems to redeem; the system converts them to a rupee discount (see §5) and caps redemption at the available balance.</li>
+<li><strong>Grand total</strong> = services subtotal + services GST + retail subtotal + retail GST − (discount + redemption) + tip.</li>
+<li><strong>Payment modes:</strong> Cash, Card, UPI, or Split (amounts across all three). Split must balance to the grand total.</li>
+<li><strong>On save:</strong> the invoice is generated, stock is deducted for products, and Gems are redeemed/earned and the tier recalculated.</li>
+</ul>
+<div class="callout note"><span class="tag">Validation</span> The Save button is blocked until there is a customer, at least one complete line with a staff member and quantity &gt; 0, and (for Split) a balanced payment. Validation is enforced in the browser.</div>
+
+<h2 id="loyalty">5. Loyalty Programme — "Gems"</h2>
+<h3>5.1 Concept</h3>
+<p>Customers earn <strong>Gems</strong> on eligible spend and climb through four tiers. The programme is shared across all outlets — Gems earned at a Naturals salon can be redeemed at FirstCry and vice-versa. It blends two ideas: a <em>status</em> that reflects loyalty over the last 12 months, and a separate <em>spendable balance</em>.</p>
+<h3>5.2 Two balances</h3>
+<div class="kv">
+<dt>Spendable balance</dt><dd>Gems available to redeem for money off. Goes up when you earn, down when you redeem.</dd>
+<dt>Status points</dt><dd>Your tier score — the total Gems <em>earned</em> in the rolling last 12 months. <strong>Redeeming never reduces your status.</strong> This is what keeps a loyal customer in a high tier even if they spend their Gems.</dd>
+</div>
+<h3>5.3 Earning</h3>
+<p>Gems earned = <strong>floor(eligible spend ÷ 100) × base rate × tier multiplier × happy-hour multiplier</strong>. Only spend in service/product groups flagged as <em>points-eligible</em> counts. Higher tiers earn faster (multiplier); happy hour multiplies further.</p>
+<h3>5.4 Tiers</h3>
+<ul>
+<li>Four configurable tiers, each with a name, a status-point threshold, an earn multiplier, and a badge colour.</li>
+<li>You qualify for the highest tier whose threshold your status points reach.</li>
+<li><strong>Downgrade protection:</strong> if your status falls, you drop <strong>at most one tier per recalculation</strong> — never straight to the bottom.</li>
+</ul>
+<h3>5.5 Redemption</h3>
+<ul>
+<li>Configurable conversion: every <em>N</em> Gems (redemption rate) = ₹<em>V</em> off (redemption value). A minimum-redemption threshold can be configured.</li>
+<li>Redemption is applied as a discount on the bill and deducted from the spendable balance. It never touches status points.</li>
+</ul>
+<h3>5.6 Expiry &amp; Happy Hour</h3>
+<ul>
+<li><strong>Expiry:</strong> each Gem earned expires after a configurable number of months (default 12) from its earn date. Expired Gems no longer count toward status.</li>
+<li><strong>Happy Hour:</strong> a bonus-multiplier window. It can be switched on manually at any time, and/or run on a recurring weekly schedule (chosen days, time window, optional effective-from/until dates).</li>
+</ul>
+
+<h2 id="catalog">6. Catalogues &amp; Pricing</h2>
+<h3>6.1 Services &amp; Service Groups</h3>
+<p>Services belong to a group. The <strong>group</strong> carries the tax and commercial settings: GST%, SAC code, whether it counts toward staff revenue targets, a direct-incentive percentage, loyalty eligibility, and display order. A service itself carries only its default price and duration.</p>
+<h3>6.2 Products &amp; Product Groups</h3>
+<p>Products are <em>Retail</em> (sold to customers) or <em>Professional</em> (consumed during services). The <strong>group</strong> carries GST%, HSN code, a per-unit staff incentive, and loyalty eligibility. Each product tracks cost, retail price, current stock, and a base/reorder level.</p>
+<h3>6.3 Price Books</h3>
+<p>A price book is a named set of service prices, letting different outlets or customer segments use different pricing. For any service, the price book uses its override if set, otherwise the service's default price.</p>
+
+<h2 id="inventory">7. Inventory &amp; Purchasing</h2>
+<ul>
+<li><strong>Purchase Orders</strong> capture what was ordered from a vendor. A PO starts as <em>draft</em>, becomes <em>partial</em> as goods arrive, and <em>received</em> once every line is fully received.</li>
+<li><strong>Receive Stock</strong> records goods coming in — against a PO or as a direct receipt — increasing stock and logging a receipt movement.</li>
+<li><strong>Stock Register</strong> is the complete movement history: receipts (+), sales/usage from bills (−), and audit adjustments (±).</li>
+<li><strong>Stock Audit</strong> compares physical counts to system quantities, records the variance, and corrects the stock to the counted figure.</li>
+</ul>
+<div class="callout note"><span class="tag">Note</span> Stock is allowed to go negative so the register always reconciles with reality; managers use the audit to correct drift. Automated reorder suggestions are not currently provided.</div>
+
+<h2 id="appts">8. Appointments</h2>
+<p>Appointments are booked per day for a customer, staff member and service, with a start time and duration. They can be viewed as a list or a timeline, navigated day by day, and carry a status through their lifecycle (booked → completed/cancelled). An appointment can be linked to the bill it generated.</p>
+
+<h2 id="expenses">9. Expenses</h2>
+<p>Outlet expenses are recorded with a date, category, vendor, amount, payment mode and reference number. They can be filtered by period, category and payment mode, summarised, and voided if entered in error.</p>
+
+<h2 id="hr">10. Staff &amp; HR</h2>
+<h3>10.1 Staff records</h3>
+<p>Each staff member has personal details, role, salary, allowance, specialisation, an incentive profile, a target period (weekly or monthly), and a portal PIN. If no PIN is set, the default is the last four digits of their phone.</p>
+<h3>10.2 Shifts &amp; Weekly Schedule</h3>
+<p>Shifts define working hours. The weekly schedule assigns each staff member a shift and their off-days for a given week (Monday-anchored). Only current and future weeks are meant to be edited.</p>
+<h3>10.3 Attendance</h3>
+<ul>
+<li>Each day is marked <strong>present</strong>, <strong>absent</strong> or <strong>half-day</strong>, with clock-in/out times.</li>
+<li>Overtime = hours worked beyond 9 in a day.</li>
+<li>Staff can self-log attendance from their portal; it enters a <em>pending</em> state until a manager approves or rejects it. Managers can also enter attendance directly.</li>
+</ul>
+<h3>10.4 Advances</h3>
+<p>Salary advances are tracked with a running balance. Staff request an advance (pending → approved → disbursed), or a manager records one directly as disbursed. Disbursed advances are deducted at payroll.</p>
+<h3>10.5 Incentive Profiles</h3>
+<p>A profile defines how a staff member earns commission: an OT hourly rate, two revenue targets (T1/T2), and three commission brackets (X% up to T1, Y% between T1 and T2, Z% above T2). Targets can be fixed amounts or a percentage of salary, and can be based on the individual's revenue or the whole org's.</p>
+
+<h2 id="payroll">11. Payroll</h2>
+<p>For a staff member and month, payroll computes:</p>
+<ul>
+<li><strong>Base &amp; leave:</strong> excess leaves beyond the eligible free offs are deducted pro-rata from salary. Weekend absences (Fri/Sat/Sun) count double; weekend half-days count as a full day.</li>
+<li><strong>Overtime pay</strong> = OT hours × the profile's OT rate.</li>
+<li><strong>Incentives:</strong> service, product and target/direct incentives — summed weekly or computed monthly from bills, depending on the staff member's target period.</li>
+<li><strong>Net pay</strong> = adjusted base + allowances + OT pay + total incentive − advances deducted.</li>
+</ul>
+<p>Payroll is calculated as a draft, reviewed, then saved; its status can be advanced (e.g. to paid).</p>
+
+<h2 id="access">12. Organisation &amp; Access Control</h2>
+<ul>
+<li><strong>Organisations</strong> form a parent → child tree (company → outlets). An org cannot be deleted while it has children.</li>
+<li><strong>Users</strong> belong to an org and a role. A parent-org user sees their whole branch; a leaf-org user sees only their outlet.</li>
+<li><strong>Roles</strong> group permissions. <strong>Permissions</strong> are per-role, per-menu-item access flags.</li>
+<li>Emails must be unique across users.</li>
+</ul>
+
+<h2 id="portals">13. Self-Service Portals</h2>
+<h3>13.1 Customer portal ("My Gems")</h3>
+<p>A customer enters their phone number (no password) and sees their tier, Gem balance, progress toward the next tier, and full visit history with the Gems earned/redeemed on each visit. Designed to be delightful and shareable.</p>
+<h3>13.2 Staff portal</h3>
+<p>Staff log in with phone + PIN and can: confirm the bill items credited to them (so incentives are accurate), log their attendance, request advances, and change their PIN. It uses a session independent of the admin app.</p>
+
+<h2 id="rules">14. Business Rules Digest</h2>
+<div class="table-wrap"><table>
+<tr><th>Area</th><th>Rule</th></tr>
+<tr><td>Gems earn</td><td>floor(eligible spend ÷ 100) × base rate × tier multiplier × happy-hour multiplier; only points-eligible groups count.</td></tr>
+<tr><td>Status vs balance</td><td>Redemption reduces spendable balance only; status points (tier) are unaffected.</td></tr>
+<tr><td>Tier downgrade</td><td>At most one tier drop per recalculation.</td></tr>
+<tr><td>Gem expiry</td><td>Each earned Gem expires after the configured months (default 12) from earn date.</td></tr>
+<tr><td>Overtime</td><td>OT = hours worked beyond 9 per day (no break deduction).</td></tr>
+<tr><td>Weekend leave</td><td>Fri/Sat/Sun absence = 2 days off; weekend half-day = 1 day.</td></tr>
+<tr><td>Leave deduction</td><td>Excess leaves × (salary ÷ payable days), default 4 free offs, 26 payable days.</td></tr>
+<tr><td>Commission</td><td>Tiered X%/Y%/Z% across two revenue targets.</td></tr>
+<tr><td>PO status</td><td>draft → partial → received (auto by receipts).</td></tr>
+<tr><td>Stock audit</td><td>Corrects stock to the physical count; logs the variance.</td></tr>
+<tr><td>Bill totals</td><td>services + retail (with GST) − discount(+redemption) + tip.</td></tr>
+<tr><td>Org delete</td><td>Blocked while child orgs exist.</td></tr>
+<tr><td>Duplicate guards</td><td>Unique customer phone (per org); unique user email.</td></tr>
+</table></div>
+
+<h2 id="states">15. State Machines</h2>
+<h3>Bill</h3>
+<pre><code>active ──(void_bill)──► void        (void does not reverse stock or Gems)</code></pre>
+<h3>Attendance record</h3>
+<pre><code>pending ──approve──► approved
+pending ──reject───► rejected ──approve──► approved</code></pre>
+<h3>Salary advance</h3>
+<pre><code>Staff path:  pending ──approve(amount)──► approved ──disburse(mode)──► disbursed
+             pending ──reject──► rejected
+Admin path:  (direct entry) ──► disbursed</code></pre>
+<h3>Purchase order</h3>
+<pre><code>draft ──(receipts, some)──► partial ──(all items received)──► received
+(status may also be set manually)</code></pre>
+<h3>Loyalty tier</h3>
+<pre><code>recalculated after each qualifying bill:
+newTier = max( tier you qualify for by status points,
+               current tier − 1 )     ← one-step downgrade floor</code></pre>
+
+</main>
+</div>
+
+<footer>Salon Manager — Functional Design Document · Describes intended behaviour and business rules as implemented.</footer>

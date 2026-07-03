@@ -41,6 +41,30 @@ const Utils = {
     CacheService.getScriptCache().remove(token);
   },
 
+  // ── Staff portal sessions (prefixed 'sp_') ─────────────────────────────────
+  createStaffSession(staffId, orgId) {
+    const token  = 'sp_' + Utilities.getUuid();
+    const expiry = Date.now() + (12 * 60 * 60 * 1000); // 12 hours
+    CacheService.getScriptCache().put(
+      token,
+      JSON.stringify({ staffId, orgId: orgId || '', expiry }),
+      43200 // 12 h in seconds
+    );
+    return token;
+  },
+
+  validateStaffSession(token) {
+    if (!token || !String(token).startsWith('sp_')) return null;
+    const cached = CacheService.getScriptCache().get(token);
+    if (!cached) return null;
+    const session = JSON.parse(cached);
+    if (Date.now() > session.expiry) {
+      CacheService.getScriptCache().remove(token);
+      return null;
+    }
+    return { staffId: session.staffId, orgId: session.orgId || '' };
+  },
+
   getCached(key) {
     try {
       const val = CacheService.getScriptCache().get('d_' + key);

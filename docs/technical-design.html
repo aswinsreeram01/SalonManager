@@ -1,0 +1,407 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Technical Design — Salon Manager</title>
+<link rel="stylesheet" href="doc-style.css">
+
+<div class="doc-header">
+  <div class="wrap">
+    <a class="backlink" href="../index.html">← Back to Salon Manager</a>
+    <div class="eyebrow">Technical Design Document</div>
+    <h1>Salon Manager — Technical Design</h1>
+    <p>Complete engineering reference: architecture, data model, API surface, authentication, caching, module behaviour, and the algorithms behind billing, loyalty, incentives and payroll.</p>
+    <div class="meta">Multi-tenant salon &amp; retail management platform · Google Apps Script backend + static SPA frontend · Covers Naturals &amp; FirstCry outlets under one organisation tree.</div>
+  </div>
+</div>
+
+<div class="shell">
+<nav class="toc">
+  <h4>Contents</h4>
+  <a href="#overview">1. System Overview</a>
+  <a href="#stack">2. Technology Stack</a>
+  <a href="#architecture">3. Architecture</a>
+  <a href="#tenancy">4. Multi-Tenancy</a>
+  <a href="#auth">5. Auth &amp; Sessions</a>
+  <a href="#routing">6. Request Routing</a>
+  <a href="#actions">7. Action Catalogue</a>
+  <a href="#datamodel">8. Data Model (31 sheets)</a>
+  <a href="#caching">9. Caching</a>
+  <a href="#billing">10. Billing Engine</a>
+  <a href="#loyalty">11. Loyalty Engine</a>
+  <a href="#inventory">12. Inventory &amp; Stock</a>
+  <a href="#hr">13. HR, Attendance &amp; Payroll</a>
+  <a href="#frontend">14. Frontend Architecture</a>
+  <a href="#portals">15. Customer &amp; Staff Portals</a>
+  <a href="#setup">16. Setup &amp; Verification</a>
+  <a href="#deploy">17. Build &amp; Deployment</a>
+  <a href="#defects">18. Known Issues</a>
+</nav>
+
+<main class="content">
+
+<h2 id="overview">1. System Overview</h2>
+<p class="lead">Salon Manager is a multi-tenant business management platform for salon and retail outlets. A single deployment currently serves <strong>two Naturals salons and one FirstCry store</strong> under one company, sharing one billing system and one loyalty programme ("Gems").</p>
+<p>It is a <strong>serverless</strong> application: the backend is a Google Apps Script (GAS) Web App that stores all data in a single Google Spreadsheet; the frontend is a static single-page application (SPA) hosted on GitHub Pages. There is no traditional database, application server, or container — the spreadsheet <em>is</em> the database and GAS <em>is</em> the API tier.</p>
+<p>The product covers: point-of-sale billing, service &amp; product catalogues, price books, inventory with purchase orders / stock receipts / audits, vendors, a four-tier loyalty programme, appointments, expenses, a full HR suite (staff, shifts, weekly schedules, attendance, advances, incentive profiles, payroll), organisations, users, roles and permissions. Two additional standalone entry points — a <strong>customer loyalty portal</strong> and a <strong>staff self-service portal</strong> — reuse the same backend.</p>
+
+<h2 id="stack">2. Technology Stack</h2>
+<div class="table-wrap"><table>
+<tr><th>Layer</th><th>Technology</th><th>Notes</th></tr>
+<tr><td>Backend runtime</td><td>Google Apps Script (V8)</td><td>Plain JS object-literal modules; single <code>doPost(e)</code> entry point.</td></tr>
+<tr><td>Data store</td><td>Google Sheets</td><td>One spreadsheet, 31 tabs. Accessed via <code>SpreadsheetApp</code>. Read by column <em>index</em>, not header name.</td></tr>
+<tr><td>Session / cache</td><td><code>CacheService.getScriptCache()</code></td><td>Holds admin sessions, staff sessions, and a data cache. Script-wide, not per-user.</td></tr>
+<tr><td>Email</td><td><code>MailApp</code></td><td>Password-reset emails only.</td></tr>
+<tr><td>Frontend</td><td>Vanilla HTML/CSS/JS</td><td>No framework, no build step. Modules are global object literals loaded via <code>&lt;script src&gt;</code>.</td></tr>
+<tr><td>Hosting (frontend)</td><td>GitHub Pages</td><td>Static hosting; auto-deploys on push to <code>main</code>.</td></tr>
+<tr><td>Deploy tooling</td><td><code>clasp</code></td><td>Pushes the capitalised <code>*.js</code> files at repo root to the GAS project and creates web-app deployments.</td></tr>
+</table></div>
+
+<h2 id="architecture">3. Architecture</h2>
+<pre><code>Browser (static, GitHub Pages)              Google Apps Script Web App
+┌───────────────────────────┐              ┌──────────────────────────────┐
+│ index.html  (SPA shell)    │              │ doPost(e)  ── Main.js router  │
+│ pages/*.html (fetched)     │  POST JSON   │   ├─ staff switch  (sp_ token)│
+│ js/app.js  (navigation)    │ ───────────► │   ├─ public actions (no auth) │
+│ js/api.js  (transport)     │   {action,   │   └─ admin switch  (validate) │
+│ customer.html (portal)     │    ...data,  │ *.js modules → SpreadsheetApp │
+│ staff.html   (portal)      │  sessionToken}│ CacheService (sessions+data) │
+└───────────────────────────┘ ◄─────────── └──────────────────────────────┘
+                              {status,message,...payload}</code></pre>
+<ul>
+<li><strong>One endpoint, many actions.</strong> Every request is an HTTP <code>POST</code> to the GAS Web App URL with a JSON body <code>{ action, ...data, sessionToken }</code>. <code>Main.js</code> switches on <code>action</code> and dispatches to a module method.</li>
+<li><strong>Flat JSON responses.</strong> Every handler returns <code>Utils.createResponse(status, message, payload)</code> which serialises <code>{ status, message, ...payload }</code> — the payload is spread at the top level, never nested.</li>
+<li><strong>No CORS headers &amp; no custom request headers.</strong> Requests are sent without a <code>Content-Type</code> header to avoid a CORS pre-flight against GAS; responses set only the JSON MIME type. This is why the frontend never sets headers on <code>fetch</code>.</li>
+<li><strong>No <code>doGet</code></strong> — the backend is POST-only.</li>
+</ul>
+
+<h2 id="tenancy">4. Multi-Tenancy Model</h2>
+<p>Tenancy is enforced by an <code>orgId</code> column present on almost every sheet, plus an <strong>organisation tree</strong>.</p>
+<ul>
+<li><strong>Org tree.</strong> The <code>Organizations</code> sheet has a self-referencing <code>parentId</code>. A blank <code>parentId</code> means a top-level org. The two Naturals outlets and FirstCry are child orgs under one parent company.</li>
+<li><strong>Scoping primitive.</strong> <code>Organizations.getOrgAndChildren(orgId, allOrgs)</code> recursively returns an org plus all descendants. A parent-org user sees their whole branch; a leaf-org user sees only their outlet.</li>
+<li><strong>Row filtering rule</strong> (used by every <code>getAll</code>): a row is included when <code>!orgId || !rowOrg || rowOrg === orgId</code>. Rows with a blank org are never filtered out (legacy/shared data).</li>
+<li><strong>orgId source of truth.</strong> For admin actions, <code>orgId</code> and <code>userId</code> are injected server-side from the validated session (<code>Main.js</code> overwrites any client-supplied values). Client cannot spoof its org.</li>
+<li><strong>Never rewritten on update.</strong> <code>orgId</code> is written only at record-creation time; no module rewrites it on <code>update</code>.</li>
+</ul>
+
+<h2 id="auth">5. Authentication &amp; Sessions</h2>
+<h3>5.1 Password hashing</h3>
+<p><code>Utils.hashPassword(pw)</code> = <strong>SHA-256, unsalted, no iteration</strong>, returned as lowercase hex (<code>Utilities.computeDigest(SHA_256, pw)</code>). Passwords are stored in <code>Users</code> column 2 and are never returned by any read.</p>
+
+<h3>5.2 Admin login</h3>
+<ol>
+<li><code>Auth.login({email,password})</code> reads the <code>Users</code> sheet (9 columns).</li>
+<li>Match = <code>email === row.email &amp;&amp; hashPassword(password) === row.password</code>.</li>
+<li>If <code>status === 'active'</code>: fetch role permissions, create a session, return flat payload <code>{ sessionToken, userId, email, fullName, phone, whatsapp, orgId, roleId, permissions }</code>.</li>
+<li>Inactive account → error; no match → <code>Invalid email or password</code>.</li>
+</ol>
+
+<h3>5.3 Session tokens (CacheService)</h3>
+<div class="table-wrap"><table>
+<tr><th></th><th>Admin session</th><th>Staff session</th></tr>
+<tr><td>Created by</td><td><code>Utils.createSession(userId, orgId)</code></td><td><code>Utils.createStaffSession(staffId, orgId)</code></td></tr>
+<tr><td>Token format</td><td>plain UUID</td><td><code>sp_</code> + UUID (prefix enforced on validate)</td></tr>
+<tr><td>Cache value</td><td><code>{userId, orgId, expiry}</code></td><td><code>{staffId, orgId, expiry}</code></td></tr>
+<tr><td>TTL requested</td><td>28 800 s (8 h)</td><td>43 200 s (12 h)</td></tr>
+<tr><td>Validator</td><td><code>Utils.validateSession</code> → <code>{userId, orgId}</code> or <code>null</code></td><td><code>Utils.validateStaffSession</code> → <code>{staffId, orgId}</code> or <code>null</code></td></tr>
+</table></div>
+<div class="callout note"><span class="tag">Note</span> GAS caps script-cache TTL at 6 h (21 600 s), so the 8 h / 12 h requests are clamped by the platform. The authoritative expiry check is the <code>expiry</code> timestamp stored inside the cached JSON, which the validators compare against <code>Date.now()</code> and remove on expiry.</div>
+
+<h3>5.4 Password reset flow</h3>
+<ul>
+<li><code>requestPasswordReset(email)</code> → generates a UUID token, expiry = now + <strong>1 hour</strong>, appends <code>[token, email, expiry, false]</code> to <code>PasswordResetTokens</code>, emails a link to <code>reset-password.html?token=…</code> via <code>MailApp</code>.</li>
+<li><code>validateResetToken(token)</code> → checks token exists, not used, not expired; returns <code>{email}</code>.</li>
+<li><code>resetPassword(token, newPassword)</code> → intended to hash &amp; store the new password and mark the token used. <span class="pill" style="background:#feb2b2;color:#742a2a">defect</span> — see §18.</li>
+</ul>
+
+<h3>5.5 Frontend session storage</h3>
+<div class="kv">
+<dt>SPA (index.html)</dt><dd><code>localStorage.sessionToken</code> + <code>localStorage.currentUser</code> (JSON). Auto-restores on load; cleared on logout or on the exact server message <em>"Session expired. Please login again."</em></dd>
+<dt>Staff portal</dt><dd><code>localStorage.staffSessionToken</code> — independent of the SPA session.</dd>
+<dt>Customer portal</dt><dd><code>sessionStorage.cp_phone</code> + <code>cp_name</code> — no token at all (phone-only).</dd>
+</div>
+
+<h2 id="routing">6. Request Routing (Main.js)</h2>
+<p><code>doPost(e)</code> parses <code>JSON.parse(e.postData.contents)</code>, reads <code>data.action</code>, and dispatches through <strong>two switch blocks</strong> wrapped in a try/catch (any thrown error → <code>error</code> response):</p>
+<ol>
+<li><strong>Staff switch (checked first).</strong> If the action is in <code>STAFF_ACTIONS</code> and is not <code>staff_login</code>, it validates the <code>sp_</code> staff session (else returns <code>{staffSessionExpired:true}</code>) and injects <code>staffId</code> + <code>orgId</code>. All 10 staff actions return here and never fall through.</li>
+<li><strong>Admin switch.</strong> If the action is not in <code>publicActions</code>, it validates the admin session (else <em>"Session expired. Please login again."</em>) and injects <code>orgId</code> + <code>userId</code>. Public actions skip validation but still route through this switch. Unknown action → <code>Invalid action</code>.</li>
+</ol>
+<div class="kv">
+<dt>STAFF_ACTIONS</dt><dd><code>staff_login, staff_logout, get_staff_dashboard, get_pending_items, confirm_bill_items, change_staff_pin, log_attendance, get_my_attendance, request_advance, get_my_advances</code></dd>
+<dt>publicActions</dt><dd><code>login, request_password_reset, validate_reset_token, reset_password, customer_login, get_customer_history, get_customer_loyalty, get_loyalty_ledger</code></dd>
+</div>
+
+<h2 id="actions">7. Action Catalogue</h2>
+<p>Every action string, its handler, and access level. <span class="pill pub">PUBLIC</span> = no session, <span class="pill adm">ADMIN</span> = admin session required, <span class="pill stf">STAFF</span> = staff session required.</p>
+<div class="table-wrap"><table>
+<tr><th>Domain</th><th>Action → Handler</th><th>Access</th></tr>
+<tr><td>Auth</td><td><code>login</code>→Auth.login; <code>logout</code>→Auth.logout; <code>request_password_reset</code>, <code>validate_reset_token</code>, <code>reset_password</code>→Auth.*</td><td><span class="pill pub">PUB</span> except logout <span class="pill adm">ADM</span></td></tr>
+<tr><td>Customers</td><td><code>get_customers</code>→getAll; <code>add_customer</code>→add; <code>customer_login</code>→loginByPhone; <code>get_customer_history</code>→getHistory</td><td>first two <span class="pill adm">ADM</span>, last two <span class="pill pub">PUB</span></td></tr>
+<tr><td>Loyalty</td><td><code>get_loyalty_config</code>, <code>update_loyalty_config</code>, <code>toggle_happy_hour</code> <span class="pill adm">ADM</span>; <code>get_customer_loyalty</code>, <code>get_loyalty_ledger</code> <span class="pill pub">PUB</span></td><td>mixed</td></tr>
+<tr><td>Bills</td><td><code>save_bill</code>, <code>void_bill</code>, <code>get_bills</code>, <code>get_bill_items</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Services</td><td><code>get_services</code>, <code>add_service</code>, <code>update_service</code>, <code>delete_service</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Service Groups</td><td><code>get_service_groups</code>, <code>add_service_group</code>, <code>update_service_group</code>, <code>delete_service_group</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Price Books</td><td><code>get_pricebooks</code>, <code>add_pricebook</code>, <code>update_pricebook</code>, <code>delete_pricebook</code>, <code>get_pricebook_items</code>, <code>add_pricebook_item</code>, <code>update_pricebook_item</code>, <code>delete_pricebook_item</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Products</td><td><code>get_products</code>, <code>add_product</code>, <code>update_product</code>, <code>update_product_stock</code>, <code>delete_product</code>, <code>receive_stock</code>, <code>get_stock_register</code>, <code>save_stock_audit</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Product Groups</td><td><code>get_product_groups</code>, <code>add_product_group</code>, <code>update_product_group</code>, <code>delete_product_group</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Vendors</td><td><code>get_vendors</code>, <code>add_vendor</code>, <code>update_vendor</code>, <code>remove_vendor</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Purchase Orders</td><td><code>get_purchase_orders</code>, <code>create_purchase_order</code>, <code>update_po_status</code>, <code>get_po_items</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Appointments</td><td><code>get_appointments</code>, <code>save_appointment</code>, <code>update_appointment</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Expenses</td><td><code>get_expenses</code>, <code>save_expense</code>, <code>update_expense</code>, <code>void_expense</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Staff</td><td><code>get_staff</code>, <code>add_staff</code>, <code>update_staff</code>, <code>delete_staff</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Incentive Profiles</td><td><code>get_incentive_profiles</code>, <code>add_incentive_profile</code>, <code>update_incentive_profile</code>, <code>delete_incentive_profile</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Shifts &amp; Schedule</td><td><code>get_shifts</code>, <code>save_shift</code>, <code>get_attendance</code>, <code>save_attendance</code>, <code>get_week_schedule</code>, <code>save_week_schedule</code>, <code>get_allocations</code>, <code>save_allocation</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Advances / Incentives</td><td><code>get_advances</code>, <code>add_advance</code>, <code>save_weekly_incentive</code>, <code>get_weekly_incentives</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>HR Approvals</td><td><code>get_pending_attendance</code>, <code>approve_attendance</code>, <code>reject_attendance</code>, <code>get_pending_advances</code>, <code>approve_advance</code>, <code>disburse_advance</code>, <code>reject_advance</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Payroll</td><td><code>calculate_payroll</code>, <code>save_payroll</code>, <code>get_payroll</code>, <code>update_payroll_status</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Org / Access</td><td><code>get_organizations</code>…, <code>get_users</code>…, <code>get_roles</code>…, <code>get_permissions</code>, <code>get_user_permissions</code>, <code>update_permissions</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Org Settings</td><td><code>get_org_settings</code>, <code>update_org_settings</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Setup</td><td><code>get_setup_status</code>, <code>run_setup</code>, <code>refresh_summary_sheet</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Staff Portal</td><td><code>staff_login</code>, <code>staff_logout</code>, <code>get_staff_dashboard</code>, <code>get_pending_items</code>, <code>confirm_bill_items</code>, <code>change_staff_pin</code>, <code>log_attendance</code>, <code>get_my_attendance</code>, <code>request_advance</code>, <code>get_my_advances</code></td><td><span class="pill stf">STF</span> (login is public)</td></tr>
+</table></div>
+
+<h2 id="datamodel">8. Data Model — Complete Sheet Schema</h2>
+<p>The single source of truth is <code>SHEET_SCHEMA</code> in <code>Setup.js</code>. GAS reads by <strong>column position</strong>, so column order is load-bearing. Indices below are 0-based. Every business sheet ends with <code>orgId</code> (the tenant key) — except where <code>status</code> follows it (noted).</p>
+
+<h3>8.1 Auth &amp; Admin</h3>
+<div class="table-wrap"><table>
+<tr><th>Sheet</th><th>Columns (in order)</th></tr>
+<tr><td><strong>Users</strong> (9)</td><td>id, email, <em>password</em>, fullName, phone, whatsapp, orgId, roleId, status</td></tr>
+<tr><td><strong>Organizations</strong> (5)</td><td>id, name, parentId, type, status</td></tr>
+<tr><td><strong>Roles</strong> (4)</td><td>id, name, description, status</td></tr>
+<tr><td><strong>Permissions</strong> (4)</td><td>id, roleId, menuItem, canAccess</td></tr>
+</table></div>
+
+<h3>8.2 Customers &amp; Loyalty</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Customers</strong> (8)</td><td>timestamp, name, phone, addedBy, orgId, <strong>pointsBalance</strong>, <strong>statusPoints</strong>, <strong>tier</strong></td></tr>
+<tr><td><strong>PointsLedger</strong> (11)</td><td>ledgerId, customerPhone, customerName, billId, earnedDate, expiryDate, type (earn|redeem), points, balanceAfter, note, orgId</td></tr>
+</table></div>
+
+<h3>8.3 Service Catalogue</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>ServiceGroups</strong> (11)</td><td>id, name, description, gstPct, sacCode, countForTarget, directIncentivePct, sortOrder, status, orgId, <strong>pointsEligible</strong></td></tr>
+<tr><td><strong>Services</strong> (8)</td><td>id, name, description, duration, serviceGroupId, defaultPrice, status, orgId</td></tr>
+<tr><td><strong>PriceBooks</strong> (5)</td><td>id, name, description, status, orgId</td></tr>
+<tr><td><strong>PriceBookItems</strong> (5)</td><td>itemId, priceBookId, serviceId, price, orgId</td></tr>
+</table></div>
+
+<h3>8.4 Product Catalogue &amp; Inventory</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Products</strong> (16)</td><td>id, name, category, uom, unitCost, retailPrice, gst, currentStock, baseStock, manufacturer, vendorName, vendorContact, status, vendorId, groupId, orgId</td></tr>
+<tr><td><strong>ProductGroups</strong> (9)</td><td>id, name, gstPct, hsnCode, unitIncentive, sortOrder, status, orgId, <strong>pointsEligible</strong></td></tr>
+<tr><td><strong>StockMovements</strong> (14)</td><td>movementId, date, productId, productName, type, refId, qty, unitCost, notes, createdAt, vendorId, vendorName, createdBy, orgId</td></tr>
+<tr><td><strong>StockAudits</strong> (6)</td><td>auditId, auditDate, notes, createdAt, createdBy, orgId</td></tr>
+<tr><td><strong>AuditItems</strong> (10)</td><td>itemId, auditId, productId, productName, systemQty, physicalQty, variance, unitCost, notes, orgId</td></tr>
+</table></div>
+
+<h3>8.5 Vendors &amp; Purchasing</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Vendors</strong> (9)</td><td>vendorId, name, contactPerson, phone, email, address, notes, status, orgId</td></tr>
+<tr><td><strong>PurchaseOrders</strong> (10)</td><td>poId, vendorId, vendorName, poDate, expectedDate, status, notes, createdAt, createdBy, orgId</td></tr>
+<tr><td><strong>POItems</strong> (9)</td><td>itemId, poId, productId, productName, uom, qtyOrdered, qtyReceived, unitCost, orgId</td></tr>
+</table></div>
+
+<h3>8.6 Billing</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Bills</strong> (20)</td><td>billId, customerId, customerName, priceBookId, createdAt, servicesSubtotal, servicesGst, retailSubtotal, retailGst, discount, tip, grandTotal, paymentMode, cashAmt, cardAmt, upiAmt, status, discountType, createdBy, orgId</td></tr>
+<tr><td><strong>BillItems</strong> (19)</td><td>billItemId, billId, type, refId, itemName, staffId, staffName, qty, unitPrice, gstPct, lineSubtotal, lineGst, lineTotal, profProductId, profProductName, profQty, profUom, orgId, staffConfirmed</td></tr>
+</table></div>
+
+<h3>8.7 Appointments &amp; Expenses</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Appointments</strong> (16)</td><td>appointmentId, customerId, customerName, customerPhone, staffId, staffName, serviceId, serviceName, startTime, durationMins, status, notes, billId, createdAt, createdBy, orgId</td></tr>
+<tr><td><strong>Expenses</strong> (13)</td><td>expenseId, date, category, vendor, description, amount, paymentMode, referenceNo, notes, createdAt, createdBy, status, orgId</td></tr>
+</table></div>
+
+<h3>8.8 HR &amp; Payroll</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>Staff</strong> (19)</td><td>id, userId, name, phone, email, aadharNumber, upiId, startDate, role, salary, allowance, incentiveStructure, specialization, status, staffType, profileId, targetPeriod, orgId, staffPin</td></tr>
+<tr><td><strong>IncentiveProfiles</strong> (14)</td><td>profileId, profileName, profileType, revenueBase, otHourlyRate, l1Type, l1Value, l2Type, l2Value, xPct, yPct, zPct, status, orgId</td></tr>
+<tr><td><strong>Shifts</strong> (7)</td><td>shiftId, name, startTime, endTime, breakMins, status, orgId</td></tr>
+<tr><td><strong>StaffShiftAllocation</strong> (7) <span class="small">— legacy, superseded by WeeklySchedule</span></td><td>allocationId, staffId, shiftId, fromDate, toDate, createdAt, orgId</td></tr>
+<tr><td><strong>WeeklySchedule</strong> (6)</td><td>scheduleId, staffId, weekStart, shiftId, offDays, orgId</td></tr>
+<tr><td><strong>StaffAttendance</strong> (13)</td><td>attendanceId, staffId, date, shiftId, clockIn, clockOut, hoursWorked, otHours, dayStatus, notes, createdAt, orgId, status</td></tr>
+<tr><td><strong>StaffAdvance</strong> (12)</td><td>advanceId, staffId, date, type, amount, notes, runningBalance, createdAt, orgId, status, approvedAmount, paymentMode</td></tr>
+<tr><td><strong>WeeklyIncentive</strong> (12)</td><td>snapshotId, staffId, weekStart, weekEnd, revenueBase, targetIncentive, directIncentive, productIncentive, totalIncentive, status, calculatedAt, orgId</td></tr>
+<tr><td><strong>Payroll</strong> (25)</td><td>payrollId, staffId, staffName, period, baseSalary, payableDays, eligibleOffs, totalDaysOff, excessLeaves, leaveDeduction, adjustedBaseSalary, allowances, otHours, otPay, serviceIncentive, productIncentive, makeupIncentive, targetIncentive, totalIncentive, advanceDeducted, netPay, status, notes, createdAt, orgId</td></tr>
+</table></div>
+
+<h3>8.9 Settings</h3>
+<div class="table-wrap"><table>
+<tr><td><strong>OrgSettings</strong> (2)</td><td>key, value — key/value store. Defaults: <code>salonName</code>, <code>gstNumber</code>, <code>currencySymbol</code>=₹, <code>defaultTargetPeriod</code>=weekly, <code>salaryPayDay</code>=10, <code>defaultEligibleOffs</code>=4. The <strong>loyalty config</strong> lives here under key <code>loyalty</code> as a JSON string.</td></tr>
+</table></div>
+
+<h3>8.10 ID prefixes</h3>
+<p class="small">All primary keys are <code>&lt;PREFIX&gt; + Date.now()</code> (+ random suffix for line items). Prefixes: ORG, USR, ROLE, PERM · PRD, MOV, RCP, AUD, AI, PGP · PO, POI, VEN · SRV, SGP, PB, PBI · BILL, BI · STF, PROF, SHF, ALC, SCH, ATT, ADV, WKI, PAY · LPE (loyalty earn), LPR (loyalty redeem).</p>
+
+<h2 id="caching">9. Caching</h2>
+<p>Three cache namespaces live in the shared script cache:</p>
+<ul>
+<li><strong>Sessions</strong> — admin (plain UUID key) and staff (<code>sp_</code> key).</li>
+<li><strong>Data cache</strong> — key prefix <code>d_</code>, default TTL 300 s. Helpers: <code>Utils.getCached/setCached/clearCached</code>.</li>
+</ul>
+<p>Cached read keys (cleared on the matching write): <code>orgs</code>, <code>users</code>, <code>roles</code>, <code>perms_&lt;roleId&gt;</code>, <code>staff_&lt;orgId&gt;</code>, <code>products_&lt;orgId&gt;</code>, <code>product_groups_&lt;orgId&gt;</code>, <code>services_&lt;orgId&gt;</code>, <code>service_groups_&lt;orgId&gt;</code>, <code>pricebooks_&lt;orgId&gt;</code>, <code>pb_items_&lt;priceBookId&gt;</code>, <code>customers_&lt;orgId&gt;</code>, <code>shifts_&lt;orgId&gt;</code>, <code>incentive_profiles_&lt;orgId&gt;</code>. <strong>Uncached:</strong> Vendors, PurchaseOrders, Bills, OrgSettings, Setup.</p>
+
+<h2 id="billing">10. Billing Engine (Bills.js)</h2>
+<h3>10.1 save(data)</h3>
+<ol>
+<li>Validates the <code>Bills</code> and <code>BillItems</code> sheets exist. <strong>No server-side validation of items/customer/totals</strong> — validation is client-side.</li>
+<li>IDs: bill = <code>BILL + Date.now()</code>; each line = <code>BI + Date.now() + rand5</code>. <code>createdAt</code> = full ISO timestamp.</li>
+<li>Splits items by <code>type</code> into service vs product and sums each side's <code>lineSubtotal</code> and <code>lineGst</code> (each <code>Number()||0</code>). GST percentages are <strong>not</strong> recomputed — the client's per-line <code>lineGst</code> is trusted and summed.</li>
+<li><strong>Grand total</strong> = <code>servicesSubtotal + servicesGst + retailSubtotal + retailGst − discount + tip</code>. Here <code>discount</code> is the <em>combined</em> figure (manual discount + loyalty redemption value).</li>
+<li>Appends the Bills row (status hard-coded <code>active</code>) and one BillItems row per item.</li>
+<li>Calls <code>_deductStock(billId, dateYYYYMMDD, items, userId, orgId)</code>.</li>
+<li>Calls <code>LoyaltyPoints.processAfterBill(billId, customerPhone, customerName, pointsToEarn, redeemPoints, orgId)</code> if a phone resolves (<code>customerPhone || customerId</code>).</li>
+<li>Returns <code>{ billId, grandTotal }</code>.</li>
+</ol>
+<h3>10.2 _deductStock</h3>
+<p>For each retail product line, appends a <code>StockMovements</code> row of type <code>billing</code> with <strong>negative qty</strong> and decrements <code>Products.currentStock</code>. Professional-product consumption (<code>profProductId</code> + <code>profQty</code>) deducts at unit cost 0. Stock is <strong>allowed to go negative</strong> to stay in sync with the movement ledger. Clears the products cache.</p>
+<h3>10.3 voidBill / getAll / getItems</h3>
+<ul>
+<li><code>voidBill</code> sets Bills.status = <code>void</code>. It does <strong>not</strong> reverse stock movements or loyalty ledger entries.</li>
+<li><code>getAll</code> defaults to the <strong>last 90 days</strong>; accepts <code>fromDate</code>/<code>toDate</code> (YYYY-MM-DD). Void bills are returned as-is (status included).</li>
+<li><code>getItems</code> returns all BillItems for a bill id.</li>
+</ul>
+<div class="callout warn"><span class="tag">Trust boundary</span> The server recomputes bill totals from line items but trusts client-supplied <code>lineGst</code>, <code>discount</code>, <code>pointsToEarn</code> and <code>redeemPoints</code>. Redemption is deducted from the balance server-side only if the balance is sufficient.</div>
+
+<h2 id="loyalty">11. Loyalty Engine (LoyaltyPoints.js)</h2>
+<h3>11.1 The two-balance model</h3>
+<div class="kv">
+<dt>pointsBalance (Customers col 5)</dt><dd>The <strong>spendable wallet</strong>. Increased on earn, decreased on redeem. Persisted as <code>balanceAfter</code> in each ledger row.</dd>
+<dt>statusPoints (Customers col 6)</dt><dd>The <strong>tier-qualification score</strong>. Never reduced by redemption. Fully recomputed as the sum of all non-expired <code>earn</code> entries in the rolling window. Determines the tier.</dd>
+</div>
+<p>This is the airline model: spending Gems lowers your balance but never your tier.</p>
+
+<h3>11.2 Default config</h3>
+<pre><code>{ enabled:false, pointsName:'Points', baseEarnRate:10,
+  tiers:[ {name:'Tier 1',threshold:0,multiplier:1.00},
+          {name:'Tier 2',threshold:500,multiplier:1.25},
+          {name:'Tier 3',threshold:2000,multiplier:1.50},
+          {name:'Tier 4',threshold:5000,multiplier:1.75} ],
+  happyHourMultiplier:2.0, happyHourActive:false, happyHourSchedules:[],
+  redemptionRate:100, redemptionValue:10, minRedemption:100, expiryMonths:12 }</code></pre>
+<p>Config is stored in <code>OrgSettings['loyalty']</code> as JSON and merged over these defaults on load. The current programme names the currency <strong>Gems</strong> with four tiers and per-tier badge colours.</p>
+
+<h3>11.3 Earning</h3>
+<p>Points-to-earn are computed <strong>client-side</strong> in <code>billing.js</code> and trusted by the server (re-floored):</p>
+<pre><code>eligibleSpend = Σ lineSubtotal of rows whose service/product group is pointsEligible
+pointsToEarn  = floor(eligibleSpend / 100) × baseEarnRate × tierMultiplier × happyHourMultiplier</code></pre>
+<p>Only groups flagged <code>pointsEligible</code> contribute. Happy-hour multiplier applies only when the server reports <code>isHappyHour</code> at lookup time.</p>
+
+<h3>11.4 Happy hour detection</h3>
+<ol>
+<li>Manual override: if <code>happyHourActive</code> is true → active immediately.</li>
+<li>Else each schedule is checked: today's day must be in <code>days</code>; <code>effectiveFrom</code>/<code>effectiveUntil</code> window must include now; the current <code>HH:MM</code> must fall within <code>startTime</code>–<code>endTime</code>.</li>
+</ol>
+
+<h3>11.5 processAfterBill — order of operations</h3>
+<p>Returns immediately if the programme is disabled. Then, in order:</p>
+<ol>
+<li><strong>Redeem first</strong> (only if <code>balance ≥ redeem</code>): balance −= redeem; append <code>LPR…</code> ledger row (type <code>redeem</code>, negative points, empty expiry); write new balance to Customers col 5. Insufficient balance is silently skipped (no partial redemption).</li>
+<li><strong>Earn</strong> (<code>earn = floor(pointsToEarn)</code>): expiry = now + <code>expiryMonths</code>; balance += earn; append <code>LPE…</code> ledger row (type <code>earn</code>, positive points, expiry set); write balance.</li>
+<li>If anything changed, call <code>_recalcStatus</code>.</li>
+</ol>
+
+<h3>11.6 _recalcStatus — status points &amp; tier</h3>
+<p><strong>statusPoints</strong> = Σ <code>points</code> of every ledger row where type=<code>earn</code>, phone matches, <code>earnedDate ≥ (now − expiryMonths)</code> and <code>expiryDate ≥ now</code>. Then:</p>
+<pre><code>qualifiedIdx  = highest tier whose threshold ≤ statusPoints
+currentIdx    = index of the customer's current tier
+minAllowedIdx = max(0, currentIdx − 1)      // one-step downgrade protection
+newTierIdx    = max(qualifiedIdx, minAllowedIdx)</code></pre>
+<p>So a customer can drop <strong>at most one tier per recalculation</strong>. statusPoints → Customers col 6, tier → col 7.</p>
+
+<h2 id="inventory">12. Inventory &amp; Stock</h2>
+<ul>
+<li><strong>Stock movements</strong> record every change: <code>receipt</code> (positive, from receiveStock), <code>billing</code> (negative, from a bill), <code>audit</code> (signed variance). The register is the running audit trail.</li>
+<li><strong>Receive stock</strong> increments <code>currentStock</code> and writes a receipt movement; if a <code>poId</code> is supplied it also bumps <code>POItems.qtyReceived</code> and rolls the PO status.</li>
+<li><strong>PO status</strong> (auto): <code>draft</code> on create → <code>partial</code> (some received) → <code>received</code> (all items fully received). Can also be set manually.</li>
+<li><strong>Stock audit</strong>: <code>variance = physicalQty − systemQty</code>; if non-zero, writes an <code>audit</code> movement and <strong>overwrites</strong> currentStock to the physical count.</li>
+<li><strong>Price resolution</strong>: a price book returns an explicit override (<code>isDefault:false</code>) if one exists, otherwise the service's <code>defaultPrice</code> (<code>isDefault:true, itemId:null</code>).</li>
+</ul>
+<div class="callout note"><span class="tag">Not in codebase</span> PO "smart suggest" (auto-fill items below reorder point) and any dedicated reorder logic are <em>not</em> implemented server-side. The enabling field <code>baseStock</code> (reorder level) exists on Products, but no backend function generates suggestions.</div>
+
+<h2 id="hr">13. HR, Attendance &amp; Payroll</h2>
+<h3>13.1 Time handling</h3>
+<p>Google Sheets stores bare time cells as <code>Date</code> objects anchored to the <strong>1899-12-30</strong> epoch. <code>_fmtTime()</code> detects <code>instanceof Date</code> and formats only <code>HH:mm</code> in the script timezone; string inputs are regex-parsed for a leading <code>HH:mm</code>.</p>
+<h3>13.2 Overtime</h3>
+<p><code>otHours = max(0, hoursWorked − 9)</code> — a flat 9-hour threshold, <strong>no break deduction</strong> (even though Shifts has a <code>breakMins</code> column). This rule is duplicated in <code>Attendance.saveAttendance</code>, <code>HRApprovals._calcHours</code>, and consumed by Payroll.</p>
+<h3>13.3 Attendance &amp; approval lifecycle</h3>
+<ul>
+<li><code>dayStatus</code> ∈ {<code>present</code>, <code>absent</code>, <code>half-day</code>}. Row <code>status</code> ∈ {<code>pending</code>, <code>approved</code>, <code>rejected</code>} (default approved for admin-entered records; staff-entered start <code>pending</code>).</li>
+<li>Manager approves/rejects via HR Approvals; rejected records can be re-approved.</li>
+</ul>
+<h3>13.4 Advances — two paths</h3>
+<ul>
+<li><strong>Admin direct</strong> (<code>Attendance.addAdvance</code>): inserted straight as <code>disbursed</code>.</li>
+<li><strong>Staff request</strong>: <code>pending</code> → <code>approved</code> (with <code>approvedAmount</code>) → <code>disbursed</code> (with <code>paymentMode</code>). Outstanding balance counts only <code>disbursed</code> rows.</li>
+</ul>
+<h3>13.5 Incentive profiles &amp; tiered commission</h3>
+<p>A profile defines two revenue targets and three commission brackets. <code>L1 = l1Type==='salary_pct' ? salary×l1Value/100 : l1Value</code> (same for L2). Given monthly revenue R (org- or individual-based per <code>revenueBase</code>):</p>
+<pre><code>R &lt; L1            → 0
+L1 ≤ R &lt; L2       → L1·X% + (R−L1)·Y%
+R ≥ L2            → L1·X% + (L2−L1)·Y% + (R−L2)·Z%</code></pre>
+
+<h3>13.6 Payroll calculation</h3>
+<p>Inputs: <code>staffId</code>, <code>period</code> (YYYY-MM), <code>eligibleOffs</code> (default 4), <code>payableDays</code> (default 26), <code>advanceDeducted</code>.</p>
+<ul>
+<li><strong>Weekend weighting</strong> (peak days = Fri/Sat/Sun): absent on a peak day counts as <strong>2 days off</strong> (weekday = 1); half-day peak = 1 day (weekday = 0.5).</li>
+<li><code>excessLeaves = max(0, totalDaysOff − eligibleOffs)</code>; <code>leaveDeduction = excessLeaves × (salary / payableDays)</code>; <code>adjustedBaseSalary = salary − leaveDeduction</code>.</li>
+<li><code>otPay = otHours × profile.otHourlyRate</code>.</li>
+<li>Incentives: if <code>targetPeriod === 'weekly'</code>, sum WeeklyIncentive snapshots in range; else compute monthly from bills (service revenue, product unit-incentives, direct-incentive "makeup", and the tiered target incentive).</li>
+</ul>
+<pre><code>totalIncentive = targetIncentive + directIncentive + productIncentive
+netPay = adjustedBaseSalary + allowances + otPay + totalIncentive − advanceDeducted</code></pre>
+<p><code>calculate</code> returns a breakdown (status <code>draft</code>) and does not persist; <code>save</code> appends the Payroll row.</p>
+
+<h2 id="frontend">14. Frontend Architecture</h2>
+<ul>
+<li><code>index.html</code> is a <strong>shell</strong> — login screen, app frame (header/sidebar/main), empty <code>content-section</code> divs, and global modals.</li>
+<li><code>app.js</code> fetches all 16 <code>pages/*.html</code> fragments at load (<code>_loadPageHTML()</code>) and injects them into the matching sections, <em>then</em> runs each module's <code>init()</code> inside a try/catch.</li>
+<li><code>Navigation.switchPage(page)</code> toggles the active section and <strong>lazy-loads</strong> that module's data on first visit via <code>_callLoad</code>. A background preloader warms heavy pages 1.5 s after login.</li>
+<li><code>Navigation.applyPermissions()</code> hides home tiles for menu items where <code>canAccess === false</code>.</li>
+<li>Multi-section pages use the <code>prod-tabs</code> pattern (tab button + panel).</li>
+<li><code>api.js</code> — one <code>call(action, data)</code> transport: attaches <code>sessionToken</code> from localStorage, POSTs JSON, handles the expired-session message globally, plus one typed wrapper per action.</li>
+</ul>
+<p><strong>Pages:</strong> dashboard, billing, history, appointments, expenses, services (3 tabs), products (6 tabs), vendors, staff (5 tabs), hrapprovals (2 tabs), customers, organizations, users, roles, permissions, settings. <strong>CSS load order:</strong> base → components → billing → pages → setup. (Legacy <code>styles.css</code> exists but is not linked.)</p>
+
+<h2 id="portals">15. Customer &amp; Staff Portals</h2>
+<div class="kv">
+<dt>customer.html</dt><dd>Standalone, all-inline gamified loyalty portal ("My Gems"). Phone-only login (<code>customer_login</code>), then <code>get_customer_loyalty</code> + <code>get_customer_history</code> + <code>get_loyalty_ledger</code>. Caches phone/name in <code>sessionStorage</code>. No token.</dd>
+<dt>staff.html + js/staff-portal.js</dt><dd>Standalone PIN portal. <code>staff_login</code> (phone + PIN; default PIN = last 4 digits of phone if unset). Own <code>staffSessionToken</code>. Tabs: My Records, Pending (confirm bill items), Attendance (self-log), Advance (request). Change-PIN modal.</dd>
+</div>
+
+<h2 id="setup">16. Setup &amp; Verification</h2>
+<ul>
+<li><code>get_setup_status</code> compares each schema against the live sheet <strong>by column count</strong>: absent → <code>missing</code>; fewer columns than expected → <code>missing_columns</code> (the missing tail); otherwise <code>ok</code>. It never flags header <em>naming</em> or order.</li>
+<li><code>run_setup</code> takes actions <code>create</code> (insert sheet + write canonical headers, bold + freeze row 1) or <code>add_columns</code> (append the missing tail). Creating <code>IncentiveProfiles</code> also seeds three default profiles. It always rebuilds the <code>📋 Index</code> summary sheet afterward.</li>
+<li><code>refresh_summary_sheet</code> rebuilds the Index sheet — a formatted, hyperlinked table of every sheet grouped by category, with descriptions and column counts.</li>
+</ul>
+
+<h2 id="deploy">17. Build &amp; Deployment</h2>
+<pre><code># Backend (capitalised *.js at repo root → GAS):
+npx clasp push
+npx clasp deploy --description "what changed"
+# then copy the new deployment URL into js/config.js (CONFIG.API_URL),
+# js/staff-portal.js and customer.html.
+
+# Frontend (index.html, pages/*, js/*, css/*, docs/*):
+git add … &amp;&amp; git commit -m "…" &amp;&amp; git push   # GitHub Pages deploys automatically</code></pre>
+<div class="callout note"><span class="tag">Deployment coupling</span> Each <code>clasp deploy</code> mints a <em>new</em> web-app URL. The GAS endpoint is referenced in three places — <code>js/config.js</code>, <code>js/staff-portal.js</code>, and <code>customer.html</code> — all three must be updated after a deploy. The current deployment id is recorded in <code>CLAUDE.md</code>.</div>
+
+<h2 id="defects">18. Known Issues &amp; Design Caveats</h2>
+<div class="callout bug"><span class="tag">Bug — password reset</span> <code>Auth.resetPassword</code> checks <code>validation.status</code>, but <code>validateResetToken</code> returns a ContentService <code>TextOutput</code> (no <code>.status</code> property). The guard therefore mis-branches and the password-update path is effectively unreachable on success. Needs a fix to read the parsed content instead.</div>
+<div class="callout warn"><span class="tag">Data integrity</span> Customer <strong>bill history matches by name</strong> (case-insensitive), not phone. A rename or a name collision would mis-attribute bills.</div>
+<div class="callout warn"><span class="tag">Reversal gaps</span> Voiding a bill does <strong>not</strong> reverse stock movements or loyalty ledger entries.</div>
+<ul>
+<li><code>Staff.update</code> and every other <code>update</code> never rewrite <code>orgId</code> — org reassignment is unsupported.</li>
+<li><code>minRedemption</code> exists in config but is not enforced in <code>billing.js</code>.</li>
+<li>Loyalty redemption is double-represented on save: as rupees folded into <code>discount</code> and as points in <code>redeemPoints</code>. Intentional, but worth noting.</li>
+<li>WeeklySchedule's "current/future weeks only" edit rule is enforced in the UI, not the backend.</li>
+<li>Passwords use unsalted SHA-256 — acceptable for this low-risk internal tool but not best practice.</li>
+</ul>
+
+</main>
+</div>
+
+<footer>Salon Manager — Technical Design Document · Generated from a full read of the codebase · Regenerate after significant changes.</footer>

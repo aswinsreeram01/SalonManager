@@ -428,7 +428,6 @@ const StaffPortal = {
         name:      String(rows[i][1] || ''),
         startTime: String(rows[i][2] || '09:00'),
         endTime:   String(rows[i][3] || '18:00'),
-        breakMins: Number(rows[i][4]) || 0,
       };
     }
     return map;

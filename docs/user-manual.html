@@ -1,0 +1,250 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Manual — Salon Manager</title>
+<link rel="stylesheet" href="doc-style.css">
+
+<div class="doc-header">
+  <div class="wrap">
+    <a class="backlink" href="../index.html">← Back to Salon Manager</a>
+    <div class="eyebrow">User Manual</div>
+    <h1>Salon Manager — User Manual</h1>
+    <p>A practical, step-by-step guide for everyone who uses Salon Manager: front-desk staff, outlet managers, owners, stylists and customers.</p>
+    <div class="meta">Tip: this manual is also linked from Settings → Documentation inside the app.</div>
+  </div>
+</div>
+
+<div class="shell">
+<nav class="toc">
+  <h4>Getting started</h4>
+  <a href="#login">Signing in</a>
+  <a href="#navigate">Finding your way around</a>
+  <h4>Daily work</h4>
+  <a href="#bill">Creating a bill</a>
+  <a href="#redeem">Redeeming Gems</a>
+  <a href="#history">Viewing &amp; voiding bills</a>
+  <a href="#appts">Appointments</a>
+  <a href="#expenses">Expenses</a>
+  <h4>Catalogue</h4>
+  <a href="#services">Services</a>
+  <a href="#products">Products &amp; stock</a>
+  <a href="#po">Purchase orders</a>
+  <a href="#pricebooks">Price books</a>
+  <h4>Loyalty</h4>
+  <a href="#loyalty-setup">Setting up Gems</a>
+  <a href="#happyhour">Happy hour</a>
+  <h4>People</h4>
+  <a href="#staff">Staff</a>
+  <a href="#attendance">Attendance &amp; approvals</a>
+  <a href="#advances">Advances</a>
+  <a href="#payroll">Payroll</a>
+  <h4>Admin</h4>
+  <a href="#orgs">Outlets &amp; users</a>
+  <a href="#perms">Roles &amp; permissions</a>
+  <a href="#setup">Sheet setup</a>
+  <h4>Portals</h4>
+  <a href="#customer-portal">Customer portal</a>
+  <a href="#staff-portal">Staff portal</a>
+  <a href="#faq">Troubleshooting</a>
+</nav>
+
+<main class="content">
+
+<h2 id="login">Signing in</h2>
+<ol>
+<li>Open the app link in a browser (works on phone, tablet or desktop).</li>
+<li>Enter your <strong>email</strong> and <strong>password</strong> and tap <strong>Login</strong>.</li>
+<li>You'll land on the home screen. The tiles and menu you see depend on your role — if a feature is missing, your role doesn't have access to it.</li>
+</ol>
+<p><strong>Forgot your password?</strong> Use the "Forgot password" link to receive a reset email (the link is valid for one hour).</p>
+<p><strong>Staying signed in:</strong> the app remembers you on the same device until you sign out. It signs you out automatically after your session expires (you'll be returned to the login screen).</p>
+
+<h2 id="navigate">Finding your way around</h2>
+<ul>
+<li>The <strong>home tiles</strong> and the <strong>sidebar menu</strong> both take you to any screen.</li>
+<li>The <strong>☰ menu button</strong> collapses the sidebar on desktop and opens a drawer on phones.</li>
+<li>On screens with sub-sections (like Products or Staff), use the <strong>tabs</strong> at the top to switch between areas.</li>
+<li>The <strong>📊 Sheets</strong> button (when shown) opens the underlying Google Sheet for the current screen — handy for admins.</li>
+</ul>
+
+<h2 id="bill">Creating a bill</h2>
+<ol>
+<li>Go to <strong>Billing → New Bill</strong>.</li>
+<li>Type the customer's <strong>phone number</strong> to search.
+  <ul><li>If they exist, their name appears, along with their <strong>tier badge</strong> and <strong>Gem balance</strong>.</li>
+  <li>If not, register them on the spot with name + phone.</li></ul></li>
+<li>(Optional) choose a <strong>Price Book</strong> to apply special pricing.</li>
+<li>Add line items with <strong>+ Add Row</strong>. For each row:
+  <ul><li>Pick <strong>Service</strong> or <strong>Product</strong>, then the item.</li>
+  <li>Assign the <strong>staff member</strong> who performed/sold it (required).</li>
+  <li>Set the <strong>quantity</strong>. Price and GST fill in automatically; adjust if needed.</li></ul></li>
+<li>Enter a <strong>Discount</strong> (₹ or %) and/or a <strong>Tip</strong> if applicable.</li>
+<li>If the customer wants to redeem Gems, see <a href="#redeem">Redeeming Gems</a> below.</li>
+<li>Choose the <strong>Payment Mode</strong>: Cash, Card, UPI, or Split (enter the amounts for each).</li>
+<li>Check the <strong>Grand Total</strong> and the "Gems will be earned" preview.</li>
+<li>Tap <strong>Save &amp; Generate Invoice</strong>, confirm, then print or share the invoice.</li>
+</ol>
+<div class="callout note"><span class="tag">If Save is greyed out</span> You're missing something: a customer, a complete line item with a staff member and quantity, or (for Split payments) the amounts don't add up to the total.</div>
+
+<h2 id="redeem">Redeeming Gems</h2>
+<ol>
+<li>Look the customer up first — their Gem balance must be visible.</li>
+<li>In the summary, enter the number of <strong>Gems to redeem</strong>.</li>
+<li>The system converts them to a rupee discount automatically (based on your configured conversion) and shows the amount off. You can't redeem more than the customer has.</li>
+<li>Finish the bill as usual. Redeemed Gems are deducted from the customer's balance — but their <strong>tier is not affected</strong>.</li>
+</ol>
+
+<h2 id="history">Viewing &amp; voiding bills</h2>
+<ul>
+<li>Go to <strong>History</strong> to see recent bills (last 90 days by default).</li>
+<li>Open a bill to review its items.</li>
+<li>To cancel a bill, use <strong>Void</strong>. <span class="pill" style="background:#feb2b2;color:#742a2a">Important</span> Voiding marks the bill cancelled but does <strong>not</strong> automatically return stock or reverse Gems — adjust those manually if required.</li>
+</ul>
+
+<h2 id="appts">Appointments</h2>
+<ol>
+<li>Go to <strong>Appointments</strong>. Use the day navigator (‹ Today ›) to move between days.</li>
+<li>Switch between <strong>List</strong> and <strong>Timeline</strong> views.</li>
+<li>Tap <strong>+ New Appointment</strong>, choose the customer, staff, service, start time and duration, and save.</li>
+<li>Update an appointment's status as the visit progresses.</li>
+</ol>
+
+<h2 id="expenses">Expenses</h2>
+<ol>
+<li>Go to <strong>Expenses</strong>.</li>
+<li>Add an expense with date, category, vendor, amount, payment mode and any reference number.</li>
+<li>Use the <strong>filters</strong> (period, category, payment mode) to review spending; the summary bar totals what's shown.</li>
+<li>Void an expense entered by mistake.</li>
+</ol>
+
+<h2 id="services">Services &amp; service groups</h2>
+<p>Go to <strong>Services</strong> — three tabs:</p>
+<ul>
+<li><strong>Service Groups</strong> — create groups first. A group sets GST%, SAC code, whether it counts toward staff targets, a direct-incentive %, display order, and <strong>Eligible for loyalty points</strong> (tick this so services in the group earn Gems).</li>
+<li><strong>Service Catalog</strong> — add each service under a group, with its default price and duration.</li>
+<li><strong>Price Books</strong> — see below.</li>
+</ul>
+
+<h2 id="products">Products &amp; stock</h2>
+<p>Go to <strong>Products</strong> — six tabs:</p>
+<ul>
+<li><strong>Product Groups</strong> — set GST%, HSN code, per-unit staff incentive, and <strong>Eligible for loyalty points</strong>.</li>
+<li><strong>Products</strong> — add each product: category (Retail or Professional), unit of measure, cost, retail price, GST, current stock, reorder level, manufacturer, vendor.</li>
+<li><strong>Purchase Orders / Receive Stock / Stock Register / Stock Audit</strong> — see below.</li>
+</ul>
+<h3 id="po">Ordering &amp; receiving stock</h3>
+<ol>
+<li><strong>Purchase Orders → + Create PO:</strong> choose a vendor, add products with quantities and unit costs, save. The PO starts as <em>draft</em>.</li>
+<li><strong>Receive Stock:</strong> pick "Against Purchase Order" (choose the PO) or "Direct Receipt" (choose a vendor). Enter quantities received and save — stock goes up and the PO advances to <em>partial</em> or <em>received</em>.</li>
+<li><strong>Stock Register:</strong> the full history of every stock change; filter by product, type or date.</li>
+<li><strong>Stock Audit:</strong> load products, enter the <strong>physical count</strong>, and save. The system records the variance and corrects the stock to your count.</li>
+</ol>
+<h3 id="pricebooks">Price books</h3>
+<ol>
+<li>Under <strong>Services → Price Books</strong>, create a price book (e.g. "Weekend Pricing").</li>
+<li>Open it and set special prices for the services you want to override; the rest fall back to their default price.</li>
+<li>Select the price book at the top of a bill to apply it.</li>
+</ol>
+
+<h2 id="loyalty-setup">Setting up the Gems programme</h2>
+<ol>
+<li>Go to <strong>Settings → Loyalty Programme</strong>.</li>
+<li>Tick <strong>Enable Loyalty Programme</strong>.</li>
+<li>Set the <strong>Points Name</strong> to <em>Gems</em>.</li>
+<li>Set the <strong>Base Earn Rate</strong> (Gems per ₹100 of eligible spend) and the <strong>Expiry</strong> in months.</li>
+<li>Under <strong>Redemption</strong>, set how many Gems equal ₹1 off, the value per unit, and the minimum Gems needed to redeem.</li>
+<li>In the <strong>Tiers</strong> table, name the four tiers, set each one's status-point threshold, earn multiplier, and badge colour. (The first tier always starts at 0.)</li>
+<li>Tap <strong>Save Loyalty Settings</strong>.</li>
+</ol>
+<div class="callout note"><span class="tag">Remember</span> A service or product only earns Gems if its <strong>group</strong> has "Eligible for loyalty points" ticked. Set that up in Services/Products first.</div>
+
+<h3 id="happyhour">Running a happy hour</h3>
+<ul>
+<li><strong>Right now:</strong> tick <strong>Active right now</strong> and set the multiplier — everyone earning during this time gets the bonus. Untick it to stop.</li>
+<li><strong>Recurring:</strong> add one or more <strong>windows</strong> — choose the day, the from/to times, and (optionally) an effective-from date. Happy hour turns on automatically during those windows.</li>
+<li>Save your changes. During happy hour, the billing screen shows a 🎉 badge and the extra Gems in the earn preview.</li>
+</ul>
+
+<h2 id="staff">Staff</h2>
+<ol>
+<li>Go to <strong>Staff → Staff</strong> tab and add each team member: name, phone, role, salary, allowance, specialisation.</li>
+<li>Assign an <strong>Incentive Profile</strong> and a <strong>target period</strong> (weekly or monthly).</li>
+<li>A staff member's portal PIN defaults to the <strong>last 4 digits of their phone</strong> until they change it.</li>
+</ol>
+<p>Other Staff tabs: <strong>Incentive Profiles</strong> (define commission structures), <strong>Shifts</strong> (working-hour templates), <strong>Attendance</strong>, and <strong>Payroll</strong>.</p>
+
+<h2 id="attendance">Attendance &amp; approvals</h2>
+<ul>
+<li><strong>Recording attendance:</strong> managers can enter it directly under Staff → Attendance. Staff can self-log from their portal.</li>
+<li>Each day is <strong>present</strong>, <strong>absent</strong>, or <strong>half-day</strong>, with clock-in/out times. Overtime counts beyond 9 hours a day.</li>
+<li><strong>Approving:</strong> go to <strong>HR Approvals → Attendance</strong>. Review staff-submitted (pending) records and <strong>Approve</strong> or <strong>Reject</strong>. Absent staff for the day are listed so you can record them.</li>
+</ul>
+
+<h2 id="advances">Salary advances</h2>
+<ul>
+<li>Staff request advances from their portal (they enter a pending request).</li>
+<li>In <strong>HR Approvals → Advance Requests</strong>: <strong>Approve</strong> with an amount, then <strong>Disburse</strong> with a payment mode. You can also <strong>Reject</strong>.</li>
+<li>A running balance is maintained and deducted at payroll time.</li>
+</ul>
+
+<h2 id="payroll">Running payroll</h2>
+<ol>
+<li>Go to <strong>Staff → Payroll</strong>.</li>
+<li>Choose the staff member and the <strong>month</strong>.</li>
+<li>Confirm the <strong>eligible free offs</strong> (default 4) and <strong>payable days</strong> (default 26).</li>
+<li><strong>Calculate</strong> to see the breakdown: base salary, leave deduction, overtime pay, incentives, advances deducted, and net pay. (Weekend absences count double.)</li>
+<li>Review and <strong>Save</strong> the payroll. Update its status when paid.</li>
+</ol>
+
+<h2 id="orgs">Outlets &amp; users</h2>
+<ul>
+<li><strong>Organizations:</strong> build your company tree — the parent company and each outlet (Naturals, FirstCry) as child orgs. An org can't be deleted while it has children.</li>
+<li><strong>Users:</strong> add each staff/manager login with their name, email, role and outlet. Emails must be unique. A parent-org user sees all outlets beneath them; an outlet user sees only theirs.</li>
+</ul>
+
+<h2 id="perms">Roles &amp; permissions</h2>
+<ol>
+<li><strong>Roles:</strong> create roles like Manager, Cashier, etc.</li>
+<li><strong>Permissions:</strong> pick a role, then tick which menu items it can access. Save. Users with that role will only see the allowed features.</li>
+</ol>
+
+<h2 id="setup">Sheet setup &amp; verification (admins)</h2>
+<ul>
+<li>Go to <strong>Settings → Sheet Setup &amp; Verification</strong>. It checks that every required data sheet exists with the right columns.</li>
+<li>If anything is <strong>Missing</strong> or has <strong>Missing columns</strong>, tick the items and press <strong>Run Setup</strong> to create/repair them automatically.</li>
+<li><strong>📋 Refresh Summary Sheet</strong> rebuilds the "Index" tab in the Google Sheet — a friendly directory of all data tabs.</li>
+</ul>
+
+<h2 id="customer-portal">Customer portal ("My Gems")</h2>
+<p>Share the customer portal link with your customers. They:</p>
+<ol>
+<li>Enter their <strong>phone number</strong> — no password needed.</li>
+<li>See their <strong>tier</strong>, <strong>Gem balance</strong>, and <strong>progress</strong> toward the next tier.</li>
+<li>Browse their <strong>visit history</strong>, with the Gems earned or redeemed on each visit.</li>
+</ol>
+
+<h2 id="staff-portal">Staff portal</h2>
+<p>Share the staff portal link with your team. They log in with <strong>phone + PIN</strong> (default: last 4 digits of phone) and can:</p>
+<ul>
+<li><strong>Confirm</strong> the bill items credited to them (keeps incentives accurate).</li>
+<li><strong>Log attendance</strong> (clock in/out) — sent to their manager for approval.</li>
+<li><strong>Request an advance</strong>.</li>
+<li><strong>Change their PIN</strong>.</li>
+</ul>
+
+<h2 id="faq">Troubleshooting</h2>
+<div class="table-wrap"><table>
+<tr><th>Problem</th><th>What to do</th></tr>
+<tr><td>"Session expired" / kicked to login</td><td>Just log in again. Sessions time out after several hours for security.</td></tr>
+<tr><td>Customer's Gems / tier not showing on a bill</td><td>Make sure you searched by their exact phone number and they're registered. The loyalty programme must be enabled in Settings.</td></tr>
+<tr><td>A service/product isn't earning Gems</td><td>Its group must have "Eligible for loyalty points" ticked.</td></tr>
+<tr><td>Can't save a bill</td><td>Add a customer, complete at least one line with a staff member and quantity, and (for Split) make the amounts total the grand total.</td></tr>
+<tr><td>A feature is missing from my menu</td><td>Your role doesn't have access. Ask an admin to grant it under Roles &amp; Permissions.</td></tr>
+<tr><td>Stock looks wrong</td><td>Run a Stock Audit to reconcile to the physical count. Remember voiding a bill doesn't restore stock automatically.</td></tr>
+<tr><td>Staff can't log in to the portal</td><td>Their phone must match their staff record; the default PIN is the last 4 digits of that phone.</td></tr>
+<tr><td>Password reset email issues</td><td>Reset links expire after one hour; request a new one if needed.</td></tr>
+</table></div>
+
+</main>
+</div>
+
+<footer>Salon Manager — User Manual · Also available inside the app under Settings → Documentation.</footer>
