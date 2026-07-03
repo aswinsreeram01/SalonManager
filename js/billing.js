@@ -157,6 +157,20 @@ const Billing = {
         if (earnRow) earnRow.style.display = 'none';
     },
 
+    // Mirrors Utils.normalizePhone on the backend (E.164, +91 default) so
+    // client-side matching against the canonical phones returned by
+    // get_customers stays correct regardless of how the cashier types it.
+    _normalizePhone(phone) {
+        if (!phone) return '';
+        const raw = String(phone).trim();
+        if (raw.startsWith('+')) return '+' + raw.slice(1).replace(/\D/g, '');
+        let digits = raw.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+        if (digits.length === 12 && digits.startsWith('91')) return '+' + digits;
+        if (digits.length === 10) return '+91' + digits;
+        return digits ? '+' + digits : '';
+    },
+
     lookupCustomer(phone) {
         const nameEl  = document.getElementById('billingCustomerName');
         const phoneEl = document.getElementById('billingPhone');
@@ -170,13 +184,13 @@ const Billing = {
             this.liveValidate();
             return;
         }
-        const customer = this.customers.find(c => String(c.phone).replace(/\D/g,'') === String(phone).replace(/\D/g,''));
+        const customer = this.customers.find(c => this._normalizePhone(c.phone) === this._normalizePhone(phone));
         if (customer) {
-            this.selectedCustomerId   = String(customer.phone).trim();
+            this.selectedCustomerId   = this._normalizePhone(customer.phone);
             this.selectedCustomerName = customer.name;
             if (nameEl)  { nameEl.textContent = customer.name; nameEl.style.color = '#38a169'; }
             if (phoneEl) phoneEl.classList.remove('field-error');
-            this._loadCustomerLoyalty(String(customer.phone).replace(/\D/g,''));
+            this._loadCustomerLoyalty(this._normalizePhone(customer.phone));
         } else if (phone.length >= 10) {
             this.selectedCustomerId   = null;
             this.selectedCustomerName = '';
@@ -267,8 +281,9 @@ const Billing = {
         try {
             const result = await API.addCustomer({ name, phone });
             if (result.status === 'success') {
-                this.customers.push({ name, phone });
-                this.selectedCustomerId   = String(phone).trim();
+                const canonicalPhone = result.phone || this._normalizePhone(phone);
+                this.customers.push({ name, phone: canonicalPhone });
+                this.selectedCustomerId   = canonicalPhone;
                 this.selectedCustomerName = name;
                 const nameEl = document.getElementById('billingCustomerName');
                 if (nameEl) { nameEl.textContent = name; nameEl.style.color = '#38a169'; }
@@ -385,6 +400,14 @@ const Billing = {
         this.recalcRow(row); this._updateRowTotals(rowId); this.recalcTotals();
     },
 
+    onGstChange(rowId, val) {
+        const row = this.rows.find(r => r.rowId === rowId);
+        if (!row) return;
+        // Keep '' distinguishable from 0 so liveValidate can block an emptied GST field.
+        row.gstPct = val === '' ? '' : Math.max(0, Number(val) || 0);
+        this.recalcRow(row); this._updateRowTotals(rowId); this.recalcTotals();
+    },
+
     onProfProductChange(rowId, productId) {
         const row = this.rows.find(r => r.rowId === rowId);
         if (!row) return;
@@ -411,8 +434,9 @@ const Billing = {
     },
 
     recalcRow(row) {
+        const gstPct = (row.gstPct === '' || row.gstPct === null || row.gstPct === undefined) ? 0 : Number(row.gstPct);
         row.lineSubtotal = Math.round(row.qty * row.unitPrice * 100) / 100;
-        row.lineGst      = Math.round(row.lineSubtotal * row.gstPct / 100 * 100) / 100;
+        row.lineGst      = Math.round(row.lineSubtotal * gstPct / 100 * 100) / 100;
         row.lineTotal    = row.lineSubtotal + row.lineGst;
     },
 
@@ -453,7 +477,9 @@ const Billing = {
                     style="width:58px;text-align:center;${qtyBorder}" oninput="Billing.onQtyChange(${row.rowId}, this.value)"></td>
                 <td><input type="number" class="bill-input" value="${row.unitPrice||''}" min="0" step="0.01"
                     style="width:88px;text-align:right;" placeholder="0.00" oninput="Billing.onPriceChange(${row.rowId}, this.value)"></td>
-                <td style="text-align:center;color:#718096;">${row.gstPct}%</td>
+                <td><input type="number" class="bill-input bill-gst" value="${row.gstPct}" min="0" max="100" step="0.01"
+                    style="width:64px;text-align:center;${row.itemId && row.gstPct === '' ? 'border-color:#e53e3e;' : ''}"
+                    placeholder="%" oninput="Billing.onGstChange(${row.rowId}, this.value)"></td>
                 <td style="text-align:right;" class="cell-subtotal">₹${row.lineSubtotal.toFixed(2)}</td>
                 <td style="text-align:right;" class="cell-gst">₹${row.lineGst.toFixed(2)}</td>
                 <td style="text-align:right;font-weight:600;" class="cell-total">₹${row.lineTotal.toFixed(2)}</td>
@@ -582,6 +608,8 @@ const Billing = {
             const n = this.rows.indexOf(row) + 1;
             if (!row.staffId)       checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): Select a staff member` });
             if (!row.qty || row.qty <= 0) checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): Qty must be > 0` });
+            if (row.gstPct === '' || row.gstPct === null || row.gstPct === undefined)
+                checks.push({ ok: false, msg: `Row ${n} (${row.itemName}): GST% is required` });
         });
         const mode = (document.querySelector('input[name="paymentMode"]:checked') || {}).value;
         if (mode === 'Split') {

@@ -211,6 +211,20 @@ const Appointments = {
 
     // ── Customer Phone Lookup ──────────────────────────────────────────────────
 
+    // Mirrors Utils.normalizePhone on the backend (E.164, +91 default) so
+    // client-side matching against the canonical phones returned by
+    // get_customers stays correct regardless of how the user types it.
+    _normalizePhone(phone) {
+        if (!phone) return '';
+        const raw = String(phone).trim();
+        if (raw.startsWith('+')) return '+' + raw.slice(1).replace(/\D/g, '');
+        let digits = raw.replace(/\D/g, '');
+        if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+        if (digits.length === 12 && digits.startsWith('91')) return '+' + digits;
+        if (digits.length === 10) return '+91' + digits;
+        return digits ? '+' + digits : '';
+    },
+
     _lookupCust(phone, knownName) {
         const infoEl = document.getElementById('apptCustInfo');
         this._custPhone = phone;
@@ -234,9 +248,9 @@ const Appointments = {
             return;
         }
 
-        const match = this.customers.find(c => String(c.phone).trim() === String(phone).trim());
+        const match = this.customers.find(c => this._normalizePhone(c.phone) === this._normalizePhone(phone));
         if (match) {
-            this._custId   = String(match.phone).trim();
+            this._custId   = this._normalizePhone(match.phone);
             this._custName = match.name;
             infoEl.textContent = match.name;
             infoEl.style.color = '#38a169';
@@ -275,10 +289,11 @@ const Appointments = {
         try {
             const res = await API.addCustomer({ name, phone });
             if (res.status === 'success') {
-                this.customers.push({ name, phone });
-                this._custId   = String(phone).trim();
+                const canonicalPhone = res.phone || this._normalizePhone(phone);
+                this.customers.push({ name, phone: canonicalPhone });
+                this._custId   = canonicalPhone;
                 this._custName = name;
-                this._custPhone = phone;
+                this._custPhone = canonicalPhone;
                 const infoEl = document.getElementById('apptCustInfo');
                 infoEl.textContent = name;
                 infoEl.style.color = '#38a169';

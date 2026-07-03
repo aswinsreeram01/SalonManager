@@ -14,12 +14,17 @@
                     </div>
 
                     <div id="permMatrix" style="display: none;">
+                        <p class="muted" style="margin-bottom: 12px;">
+                            <strong>Read</strong> lets this role view the page's data. <strong>Update</strong> covers
+                            add/edit/delete on that page. Unchecked boxes deny access — nothing is allowed by default.
+                        </p>
                         <div class="table-container">
                             <table>
                                 <thead>
                                     <tr>
                                         <th>Menu Item</th>
-                                        <th style="width: 80px;">Access</th>
+                                        <th style="width: 80px; text-align:center;">Read</th>
+                                        <th style="width: 80px; text-align:center;">Update</th>
                                     </tr>
                                 </thead>
                                 <tbody id="permMatrixBody"></tbody>

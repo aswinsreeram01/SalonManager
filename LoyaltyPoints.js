@@ -112,9 +112,9 @@ const LoyaltyPoints = {
   // ── Customer lookup helpers ───────────────────────────────────────────────────
 
   _findCustomerRow(custRows, phone) {
-    const normPhone = String(phone || '').replace(/\D/g, '');
+    const normPhone = Utils.normalizePhone(phone);
     for (let i = 1; i < custRows.length; i++) {
-      if (String(custRows[i][2] || '').replace(/\D/g, '') === normPhone) return i;
+      if (Utils.normalizePhone(custRows[i][2]) === normPhone) return i;
     }
     return -1;
   },
@@ -122,7 +122,7 @@ const LoyaltyPoints = {
   // ── Public: get loyalty info for a customer ───────────────────────────────────
 
   getCustomerLoyalty(data) {
-    const phone = String(data.phone || '').replace(/\D/g, '');
+    const phone = Utils.normalizePhone(data.phone);
     if (!phone) return Utils.createResponse('error', 'Phone required');
 
     const cfg = this._loadConfig();
@@ -171,7 +171,7 @@ const LoyaltyPoints = {
   // ── Public: get ledger for a customer ─────────────────────────────────────────
 
   getLedger(data) {
-    const phone = String(data.phone || '').replace(/\D/g, '');
+    const phone = Utils.normalizePhone(data.phone);
     const ledgerSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PointsLedger');
     if (!ledgerSheet) return Utils.createResponse('success', 'Ledger retrieved', { entries: [] });
 
@@ -179,7 +179,7 @@ const LoyaltyPoints = {
     const entries = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
-      if (String(rows[i][1] || '').replace(/\D/g, '') !== phone) continue;
+      if (Utils.normalizePhone(rows[i][1]) !== phone) continue;
       entries.push({
         ledgerId:   rows[i][0],
         billId:     rows[i][3] || '',
@@ -193,6 +193,85 @@ const LoyaltyPoints = {
     }
     entries.sort((a, b) => new Date(b.earnedDate) - new Date(a.earnedDate));
     return Utils.createResponse('success', 'Ledger retrieved', { entries });
+  },
+
+  // ── Server-authoritative earn/redeem calculation for a bill ───────────────────
+  // Bills.save() calls this instead of trusting the client's pointsToEarn/
+  // redeemPoints values for money math. Mirrors the client-side preview in
+  // js/billing.js (_calcPointsToEarn) but is the actual source of truth.
+  // `items` must already have server-computed lineSubtotal per line.
+  calcForBill(items, customerPhone, requestedRedeemPoints) {
+    const out = { enabled: false, pointsToEarn: 0, redeemPointsApplied: 0, redemptionValue: 0 };
+    const cfg = this._loadConfig();
+    out.enabled = !!cfg.enabled;
+    if (!cfg.enabled) return out;
+
+    const phone = Utils.normalizePhone(customerPhone);
+    if (!phone) return out;
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const custSheet = ss.getSheetByName('Customers');
+    if (!custSheet) return out;
+    const custRows = custSheet.getDataRange().getValues();
+    const custIdx = this._findCustomerRow(custRows, phone);
+    if (custIdx < 0) return out;
+
+    const balance = Number(custRows[custIdx][5]) || 0;
+
+    // Redemption — cap at actual balance regardless of what was requested.
+    const requested = Math.max(0, Math.floor(Number(requestedRedeemPoints) || 0));
+    out.redeemPointsApplied = Math.min(requested, balance);
+    const rate = Number(cfg.redemptionRate) || 100;
+    const val  = Number(cfg.redemptionValue) || 10;
+    out.redemptionValue = Math.floor(out.redeemPointsApplied / rate) * val;
+
+    // Earning
+    const tiers    = (cfg.tiers || []).slice().sort((a, b) => a.threshold - b.threshold);
+    const tierName = custRows[custIdx][7] || (tiers[0] ? tiers[0].name : '');
+    const tierIdx  = tiers.findIndex(t => t.name === tierName);
+    const tierMult = tierIdx >= 0 ? (Number(tiers[tierIdx].multiplier) || 1) : 1;
+    const hhMult   = this._isHappyHour(cfg) ? (Number(cfg.happyHourMultiplier) || 2) : 1;
+
+    const eligible = this._eligibleSpend(ss, items);
+    out.pointsToEarn = Math.floor(eligible / 100) * (Number(cfg.baseEarnRate) || 10) * tierMult * hhMult;
+
+    return out;
+  },
+
+  // Sums lineSubtotal for items whose service/product group has pointsEligible set.
+  _eligibleSpend(ss, items) {
+    const sgSheet   = ss.getSheetByName('ServiceGroups');
+    const svcSheet  = ss.getSheetByName('Services');
+    const pgSheet   = ss.getSheetByName('ProductGroups');
+    const prodSheet = ss.getSheetByName('Products');
+
+    const sgEligible = {}, svcGroupOf = {}, pgEligible = {}, prodGroupOf = {};
+    if (sgSheet) {
+      const r = sgSheet.getDataRange().getValues();
+      for (let i = 1; i < r.length; i++) if (r[i][0]) sgEligible[r[i][0]] = r[i][10] === true || r[i][10] === 'TRUE';
+    }
+    if (svcSheet) {
+      const r = svcSheet.getDataRange().getValues();
+      for (let i = 1; i < r.length; i++) if (r[i][0]) svcGroupOf[r[i][0]] = r[i][4];
+    }
+    if (pgSheet) {
+      const r = pgSheet.getDataRange().getValues();
+      for (let i = 1; i < r.length; i++) if (r[i][0]) pgEligible[r[i][0]] = r[i][8] === true || r[i][8] === 'TRUE';
+    }
+    if (prodSheet) {
+      const r = prodSheet.getDataRange().getValues();
+      for (let i = 1; i < r.length; i++) if (r[i][0]) prodGroupOf[r[i][0]] = r[i][14];
+    }
+
+    let eligible = 0;
+    items.forEach(item => {
+      if (item.type === 'service' && item.itemId && sgEligible[svcGroupOf[item.itemId]]) {
+        eligible += Number(item.lineSubtotal) || 0;
+      } else if (item.type === 'product' && item.itemId && pgEligible[prodGroupOf[item.itemId]]) {
+        eligible += Number(item.lineSubtotal) || 0;
+      }
+    });
+    return eligible;
   },
 
   // ── Called from Bills.save() after bill is persisted ─────────────────────────
@@ -249,7 +328,7 @@ const LoyaltyPoints = {
   },
 
   _recalcStatus(custIdx, custSheet, custRow, cfg, ledgerSheet) {
-    const phone           = String(custRow[2] || '').replace(/\D/g, '');
+    const phone           = Utils.normalizePhone(custRow[2]);
     const now             = new Date();
     const twelveMonthsAgo = new Date(now);
     twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - (Number(cfg.expiryMonths) || 12));
@@ -258,7 +337,7 @@ const LoyaltyPoints = {
     let statusPoints = 0;
     for (let i = 1; i < ledgerRows.length; i++) {
       if (ledgerRows[i][6] !== 'earn') continue;
-      if (String(ledgerRows[i][1] || '').replace(/\D/g, '') !== phone) continue;
+      if (Utils.normalizePhone(ledgerRows[i][1]) !== phone) continue;
       const earnedDate = new Date(ledgerRows[i][4]);
       const expiryDate = new Date(ledgerRows[i][5]);
       if (earnedDate < twelveMonthsAgo) continue;
@@ -277,5 +356,81 @@ const LoyaltyPoints = {
 
     custSheet.getRange(custIdx + 1, 7).setValue(statusPoints);
     custSheet.getRange(custIdx + 1, 8).setValue(newTier);
+  },
+
+  // ── Called from Bills.voidBill() ──────────────────────────────────────────────
+  // Reverses any earn/redeem ledger entries tied to this bill: negates the
+  // earn and refunds the redeem. Allows the balance to go temporarily
+  // negative — the customer may have already spent points earned on this
+  // bill elsewhere, and that's an accepted trade-off of voiding after the
+  // fact rather than blocking the void.
+  //
+  // The earn reversal is backdated to the ORIGINAL entry's earnedDate/
+  // expiryDate rather than "now". _recalcStatus only sums entries within a
+  // rolling 12-month window — if the reversal were dated "now" it would
+  // outlive the original once the original ages out of the window (the
+  // original stops counting while the negative offset keeps counting),
+  // silently over-deducting status points months later. Sharing the same
+  // window means both entries always age out together and permanently net
+  // to zero.
+  reverseForBill(billId, orgId) {
+    const cfg = this._loadConfig();
+    if (!cfg.enabled) return;
+
+    const custSheet   = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
+    const ledgerSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PointsLedger');
+    if (!custSheet || !ledgerSheet) return;
+
+    const ledgerRows = ledgerSheet.getDataRange().getValues();
+    let earnEntry = null, redeemEntry = null;
+    for (let i = 1; i < ledgerRows.length; i++) {
+      if (ledgerRows[i][3] !== billId) continue;
+      if (ledgerRows[i][6] === 'earn' && !earnEntry) {
+        earnEntry = {
+          phone: ledgerRows[i][1], name: ledgerRows[i][2],
+          points: Number(ledgerRows[i][7]) || 0,
+          earnedDate: ledgerRows[i][4], expiryDate: ledgerRows[i][5]
+        };
+      }
+      if (ledgerRows[i][6] === 'redeem' && !redeemEntry) {
+        redeemEntry = { phone: ledgerRows[i][1], name: ledgerRows[i][2], points: Number(ledgerRows[i][7]) || 0 };
+      }
+    }
+    if (!earnEntry && !redeemEntry) return; // nothing recorded for this bill (e.g. no phone at save time)
+
+    const phone = (earnEntry || redeemEntry).phone;
+    const name  = (earnEntry || redeemEntry).name;
+    const custRows = custSheet.getDataRange().getValues();
+    const custIdx  = this._findCustomerRow(custRows, phone);
+    if (custIdx < 0) return;
+
+    let balance = Number(custRows[custIdx][5]) || 0;
+    const now = new Date();
+
+    if (earnEntry && earnEntry.points > 0) {
+      balance -= earnEntry.points;
+      ledgerSheet.appendRow([
+        'LPV' + now.getTime() + Math.random().toString(36).substr(2, 4),
+        phone, name || '', billId,
+        earnEntry.earnedDate, earnEntry.expiryDate, 'earn',
+        -earnEntry.points, balance,
+        'Reversed — bill ' + billId + ' voided', orgId || ''
+      ]);
+    }
+
+    if (redeemEntry && redeemEntry.points < 0) {
+      const refund = Math.abs(redeemEntry.points);
+      balance += refund;
+      ledgerSheet.appendRow([
+        'LPV' + now.getTime() + Math.random().toString(36).substr(2, 4),
+        phone, name || '', billId,
+        now.toISOString(), '', 'redeem',
+        refund, balance,
+        'Refunded — bill ' + billId + ' voided', orgId || ''
+      ]);
+    }
+
+    custSheet.getRange(custIdx + 1, 6).setValue(balance);
+    this._recalcStatus(custIdx, custSheet, custRows[custIdx], cfg, ledgerSheet);
   }
 };

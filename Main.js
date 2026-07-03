@@ -1,3 +1,142 @@
+// Actions any authenticated admin user may call regardless of their role's
+// permission matrix. 'change_own_password' is reserved for a future
+// self-service password change action (not yet implemented) so it stays
+// ungated the moment it's added.
+const ALWAYS_ALLOWED_ACTIONS = ['logout', 'change_own_password'];
+
+// action -> [menuItem, 'read' | 'update']. 'update' covers add/edit/delete.
+// Menu items are page-level, matching the sidebar/pages/*.html structure.
+// Public actions (see publicActions below) and staff-portal actions (see
+// STAFF_ACTIONS) are authenticated by a different mechanism and are not
+// listed here.
+const ACTION_PERMISSIONS = {
+  // Customers
+  get_customers: ['customers', 'read'],
+  add_customer: ['customers', 'update'],
+
+  // Loyalty (configured from the Settings page)
+  get_loyalty_config: ['settings', 'read'],
+  update_loyalty_config: ['settings', 'update'],
+  toggle_happy_hour: ['settings', 'update'],
+
+  // Service Groups / Services / Price Books (all under the Services page)
+  get_service_groups: ['services', 'read'],
+  add_service_group: ['services', 'update'],
+  update_service_group: ['services', 'update'],
+  delete_service_group: ['services', 'update'],
+  get_services: ['services', 'read'],
+  add_service: ['services', 'update'],
+  update_service: ['services', 'update'],
+  delete_service: ['services', 'update'],
+  get_pricebooks: ['services', 'read'],
+  add_pricebook: ['services', 'update'],
+  update_pricebook: ['services', 'update'],
+  delete_pricebook: ['services', 'update'],
+  get_pricebook_items: ['services', 'read'],
+  add_pricebook_item: ['services', 'update'],
+  update_pricebook_item: ['services', 'update'],
+  delete_pricebook_item: ['services', 'update'],
+
+  // Products, Product Groups, Purchase Orders, Stock (all under the Products page)
+  get_products: ['products', 'read'],
+  add_product: ['products', 'update'],
+  update_product: ['products', 'update'],
+  update_product_stock: ['products', 'update'],
+  delete_product: ['products', 'update'],
+  receive_stock: ['products', 'update'],
+  get_stock_register: ['products', 'read'],
+  save_stock_audit: ['products', 'update'],
+  get_product_groups: ['products', 'read'],
+  add_product_group: ['products', 'update'],
+  update_product_group: ['products', 'update'],
+  delete_product_group: ['products', 'update'],
+  get_purchase_orders: ['products', 'read'],
+  create_purchase_order: ['products', 'update'],
+  update_po_status: ['products', 'update'],
+  get_po_items: ['products', 'read'],
+
+  // Vendors (its own sidebar page)
+  get_vendors: ['vendors', 'read'],
+  add_vendor: ['vendors', 'update'],
+  update_vendor: ['vendors', 'update'],
+  remove_vendor: ['vendors', 'update'],
+
+  // Staff, Incentive Profiles, Shifts, Schedule, Attendance, Advances,
+  // Weekly Incentive, Payroll (all tabs under the Staff page)
+  get_staff: ['staff', 'read'],
+  add_staff: ['staff', 'update'],
+  update_staff: ['staff', 'update'],
+  delete_staff: ['staff', 'update'],
+  get_incentive_profiles: ['staff', 'read'],
+  add_incentive_profile: ['staff', 'update'],
+  update_incentive_profile: ['staff', 'update'],
+  delete_incentive_profile: ['staff', 'update'],
+  get_shifts: ['staff', 'read'],
+  save_shift: ['staff', 'update'],
+  get_attendance: ['staff', 'read'],
+  save_attendance: ['staff', 'update'],
+  get_week_schedule: ['staff', 'read'],
+  save_week_schedule: ['staff', 'update'],
+  get_advances: ['staff', 'read'],
+  add_advance: ['staff', 'update'],
+  save_weekly_incentive: ['staff', 'update'],
+  get_weekly_incentives: ['staff', 'read'],
+  calculate_payroll: ['staff', 'read'],
+  save_payroll: ['staff', 'update'],
+  get_payroll: ['staff', 'read'],
+  update_payroll_status: ['staff', 'update'],
+
+  // HR Approvals (its own sidebar page)
+  get_pending_attendance: ['hrapprovals', 'read'],
+  approve_attendance: ['hrapprovals', 'update'],
+  reject_attendance: ['hrapprovals', 'update'],
+  get_pending_advances: ['hrapprovals', 'read'],
+  approve_advance: ['hrapprovals', 'update'],
+  disburse_advance: ['hrapprovals', 'update'],
+  reject_advance: ['hrapprovals', 'update'],
+
+  // Organizations / Users / Roles / Permissions
+  get_organizations: ['organizations', 'read'],
+  add_organization: ['organizations', 'update'],
+  update_organization: ['organizations', 'update'],
+  delete_organization: ['organizations', 'update'],
+  get_users: ['users', 'read'],
+  add_user: ['users', 'update'],
+  update_user: ['users', 'update'],
+  delete_user: ['users', 'update'],
+  get_roles: ['roles', 'read'],
+  add_role: ['roles', 'update'],
+  update_role: ['roles', 'update'],
+  delete_role: ['roles', 'update'],
+  get_permissions: ['permissions', 'read'],
+  get_user_permissions: ['permissions', 'read'],
+  update_permissions: ['permissions', 'update'],
+
+  // Bills (billing = create; history = browse/void)
+  save_bill: ['billing', 'update'],
+  get_bills: ['history', 'read'],
+  get_bill_items: ['history', 'read'],
+  void_bill: ['history', 'update'],
+
+  // Appointments
+  get_appointments: ['appointments', 'read'],
+  save_appointment: ['appointments', 'update'],
+  update_appointment: ['appointments', 'update'],
+
+  // Expenses
+  get_expenses: ['expenses', 'read'],
+  save_expense: ['expenses', 'update'],
+  update_expense: ['expenses', 'update'],
+  void_expense: ['expenses', 'update'],
+
+  // Settings (Org Settings + Sheet Setup, both live on the Settings page)
+  get_org_settings: ['settings', 'read'],
+  update_org_settings: ['settings', 'update'],
+  get_setup_status: ['settings', 'read'],
+  run_setup: ['settings', 'update'],
+  refresh_summary_sheet: ['settings', 'update']
+};
+
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
@@ -42,6 +181,32 @@ function doPost(e) {
       }
       data.orgId  = session.orgId  || '';
       data.userId = session.userId || '';
+      // NOTE: deliberately NOT writing session.roleId onto `data.roleId` —
+      // Permissions.js already uses data.roleId for a different purpose (the
+      // role being VIEWED/EDITED in the Permissions matrix screen, sent
+      // explicitly by the client). Overwriting it here would silently break
+      // that screen. The caller's own role for the access-control check
+      // below is kept in a local variable instead.
+      const callerRoleId = session.roleId || '';
+
+      // ── Role-based access control ────────────────────────────────────────
+      // Every admin action (other than the always-allowed ones below) must be
+      // tagged in ACTION_PERMISSIONS with the menu item it belongs to and
+      // whether it's a read or an update (add/edit/delete). No hardcoded
+      // "Owner" bypass — a role simply has every box ticked in the
+      // Permissions matrix. Unmapped actions fail CLOSED (denied), not open,
+      // so a new action added here without a matching entry below is a
+      // build-time bug to fix, not a silent access hole.
+      if (!ALWAYS_ALLOWED_ACTIONS.includes(action)) {
+        const rule = ACTION_PERMISSIONS[action];
+        if (!rule) {
+          return Utils.createResponse('error', 'This action is not configured for access control (' + action + ').');
+        }
+        const [menuItem, kind] = rule;
+        if (!Permissions.check(callerRoleId, menuItem, kind)) {
+          return Utils.createResponse('error', 'You do not have permission to perform this action.');
+        }
+      }
     }
 
     switch(action) {
@@ -104,7 +269,7 @@ function doPost(e) {
 
       // Vendors
       case 'get_vendors':
-        return Vendors.getAll();
+        return Vendors.getAll(data);
       case 'add_vendor':
         return Vendors.add(data);
       case 'update_vendor':
@@ -114,7 +279,7 @@ function doPost(e) {
 
       // Purchase Orders
       case 'get_purchase_orders':
-        return PurchaseOrders.getAll();
+        return PurchaseOrders.getAll(data);
       case 'create_purchase_order':
         return PurchaseOrders.create(data);
       case 'update_po_status':
@@ -218,7 +383,7 @@ function doPost(e) {
 
       // Expenses
       case 'get_expenses':
-        return Expenses.getAll();
+        return Expenses.getAll(data);
       case 'save_expense':
         return Expenses.save(data);
       case 'update_expense':
@@ -243,7 +408,7 @@ function doPost(e) {
       case 'update_org_settings': return OrgSettings.update(data);
 
       // Shifts & Attendance
-      case 'get_shifts':          return Attendance.getShifts();
+      case 'get_shifts':          return Attendance.getShifts(data);
       case 'save_shift':          return Attendance.saveShift(data);
       case 'get_attendance':      return Attendance.getAttendance(data);
       case 'save_attendance':     return Attendance.saveAttendance(data);

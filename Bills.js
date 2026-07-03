@@ -18,29 +18,80 @@ const Bills = {
     if (!billsSheet) return Utils.createResponse('error', 'Bills sheet not found');
     if (!itemsSheet) return Utils.createResponse('error', 'BillItems sheet not found');
 
-    const billId = 'BILL' + Date.now();
-    const date = new Date().toISOString();
-    const items = data.items || [];
+    const rawItems = data.items || [];
+    if (rawItems.length === 0) {
+      return Utils.createResponse('error', 'A bill must have at least one item.');
+    }
+
     const orgId  = data.orgId  || '';
     const userId = data.userId || '';
+    // Canonical customer identity (E.164, +91 default) — used as both the
+    // Bills.customerId key and the loyalty ledger key, so bill history and
+    // loyalty always resolve the same customer the same way.
+    const customerPhone = Utils.normalizePhone(data.customerPhone || data.customerId);
+
+    // ── Server-authoritative line math ────────────────────────────────────
+    // Unit price and GST% are cashier-entered and trusted as-is; every
+    // derived number (line subtotal/GST/total, bill subtotals, discount,
+    // loyalty earn/redeem, grand total) is computed here, not trusted from
+    // the client. GST% is required per line.
+    const items = [];
+    for (const item of rawItems) {
+      if (item.gstPct === '' || item.gstPct === null || item.gstPct === undefined) {
+        return Utils.createResponse('error', 'GST% is required for "' + (item.itemName || 'an item') + '".');
+      }
+      const qty       = Number(item.qty) || 0;
+      const unitPrice = Math.max(0, Number(item.unitPrice) || 0);
+      const gstPct    = Math.max(0, Number(item.gstPct) || 0);
+      const lineSubtotal = Math.round(qty * unitPrice * 100) / 100;
+      const lineGst      = Math.round(lineSubtotal * gstPct / 100 * 100) / 100;
+      const lineTotal    = lineSubtotal + lineGst;
+      items.push(Object.assign({}, item, { qty, unitPrice, gstPct, lineSubtotal, lineGst, lineTotal }));
+    }
 
     const svcItems = items.filter(i => i.type === 'service');
     const prdItems = items.filter(i => i.type === 'product');
-    const servicesSubtotal = svcItems.reduce((s, i) => s + (Number(i.lineSubtotal) || 0), 0);
-    const servicesGst      = svcItems.reduce((s, i) => s + (Number(i.lineGst) || 0), 0);
-    const retailSubtotal   = prdItems.reduce((s, i) => s + (Number(i.lineSubtotal) || 0), 0);
-    const retailGst        = prdItems.reduce((s, i) => s + (Number(i.lineGst) || 0), 0);
-    const discount         = Number(data.discount) || 0;
-    const tip              = Number(data.tip) || 0;
-    const grandTotal       = servicesSubtotal + servicesGst + retailSubtotal + retailGst - discount + tip;
+    const servicesSubtotal = svcItems.reduce((s, i) => s + i.lineSubtotal, 0);
+    const servicesGst      = svcItems.reduce((s, i) => s + i.lineGst, 0);
+    const retailSubtotal   = prdItems.reduce((s, i) => s + i.lineSubtotal, 0);
+    const retailGst        = prdItems.reduce((s, i) => s + i.lineGst, 0);
+    const baseAmt           = servicesSubtotal + servicesGst + retailSubtotal + retailGst;
+
+    // Manual discount — recomputed from the entered type/input against the
+    // server's own baseAmt (a % discount otherwise depends on client math).
+    const discountType  = data.discountType === 'percent' ? 'percent' : 'value';
+    const discountInput = Math.max(0, Number(data.discountInput) || 0);
+    const manualDiscount = discountType === 'percent'
+      ? Math.round(baseAmt * discountInput / 100 * 100) / 100
+      : discountInput;
+
+    const tip = Math.max(0, Number(data.tip) || 0);
+
+    // Loyalty — authoritative earn + redemption (never trust client points/₹)
+    const loyalty = LoyaltyPoints.calcForBill(items, customerPhone, data.redeemPoints);
+    const discount = Math.round((manualDiscount + loyalty.redemptionValue) * 100) / 100;
+
+    const grandTotal = Math.max(0, baseAmt - discount + tip);
+
+    // Split payment must actually sum to the server's grand total.
+    const paymentMode = data.paymentMode || 'Cash';
+    const cashAmt = Number(data.cashAmt) || 0;
+    const cardAmt = Number(data.cardAmt) || 0;
+    const upiAmt  = Number(data.upiAmt)  || 0;
+    if (paymentMode === 'Split' && Math.abs(cashAmt + cardAmt + upiAmt - grandTotal) > 0.01) {
+      return Utils.createResponse('error', 'Split payment amounts (₹' + (cashAmt + cardAmt + upiAmt).toFixed(2) +
+        ') do not add up to the grand total (₹' + grandTotal.toFixed(2) + ').');
+    }
+
+    const billId = 'BILL' + Date.now() + Math.random().toString(36).substr(2, 4);
+    const date = new Date().toISOString();
 
     billsSheet.appendRow([
-      billId, data.customerId || '', data.customerName || '', data.priceBookId || '', date,
+      billId, customerPhone, data.customerName || '', data.priceBookId || '', date,
       servicesSubtotal, servicesGst, retailSubtotal, retailGst,
       discount, tip, grandTotal,
-      data.paymentMode || 'Cash',
-      Number(data.cashAmt) || 0, Number(data.cardAmt) || 0, Number(data.upiAmt) || 0,
-      'active', data.discountType || 'value',
+      paymentMode, cashAmt, cardAmt, upiAmt,
+      'active', discountType,
       userId, orgId
     ]);
 
@@ -49,9 +100,8 @@ const Bills = {
       itemsSheet.appendRow([
         itemId, billId, item.type || '', item.itemId || '', item.itemName || '',
         item.staffId || '', item.staffName || '',
-        Number(item.qty) || 1, Number(item.unitPrice) || 0,
-        Number(item.gstPct) || 0,
-        Number(item.lineSubtotal) || 0, Number(item.lineGst) || 0, Number(item.lineTotal) || 0,
+        item.qty, item.unitPrice, item.gstPct,
+        item.lineSubtotal, item.lineGst, item.lineTotal,
         item.profProductId || '', item.profProductName || '',
         item.profQty !== '' && item.profQty !== undefined ? Number(item.profQty) : '',
         item.profUom || '', orgId
@@ -60,12 +110,11 @@ const Bills = {
 
     this._deductStock(billId, date.slice(0, 10), items, userId, orgId);
 
-    // Loyalty: earn points and process any redemption
-    const pointsToEarn  = Number(data.pointsToEarn)  || 0;
-    const redeemPoints  = Number(data.redeemPoints)   || 0;
-    const customerPhone = data.customerPhone || data.customerId || '';
     if (customerPhone) {
-      LoyaltyPoints.processAfterBill(billId, customerPhone, data.customerName || '', pointsToEarn, redeemPoints, orgId);
+      LoyaltyPoints.processAfterBill(
+        billId, customerPhone, data.customerName || '',
+        loyalty.pointsToEarn, loyalty.redeemPointsApplied, orgId
+      );
     }
 
     return Utils.createResponse('success', 'Bill saved successfully', { billId, grandTotal });
@@ -119,6 +168,50 @@ const Bills = {
     Utils.clearCached('products_' + (orgId || ''));
   },
 
+  // Reverses the stock deducted by _deductStock when a bill is voided.
+  _restoreStock(billId, items, userId, orgId) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const movSheet  = ss.getSheetByName('StockMovements');
+    const prodSheet = ss.getSheetByName('Products');
+    if (!movSheet || !prodSheet) return;
+
+    const prodData = prodSheet.getDataRange().getValues();
+    const now = new Date().toISOString();
+
+    const prodIdx = {};
+    for (let i = 1; i < prodData.length; i++) {
+      if (prodData[i][0]) prodIdx[prodData[i][0]] = i;
+    }
+
+    const restore = (productId, productName, qty) => {
+      if (!productId || qty <= 0) return;
+      const movId = 'MOV' + Date.now() + Math.random().toString(36).substr(2, 4);
+      movSheet.appendRow([
+        movId, now.slice(0, 10), productId, productName, 'billing',
+        billId, qty, 0, 'Restored — bill ' + billId + ' voided', now, '', '',
+        userId || '', orgId || ''
+      ]);
+      const i = prodIdx[productId];
+      if (i !== undefined) {
+        const newStock = (Number(prodData[i][7]) || 0) + qty;
+        prodSheet.getRange(i + 1, 8).setValue(newStock);
+        prodData[i][7] = newStock;
+      }
+    };
+
+    items.forEach(item => {
+      if (item.type === 'product' && item.itemId) {
+        restore(item.itemId, item.itemName || '', Number(item.qty) || 0);
+      }
+      if (item.profProductId && item.profQty !== '' && item.profQty !== undefined) {
+        const profQty = Number(item.profQty);
+        if (profQty > 0) restore(item.profProductId, item.profProductName || '', profQty);
+      }
+    });
+
+    Utils.clearCached('products_' + (orgId || ''));
+  },
+
   voidBill(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Bills');
     if (!sheet) return Utils.createResponse('error', 'Bills sheet not found');
@@ -126,7 +219,28 @@ const Bills = {
     const dataRange = sheet.getDataRange().getValues();
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.billId) {
+        if (dataRange[i][16] === 'void') {
+          return Utils.createResponse('error', 'This bill has already been voided.');
+        }
+
+        const orgId = dataRange[i][19] || data.orgId || '';
+        // _getItemsRaw's own "itemId" field is the BillItems row's PK, not
+        // the product/service reference — that's "refId" (see js/history.js,
+        // which remaps the same way). _restoreStock needs the reference id.
+        const items = this._getItemsRaw(data.billId).map(i => ({
+          type: i.type, itemId: i.refId, itemName: i.itemName, qty: i.qty,
+          profProductId: i.profProductId, profProductName: i.profProductName, profQty: i.profQty
+        }));
+
         sheet.getRange(i + 1, 17).setValue('void');
+
+        // Reverse the side effects of the original save: give back the
+        // stock that was deducted, and undo any loyalty earn/redeem tied
+        // to this bill (balance may go temporarily negative if the
+        // customer already spent points earned here — allowed by design).
+        this._restoreStock(data.billId, items, data.userId || '', orgId);
+        LoyaltyPoints.reverseForBill(data.billId, orgId);
+
         return Utils.createResponse('success', 'Bill voided successfully');
       }
     }
@@ -176,14 +290,19 @@ const Bills = {
     return Utils.createResponse('success', 'Bills retrieved', { bills });
   },
 
-  getItems(data) {
+  // Plain-array version shared by getItems (public) and voidBill (internal
+  // stock/loyalty reversal). Note: this row's own "itemId" field is the
+  // BillItems primary key, NOT the product/service reference — that's
+  // "refId". See js/history.js, which remaps the same way when consuming
+  // getItems' response.
+  _getItemsRaw(billId) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('BillItems');
-    if (!sheet) return Utils.createResponse('success', 'Items retrieved', { items: [] });
+    if (!sheet) return [];
 
     const rows = sheet.getDataRange().getValues();
     const items = [];
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][1] === data.billId) {
+      if (rows[i][1] === billId) {
         items.push({
           itemId: rows[i][0], billId: rows[i][1], type: rows[i][2], refId: rows[i][3],
           itemName: rows[i][4], staffId: rows[i][5], staffName: rows[i][6],
@@ -195,6 +314,10 @@ const Bills = {
         });
       }
     }
-    return Utils.createResponse('success', 'Items retrieved', { items });
+    return items;
+  },
+
+  getItems(data) {
+    return Utils.createResponse('success', 'Items retrieved', { items: this._getItemsRaw(data.billId) });
   }
 };

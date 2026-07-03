@@ -1,18 +1,24 @@
 const Permissions = {
+    // Page-level menu items — one entry per sidebar page. Dashboard is
+    // intentionally omitted: it's always accessible (see Main.js
+    // ALWAYS_ALLOWED_ACTIONS) since it has no dedicated backend action of
+    // its own (it reads from Staff/Billing, which are gated separately).
     menuItems: [
-        { key: 'dashboard',     label: 'Dashboard' },
-        { key: 'servicegroups', label: 'Service Groups' },
-        { key: 'services',      label: 'Service Catalog' },
-        { key: 'pricebooks',    label: 'Price Books' },
-        { key: 'products',      label: 'Products Inventory' },
-        { key: 'staff',         label: 'Staff' },
+        { key: 'billing',       label: 'Billing' },
+        { key: 'history',       label: 'Bill History' },
+        { key: 'appointments',  label: 'Appointments' },
+        { key: 'expenses',      label: 'Expenses' },
+        { key: 'services',      label: 'Services (Groups, Catalog, Price Books)' },
+        { key: 'products',      label: 'Products (Groups, Stock, Purchase Orders)' },
+        { key: 'vendors',       label: 'Vendors' },
+        { key: 'staff',         label: 'Staff (Profiles, Shifts, Attendance, Payroll)' },
+        { key: 'hrapprovals',   label: 'HR Approvals' },
         { key: 'customers',     label: 'Customers' },
-        { key: 'billing',       label: 'New Bill' },
-        { key: 'appointments',  label: 'Book Appointment' },
+        { key: 'organizations', label: 'Organizations' },
         { key: 'users',         label: 'Users' },
         { key: 'roles',         label: 'Roles' },
         { key: 'permissions',   label: 'Permissions' },
-        { key: 'organizations', label: 'Organizations' },
+        { key: 'settings',      label: 'Settings (Loyalty, Sheet Setup)' },
     ],
 
     init() {
@@ -55,14 +61,21 @@ const Permissions = {
 
             document.getElementById('permMatrixBody').innerHTML = this.menuItems.map(item => {
                 const perm = existing.find(p => p.menuItem === item.key);
-                // Default to true (allow) if no permission entry exists yet
-                const checked = perm ? (perm.canAccess === true || perm.canAccess === 'TRUE') : true;
+                // No entry yet = deny (fail closed) — matches server-side enforcement.
+                const canRead   = perm ? (perm.canRead === true || perm.canRead === 'TRUE') : false;
+                const canUpdate = perm ? (perm.canUpdate === true || perm.canUpdate === 'TRUE') : false;
                 return `
                     <tr>
                         <td style="font-weight:500;">${item.label}</td>
-                        <td>
+                        <td style="text-align:center;">
                             <label class="toggle">
-                                <input type="checkbox" data-menu="${item.key}" ${checked ? 'checked' : ''}>
+                                <input type="checkbox" data-menu="${item.key}" data-kind="read" ${canRead ? 'checked' : ''}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                        <td style="text-align:center;">
+                            <label class="toggle">
+                                <input type="checkbox" data-menu="${item.key}" data-kind="update" ${canUpdate ? 'checked' : ''}>
                                 <span class="toggle-slider"></span>
                             </label>
                         </td>
@@ -82,9 +95,14 @@ const Permissions = {
         const roleId = document.getElementById('permRoleSelect').value;
         if (!roleId) return;
 
-        const permissions = Array.from(
-            document.querySelectorAll('#permMatrixBody input[type="checkbox"]')
-        ).map(cb => ({ menuItem: cb.dataset.menu, canAccess: cb.checked }));
+        const byMenu = {};
+        document.querySelectorAll('#permMatrixBody input[type="checkbox"]').forEach(cb => {
+            const menu = cb.dataset.menu;
+            if (!byMenu[menu]) byMenu[menu] = { menuItem: menu, canRead: false, canUpdate: false };
+            if (cb.dataset.kind === 'read') byMenu[menu].canRead = cb.checked;
+            else byMenu[menu].canUpdate = cb.checked;
+        });
+        const permissions = Object.values(byMenu);
 
         const saveBtn = document.getElementById('savePermissionsBtn');
         saveBtn.disabled = true;

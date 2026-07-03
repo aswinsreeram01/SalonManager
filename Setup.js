@@ -11,7 +11,7 @@ const SHEET_SCHEMA = {
   Users:               ['id','email','password','fullName','phone','whatsapp','orgId','roleId','status'],
   Organizations:       ['id','name','parentId','type','status'],
   Roles:               ['id','name','description','status'],
-  Permissions:         ['id','roleId','menuItem','canAccess'],
+  Permissions:         ['id','roleId','menuItem','canRead','canUpdate'],
 
   // ── Customers ───────────────────────────────────────────────────────────────
   Customers:           ['timestamp','name','phone','addedBy','orgId','pointsBalance','statusPoints','tier'],

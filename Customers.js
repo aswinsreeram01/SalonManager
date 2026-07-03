@@ -7,10 +7,13 @@ const Customers = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
     if (!sheet) return Utils.createResponse('error', 'Customers sheet not found. Please create it with columns: timestamp, name, phone, addedBy, orgId');
 
+    const phone = Utils.normalizePhone(data.phone);
+    if (!phone) return Utils.createResponse('error', 'Phone number required');
+
     const existing = sheet.getDataRange().getValues();
     const orgId = data.orgId || '';
     for (let i = 1; i < existing.length; i++) {
-      if (String(existing[i][2]).trim() === String(data.phone).trim()) {
+      if (Utils.normalizePhone(existing[i][2]) === phone) {
         const rowOrg = existing[i][4] || '';
         if (!orgId || !rowOrg || rowOrg === orgId) {
           return Utils.createResponse('error', 'A customer with this phone number already exists');
@@ -18,13 +21,13 @@ const Customers = {
       }
     }
 
-    sheet.appendRow([new Date(), data.name, data.phone, data.userId || data.submittedBy || 'Unknown', orgId]);
+    sheet.appendRow([new Date(), data.name, phone, data.userId || data.submittedBy || 'Unknown', orgId]);
     Utils.clearCached('customers_' + orgId);
-    return Utils.createResponse('success', 'Customer added successfully', { phone: data.phone });
+    return Utils.createResponse('success', 'Customer added successfully', { phone });
   },
 
   loginByPhone(data) {
-    const phone = String(data.phone || '').replace(/\D/g, '');
+    const phone = Utils.normalizePhone(data.phone);
     if (!phone) return Utils.createResponse('error', 'Phone number required');
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
@@ -32,11 +35,10 @@ const Customers = {
 
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
-      const rowPhone = String(rows[i][2] || '').replace(/\D/g, '');
-      if (rowPhone === phone) {
+      if (Utils.normalizePhone(rows[i][2]) === phone) {
         return Utils.createResponse('success', 'Welcome back!', {
           name: rows[i][1],
-          phone: rows[i][2],
+          phone: Utils.normalizePhone(rows[i][2]),
           since: rows[i][0] instanceof Date ? rows[i][0].toISOString() : String(rows[i][0])
         });
       }
@@ -45,7 +47,7 @@ const Customers = {
   },
 
   getHistory(data) {
-    const phone = String(data.phone || '').replace(/\D/g, '');
+    const phone = Utils.normalizePhone(data.phone);
     if (!phone) return Utils.createResponse('error', 'Phone number required');
 
     const custSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
@@ -54,8 +56,7 @@ const Customers = {
     const custRows = custSheet.getDataRange().getValues();
     let customerName = '';
     for (let i = 1; i < custRows.length; i++) {
-      const rowPhone = String(custRows[i][2] || '').replace(/\D/g, '');
-      if (rowPhone === phone) { customerName = custRows[i][1]; break; }
+      if (Utils.normalizePhone(custRows[i][2]) === phone) { customerName = custRows[i][1]; break; }
     }
     if (!customerName) return Utils.createResponse('error', 'Customer not found');
 
@@ -66,7 +67,9 @@ const Customers = {
       for (let i = 1; i < billData.length; i++) {
         if (!billData[i][0]) continue;
         if (billData[i][16] === 'void') continue;
-        if (String(billData[i][2] || '').trim().toLowerCase() !== customerName.trim().toLowerCase()) continue;
+        // Match by phone (customerId), not name — a rename or a shared name
+        // between two customers previously mis-attributed bill history.
+        if (Utils.normalizePhone(billData[i][1]) !== phone) continue;
         bills.push({
           billId: billData[i][0],
           date: String(billData[i][4]),
@@ -121,7 +124,7 @@ const Customers = {
       customers.push({
         timestamp:     raw instanceof Date ? raw.toISOString() : String(raw),
         name:          customerData[i][1],
-        phone:         customerData[i][2],
+        phone:         Utils.normalizePhone(customerData[i][2]),
         addedBy:       customerData[i][3],
         orgId:         rowOrg,
         pointsBalance: Number(customerData[i][5]) || 0,

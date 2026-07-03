@@ -311,10 +311,18 @@ const Navigation = {
     },
 
     applyPermissions(permissions) {
-        if (!permissions || permissions.length === 0) return;
-        permissions.forEach(p => {
-            if (p.canAccess === false) this._hiddenTiles.add(p.menuItem);
-        });
+        // Server enforces access by canRead/canUpdate now; a menu item with
+        // no row (or canRead !== true) means the role has no read access —
+        // hide its tile so users aren't sent to a page that will error out.
+        // Dashboard has no entry in TILE_CONFIG's page list and no dedicated
+        // backend action, so it's unaffected here (always reachable).
+        const readable = new Set((permissions || [])
+            .filter(p => p.canRead === true || p.canRead === 'TRUE')
+            .map(p => p.menuItem));
+
+        this._hiddenTiles = new Set(
+            TILE_CONFIG.filter(item => item.page && !readable.has(item.page)).map(item => item.page)
+        );
         // Re-render home so hidden tiles are removed
         this._renderHome();
     }
