@@ -14,7 +14,14 @@ const Auth = {
       
       if (email === data.email && password === Utils.hashPassword(data.password)) {
         if (status && status.toString().toLowerCase() === 'active') {
-          const permissions = Permissions.getByRole({ roleId: roleId });
+          // Bypass the permission cache on login (forceRefresh=true) so a
+          // recent Permissions change always takes effect on the very next
+          // login rather than waiting out the cache TTL. Also: use the raw
+          // array helper, not getByRole() — that returns a TextOutput, and
+          // reading .permissions off it is always undefined (this was the
+          // actual bug behind login always sending an empty permissions
+          // list, regardless of what was configured).
+          const permissions = Permissions._getByRoleRaw(roleId, true);
           const sessionToken = Utils.createSession(userId, orgId, roleId);
 
           return Utils.createResponse('success', 'Login successful', {
@@ -26,7 +33,7 @@ const Auth = {
             whatsapp: whatsapp,
             orgId: orgId,
             roleId: roleId,
-            permissions: permissions.permissions || []
+            permissions: permissions
           });
         } else {
           return Utils.createResponse('error', 'Account is inactive');

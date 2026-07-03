@@ -5,7 +5,7 @@
 A multi-tenant salon management SPA. Backend is Google Apps Script (GAS) running as a web app; frontend is a static GitHub Pages site.
 
 - **Frontend**: `https://aswinsreeram01.github.io/SalonManager/`
-- **Backend deploy ID**: `AKfycbw1kF0tC3U82zDCBKbNyJWVsGobOvNbkOnxBCrvAtd9zphloMssOQg9l_2e_ZwdOK_WYg` (version @49)
+- **Backend deploy ID**: `AKfycbxzykxzj66l87iTys1HCUIaK6LerIJgTYXWEHQ5idopkOsKfaJpmCpSqN8Ob0OS-1inYA` (version @50)
 - **GAS project**: `10BKxCLeGeCfNpkvFqtLGkY0d4tSMQMAaBmSTSOMc_KMEih8OsK5exlVo`
 - **Deploy**: `npx clasp push && npx clasp deploy --description "..."` from repo root
 
@@ -255,3 +255,6 @@ git push   # GitHub Actions deploys to Pages automatically
 - **Timezone (since @49)**: `appsscript.json` timeZone is `Asia/Kolkata`. All calendar-day logic (bill dates, attendance, payroll periods) goes through `Utils.businessDate(date)` — never slice `.toISOString()` directly, which is UTC and drifts a day near midnight in IST. Optional per-install override via an `OrgSettings` row with key `timezone`.
 - **OT threshold is configurable**: `OrgSettings.otThresholdHours` (default 9, editable in Settings → General Settings). `Utils.computeHoursAndOT(clockIn, clockOut, threshold)` is the single implementation — don't reimplement inline.
 - **Locking**: `Bills.save`, `Bills.voidBill`, `Products.receiveStock`, `Products.saveAudit` acquire `LockService.getScriptLock()` and delegate to a `_xxxLocked` internal method. Add new stock/loyalty-mutating actions the same way.
+- **`Permissions.getByRole()`/`getByUser()` return a `ContentService.TextOutput`** (via `Utils.createResponse`), not a plain object — never read `.permissions` (or any field) directly off their return value. Use `Permissions._getByRoleRaw(roleId, forceRefresh)` for the plain array; `Auth.login` does this and always passes `forceRefresh=true` so a Permissions change takes effect on the very next login instead of waiting out the cache TTL. (This exact mistake previously made every login return an empty permissions list — fixed @50.)
+- **Frontend permissions are session-scoped, not live**: `Auth.currentUser.permissions` is captured once at login and stored in `localStorage`; nothing re-fetches it mid-session. After changing a role's Permissions, affected users must log out and back in — there's no server push.
+- **If a role has zero rows in `Permissions`, its users are locked out of every gated action — including the in-app Permissions screen itself** (same fail-closed rule applies to `get_permissions`/`update_permissions`). Recovery requires editing the `Permissions` sheet directly, or running a one-off Apps Script function from the IDE (see `Bootstrap.js` if present — it's a manual-recovery file, safe to delete once used, not wired into the web app).

@@ -5,18 +5,28 @@
 // canUpdate=false (fail closed) — see Permissions.check().
 
 const Permissions = {
-  getByRole(data) {
-    const cacheKey = 'perms_' + data.roleId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Permissions retrieved', { permissions: cached });
+  // Plain-array read shared by getByRole/getByUser (public, wrapped in
+  // createResponse) and Auth.login (needs the raw array directly — do NOT
+  // read .permissions off getByRole's return value, that's a
+  // ContentService.TextOutput and has no such property; every login would
+  // silently receive an empty permissions list).
+  // forceRefresh: true bypasses the cache — used at login so a permission
+  // change takes effect on the very next login instead of waiting out the
+  // cache TTL.
+  _getByRoleRaw(roleId, forceRefresh) {
+    const cacheKey = 'perms_' + roleId;
+    if (!forceRefresh) {
+      const cached = Utils.getCached(cacheKey);
+      if (cached) return cached;
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Permissions');
-    if (!sheet) return Utils.createResponse('success', 'Permissions retrieved', { permissions: [] });
+    if (!sheet) return [];
 
     const permData = sheet.getDataRange().getValues();
     const permissions = [];
     for (let i = 1; i < permData.length; i++) {
-      if (permData[i][1] === data.roleId) {
+      if (permData[i][1] === roleId) {
         permissions.push({
           id: permData[i][0], roleId: permData[i][1], menuItem: permData[i][2],
           canRead:   permData[i][3] === true || permData[i][3] === 'TRUE',
@@ -26,7 +36,13 @@ const Permissions = {
     }
 
     Utils.setCached(cacheKey, permissions);
-    return Utils.createResponse('success', 'Permissions retrieved', { permissions });
+    return permissions;
+  },
+
+  getByRole(data) {
+    return Utils.createResponse('success', 'Permissions retrieved', {
+      permissions: this._getByRoleRaw(data.roleId)
+    });
   },
 
   getByUser(data) {
