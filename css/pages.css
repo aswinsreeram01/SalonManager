@@ -122,19 +122,19 @@
 
     html, body { overflow-x: hidden; }
 
-    /* Header: compact */
-    .header { height: 52px; padding: 0 8px 0 2px; }
-    .app-title { font-size: 15px; }
-    .logout-btn { padding: 5px 10px; font-size: 13px; }
+    /* Header: compact, full width (sidebar overlays on mobile) */
+    .header { left: 0; height: 52px; padding: 0 8px 0 2px; }
+    .app-title { font-size: 16px; }
+    .logout-btn { padding: 5px 12px; font-size: 11px; }
 
-    /* Sidebar: slide-in drawer */
+    /* Sidebar: slide-in drawer over everything, brand visible at top */
     .sidebar {
-        top: 52px;
-        height: calc(100dvh - 52px);
+        top: 0;
+        height: 100dvh;
         width: min(300px, 85vw);
         transform: translateX(-100%);
         z-index: 200;
-        box-shadow: 4px 0 24px rgba(0,0,0,0.18);
+        box-shadow: 4px 0 32px rgba(0,0,0,0.4);
     }
     .sidebar.open { transform: translateX(0); }
 
