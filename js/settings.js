@@ -6,17 +6,11 @@ const Settings = {
     init() {
         document.getElementById('setupRefreshBtn')?.addEventListener('click', () => this.loadSetupStatus());
         document.getElementById('setupSummaryBtn')?.addEventListener('click', () => this.refreshSummarySheet());
-        document.getElementById('loyaltyHHAddRow')?.addEventListener('click', () => this._addHHRow());
-        document.getElementById('loyaltySaveBtn')?.addEventListener('click', () => this.saveLoyalty());
-        document.getElementById('loyaltyHHToggleBtn')?.addEventListener('click', () => this._toggleHappyHourNow());
-        document.getElementById('genSettingsSaveBtn')?.addEventListener('click', () => this.saveGeneralSettings());
     },
-
-    _loyaltyCfg: null,
 
     async load() {
         this.renderPortalLinks();
-        await Promise.all([this.loadSetupStatus(), this.loadLoyalty(), this.loadGeneralSettings()]);
+        await this.loadSetupStatus();
     },
 
     // ── Portal Links ─────────────────────────────────────────────────────────────
@@ -53,33 +47,6 @@ const Settings = {
             btn.textContent = 'Select & copy';
         }
         setTimeout(() => { btn.textContent = original; }, 1800);
-    },
-
-    // ── General Settings ────────────────────────────────────────────────────────
-
-    async loadGeneralSettings() {
-        try {
-            const res = await API.getOrgSettings();
-            if (res.status !== 'success') return;
-            const s = res.settings || {};
-            const el = document.getElementById('genOTThreshold');
-            if (el) el.value = s.otThresholdHours ?? 9;
-        } catch (e) { /* silently ignore on settings load */ }
-    },
-
-    async saveGeneralSettings() {
-        const btn = document.getElementById('genSettingsSaveBtn');
-        const val = parseFloat(document.getElementById('genOTThreshold')?.value);
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-        try {
-            const res = await API.updateOrgSettings({ otThresholdHours: (val > 0 ? val : 9) });
-            if (res.status !== 'success') throw new Error(res.message);
-            UI.showMessage('settingsMessage', 'General settings saved.', 'success');
-        } catch (err) {
-            UI.showMessage('settingsMessage', 'Failed to save: ' + err.message, 'error');
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save General Settings'; }
-        }
     },
 
     // ── Sheet Setup ──────────────────────────────────────────────────────────────
@@ -288,196 +255,6 @@ const Settings = {
             UI.showMessage('settingsMessage', 'Failed: ' + err.message, 'error');
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = '📋 Refresh Summary Sheet'; }
-        }
-    },
-
-    // ── Loyalty Settings ─────────────────────────────────────────────────────────
-
-    async loadLoyalty() {
-        try {
-            const res = await API.getLoyaltyConfig();
-            if (res.status !== 'success') return;
-            this._loyaltyCfg = res.loyalty || {};
-            this._renderLoyalty();
-        } catch (e) { /* silently ignore on settings load */ }
-    },
-
-    _renderLoyalty() {
-        const cfg = this._loyaltyCfg || {};
-        const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
-        const chk = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
-
-        chk('loyaltyEnabled', cfg.enabled);
-        set('loyaltyPointsName', cfg.pointsName || 'Points');
-        set('loyaltyBaseEarnRate', cfg.baseEarnRate ?? 1);
-        set('loyaltyExpiryMonths', cfg.expiryMonths ?? 12);
-        set('loyaltyRedemptionRate', cfg.redemptionRate ?? 100);
-        set('loyaltyRedemptionValue', cfg.redemptionValue ?? 1);
-        set('loyaltyMinRedemption', cfg.minRedemption ?? 100);
-        set('loyaltyHHMultiplier', cfg.happyHourMultiplier ?? 2);
-        this._renderHHStatus(cfg);
-
-        const tiers = cfg.tiers || [
-            { name: 'Bronze',   threshold: 0,    multiplier: 1.0,  color: '#cd7f32' },
-            { name: 'Silver',   threshold: 500,  multiplier: 1.25, color: '#a8a9ad' },
-            { name: 'Gold',     threshold: 1500, multiplier: 1.5,  color: '#ffd700' },
-            { name: 'Platinum', threshold: 3000, multiplier: 2.0,  color: '#b9f2ff' }
-        ];
-        const tbody = document.getElementById('loyaltyTiersBody');
-        if (tbody) {
-            tbody.innerHTML = tiers.map((t, i) => `
-                <tr>
-                    <td style="color:#718096;font-weight:600;">${i + 1}</td>
-                    <td><input type="text" class="loy-tier-name" data-idx="${i}" value="${this._esc(t.name)}"
-                        style="width:110px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;"></td>
-                    <td><input type="number" class="loy-tier-thresh" data-idx="${i}" value="${t.threshold}"
-                        style="width:100px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;" min="0" step="1"
-                        ${i === 0 ? 'disabled title="Base tier always starts at 0"' : ''}></td>
-                    <td><input type="number" class="loy-tier-mult" data-idx="${i}" value="${t.multiplier}"
-                        style="width:80px;padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;" min="0.1" step="0.05"></td>
-                    <td><input type="color" class="loy-tier-color" data-idx="${i}" value="${t.color || '#cccccc'}"
-                        style="width:48px;height:32px;padding:2px;border:1px solid #e2e8f0;border-radius:4px;cursor:pointer;"></td>
-                </tr>
-            `).join('');
-        }
-
-        // Backend stores { days: ['mon',...], startTime, endTime, effectiveFrom }
-        // (LoyaltyPoints._isHappyHour reads exactly this shape/key name). The
-        // UI shows one row per day, so a multi-day rule becomes N rows here.
-        const schedDiv = document.getElementById('loyaltyHHSchedule');
-        if (schedDiv) {
-            schedDiv.innerHTML = '';
-            (cfg.happyHourSchedules || []).forEach(s => {
-                const days = (s.days && s.days.length) ? s.days : [''];
-                days.forEach(dayCode => {
-                    const label = dayCode ? dayCode.charAt(0).toUpperCase() + dayCode.slice(1) : '';
-                    this._addHHRow({ day: label, from: s.startTime, to: s.endTime, effectiveFrom: s.effectiveFrom });
-                });
-            });
-        }
-    },
-
-    _renderHHStatus(cfg) {
-        const statusEl = document.getElementById('loyaltyHHStatus');
-        const btn      = document.getElementById('loyaltyHHToggleBtn');
-        const durEl    = document.getElementById('loyaltyHHDuration');
-        // getLoyaltyConfig() already returns the expiry-corrected live state
-        // (see LoyaltyPoints.getConfig), so this boolean can be trusted as-is.
-        const live = !!cfg.happyHourActive;
-        if (statusEl) {
-            if (live && cfg.happyHourUntil) {
-                const until = new Date(cfg.happyHourUntil);
-                statusEl.textContent = '🎉 Active until ' + until.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-                statusEl.style.color = '#38a169';
-            } else {
-                statusEl.textContent = 'Not active';
-                statusEl.style.color = '#718096';
-            }
-        }
-        if (btn) btn.textContent = live ? 'Stop Happy Hour' : 'Start Happy Hour';
-        if (durEl) durEl.style.display = live ? 'none' : '';
-    },
-
-    async _toggleHappyHourNow() {
-        const btn = document.getElementById('loyaltyHHToggleBtn');
-        const isLive = !!(this._loyaltyCfg || {}).happyHourActive;
-        const duration = document.getElementById('loyaltyHHDuration')?.value || '2h';
-        if (btn) btn.disabled = true;
-        try {
-            const res = await API.toggleHappyHour(!isLive, duration);
-            if (res.status !== 'success') throw new Error(res.message);
-            await this.loadLoyalty(); // refetch so the button/status reflect the authoritative server state
-            UI.showMessage('settingsMessage', !isLive ? 'Happy Hour started.' : 'Happy Hour stopped.', 'success');
-        } catch (err) {
-            UI.showMessage('settingsMessage', 'Failed to toggle Happy Hour: ' + err.message, 'error');
-        } finally {
-            if (btn) btn.disabled = false;
-        }
-    },
-
-    _addHHRow(data) {
-        const schedDiv = document.getElementById('loyaltyHHSchedule');
-        if (!schedDiv) return;
-        const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-        const row = document.createElement('div');
-        row.className = 'loy-hh-row';
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
-        row.innerHTML = `
-            <select class="loy-hh-day" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;">
-                ${days.map(d => `<option value="${d}" ${data && data.day === d ? 'selected' : ''}>${d}</option>`).join('')}
-            </select>
-            <input type="time" class="loy-hh-from" value="${data ? data.from || '' : ''}" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;">
-            <span style="font-size:13px;color:#718096;">to</span>
-            <input type="time" class="loy-hh-to" value="${data ? data.to || '' : ''}" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;">
-            <input type="date" class="loy-hh-eff" value="${data ? data.effectiveFrom || '' : ''}" title="Effective from (optional)" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:4px;font-size:13px;">
-            <button type="button" style="background:none;border:none;color:#e53e3e;font-size:18px;cursor:pointer;line-height:1;" onclick="this.closest('.loy-hh-row').remove()">×</button>
-        `;
-        schedDiv.appendChild(row);
-    },
-
-    async saveLoyalty() {
-        const get = id => document.getElementById(id);
-
-        const tiers = [];
-        document.querySelectorAll('#loyaltyTiersBody tr').forEach(tr => {
-            tiers.push({
-                name:       tr.querySelector('.loy-tier-name')?.value.trim()  || '',
-                threshold:  parseFloat(tr.querySelector('.loy-tier-thresh')?.value) || 0,
-                multiplier: parseFloat(tr.querySelector('.loy-tier-mult')?.value)   || 1,
-                color:      tr.querySelector('.loy-tier-color')?.value || '#cccccc'
-            });
-        });
-        if (tiers.length > 0) tiers[0].threshold = 0;
-
-        // Must match LoyaltyPoints._isHappyHour's expected shape exactly:
-        // { days: [...], startTime, endTime, effectiveFrom, effectiveUntil }.
-        // One row = one day; a rule spanning multiple days is just several
-        // rows with the same time window.
-        const schedule = [];
-        document.querySelectorAll('#loyaltyHHSchedule .loy-hh-row').forEach(row => {
-            const dayLabel = row.querySelector('.loy-hh-day')?.value  || '';
-            const from     = row.querySelector('.loy-hh-from')?.value || '';
-            const to       = row.querySelector('.loy-hh-to')?.value   || '';
-            const eff      = row.querySelector('.loy-hh-eff')?.value  || '';
-            if (!dayLabel || !from || !to) return; // skip incomplete rows
-            schedule.push({
-                days: [dayLabel.toLowerCase()],
-                startTime: from,
-                endTime: to,
-                effectiveFrom: eff || ''
-            });
-        });
-
-        const loyalty = {
-            enabled:             !!(get('loyaltyEnabled')?.checked),
-            pointsName:          get('loyaltyPointsName')?.value.trim()       || 'Points',
-            baseEarnRate:        parseFloat(get('loyaltyBaseEarnRate')?.value) || 1,
-            expiryMonths:        parseInt(get('loyaltyExpiryMonths')?.value, 10) || 12,
-            redemptionRate:      parseFloat(get('loyaltyRedemptionRate')?.value)  || 100,
-            redemptionValue:     parseFloat(get('loyaltyRedemptionValue')?.value) || 1,
-            minRedemption:       parseInt(get('loyaltyMinRedemption')?.value, 10) || 100,
-            // The manual on/off toggle is owned by the dedicated Start/Stop
-            // Happy Hour button (toggleHappyHour action), not this bulk save
-            // — carry over whatever it last set so saving tiers/rates here
-            // doesn't silently cancel an in-progress happy hour.
-            happyHourActive:     !!(this._loyaltyCfg || {}).happyHourActive,
-            happyHourUntil:      (this._loyaltyCfg || {}).happyHourUntil || '',
-            happyHourMultiplier: parseFloat(get('loyaltyHHMultiplier')?.value) || 2,
-            tiers,
-            happyHourSchedules:  schedule
-        };
-
-        const btn = get('loyaltySaveBtn');
-        if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-        try {
-            const res = await API.updateLoyaltyConfig(loyalty);
-            if (res.status !== 'success') throw new Error(res.message);
-            this._loyaltyCfg = loyalty;
-            UI.showMessage('settingsMessage', 'Loyalty settings saved.', 'success');
-        } catch (err) {
-            UI.showMessage('settingsMessage', 'Failed to save loyalty settings: ' + err.message, 'error');
-        } finally {
-            if (btn) { btn.disabled = false; btn.textContent = 'Save Loyalty Settings'; }
         }
     },
 

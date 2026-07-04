@@ -1,6 +1,10 @@
 // IncentiveProfiles sheet columns (0-based):
 // profileId(0), profileName(1), profileType(2), revenueBase(3), otHourlyRate(4),
-// l1Type(5), l1Value(6), l2Type(7), l2Value(8), xPct(9), yPct(10), zPct(11), status(12), orgId(13)
+// l1Type(5), l1Value(6), l2Type(7), l2Value(8), xPct(9), yPct(10), zPct(11), status(12), orgId(13),
+// otThresholdHours(14) — hours/day before overtime kicks in for staff on this profile.
+// Was previously a single company-wide OrgSettings value; moved here so it
+// can vary by profile (and therefore by person, since staff are assigned
+// to a profile). Blank/0 falls back to 9 — see buildOTThresholdMap.
 
 const IncentiveProfiles = {
   getAll(data) {
@@ -32,7 +36,8 @@ const IncentiveProfiles = {
         yPct:          Number(rows[i][10]) || 0,
         zPct:          Number(rows[i][11]) || 0,
         status:        rows[i][12],
-        orgId:         rowOrg
+        orgId:         rowOrg,
+        otThresholdHours: Number(rows[i][14]) || 9
       });
     }
 
@@ -59,7 +64,8 @@ const IncentiveProfiles = {
       Number(data.yPct)  || 0,
       Number(data.zPct)  || 0,
       data.status        || 'active',
-      data.orgId         || ''
+      data.orgId         || '',
+      Number(data.otThresholdHours) || 9
     ]);
     Utils.clearCached('incentive_profiles_' + (data.orgId || ''));
     return Utils.createResponse('success', 'Incentive profile added successfully', { profileId });
@@ -84,6 +90,7 @@ const IncentiveProfiles = {
         sheet.getRange(i + 1, 11).setValue(Number(data.yPct) || 0);
         sheet.getRange(i + 1, 12).setValue(Number(data.zPct) || 0);
         sheet.getRange(i + 1, 13).setValue(data.status);
+        sheet.getRange(i + 1, 15).setValue(Number(data.otThresholdHours) || 9);
         Utils.clearCached('incentive_profiles_' + (data.orgId || ''));
         return Utils.createResponse('success', 'Incentive profile updated successfully');
       }
@@ -116,14 +123,48 @@ const IncentiveProfiles = {
 
     const seeds = [
       ['PROF_SP_STD', 'Service Provider — Standard', 'service_provider', 'individual',
-        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', ''],
+        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', '', 9],
       ['PROF_MGR_STD', 'Manager — Standard', 'manager', 'org',
-        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', ''],
+        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', '', 9],
       ['PROF_HK_STD', 'Housekeeping — Standard', 'housekeeping', 'individual',
-        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '']
+        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '', 9]
     ];
 
     seeds.forEach(row => sheet.appendRow(row));
     Utils.clearCached('incentive_profiles_');
+  },
+
+  // Returns { staffId: otThresholdHours } for every staff member in the org,
+  // by joining Staff.profileId -> IncentiveProfiles.otThresholdHours. Staff
+  // with no profile assigned, or whose profile has no threshold set, get 9.
+  // Callers (Attendance.saveAttendance, HRApprovals) build this map ONCE per
+  // request/batch and look up by staffId per record — not once per row.
+  buildOTThresholdMap(orgId) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const map = {};
+
+    const staffSheet = ss.getSheetByName('Staff');
+    if (!staffSheet) return map;
+
+    const profThresholds = {}; // profileId -> threshold
+    const profSheet = ss.getSheetByName('IncentiveProfiles');
+    if (profSheet) {
+      const profRows = profSheet.getDataRange().getValues();
+      for (let i = 1; i < profRows.length; i++) {
+        if (!profRows[i][0]) continue;
+        profThresholds[profRows[i][0]] = Number(profRows[i][14]) || 9;
+      }
+    }
+
+    const staffRows = staffSheet.getDataRange().getValues();
+    for (let i = 1; i < staffRows.length; i++) {
+      if (!staffRows[i][0]) continue;
+      const rowOrg = staffRows[i][17] || '';
+      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      const staffId   = staffRows[i][0];
+      const profileId = staffRows[i][15] || '';
+      map[staffId] = profThresholds[profileId] || 9;
+    }
+    return map;
   }
 };

@@ -27,7 +27,7 @@ const HRApprovals = {
     const date  = String(data.date || today);
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const otThreshold = OrgSettings.getOTThreshold();
+    const otThresholdMap = IncentiveProfiles.buildOTThresholdMap(orgId);
     const shiftMap = this._buildShiftMap(ss, orgId);
     const staffMap = this._buildStaffMap(ss, orgId);
     const allocMap = this._buildAllocMap(ss, orgId, date);
@@ -58,7 +58,7 @@ const HRApprovals = {
           const shiftInfo = shiftMap[shiftId] || null;
           const clockIn   = this._formatTime(r[4]);
           const clockOut  = this._formatTime(r[5]);
-          const otCalc    = Utils.computeHoursAndOT(clockIn, clockOut, otThreshold);
+          const otCalc    = Utils.computeHoursAndOT(clockIn, clockOut, otThresholdMap[staffId] || 9);
           pending.push({
             attendanceId: String(r[0]),
             staffId,
@@ -109,7 +109,7 @@ const HRApprovals = {
     const sheet = ss.getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
 
-    const otThreshold = OrgSettings.getOTThreshold();
+    const otThresholdMap = IncentiveProfiles.buildOTThresholdMap(orgId);
 
     // Support both single record and bulk
     const records = Array.isArray(data.records) ? data.records : [data];
@@ -119,6 +119,7 @@ const HRApprovals = {
     let   approved = 0;
 
     records.forEach(rec => {
+      const otThreshold = otThresholdMap[rec.staffId] || 9;
       const otCalc    = Utils.computeHoursAndOT(String(rec.clockIn || ''), String(rec.clockOut || ''), otThreshold);
       const clockIn   = String(rec.clockIn  || '');
       const clockOut  = String(rec.clockOut || '');

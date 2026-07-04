@@ -64,7 +64,8 @@ const SHEET_SCHEMA = {
                         'startDate','role','salary','allowance','incentiveStructure',
                         'specialization','status','staffType','profileId','targetPeriod','orgId','staffPin'],
   IncentiveProfiles:   ['profileId','profileName','profileType','revenueBase','otHourlyRate',
-                        'l1Type','l1Value','l2Type','l2Value','xPct','yPct','zPct','status','orgId'],
+                        'l1Type','l1Value','l2Type','l2Value','xPct','yPct','zPct','status','orgId',
+                        'otThresholdHours'],
   Shifts:              ['shiftId','name','startTime','endTime','breakMins','status','orgId'],
   StaffShiftAllocation:['allocationId','staffId','shiftId','fromDate','toDate','createdAt','orgId'],
   WeeklySchedule:      ['scheduleId','staffId','weekStart','shiftId','offDays','orgId'],
@@ -144,7 +145,7 @@ const SHEET_DESCRIPTIONS = {
 
   // HR
   Staff:               'Employee master — personal details, salary, allowance, incentive profile, specialisation, and staff portal PIN.',
-  IncentiveProfiles:   'Incentive calculation templates defining two revenue targets (T1 & T2), commission rate brackets (X% / Y% / Z%), and the OT hourly rate.',
+  IncentiveProfiles:   'Incentive calculation templates defining two revenue targets (T1 & T2), commission rate brackets (X% / Y% / Z%), the OT hourly rate, and the OT threshold (hours/day before overtime starts) — staff inherit these from their assigned profile.',
   Shifts:              'Named work shifts with start and end times, used for scheduling and attendance tracking.',
   StaffShiftAllocation:'Legacy shift assignment — maps which shift a staff member is assigned to over a date range. Superseded by WeeklySchedule.',
   WeeklySchedule:      'Week-level shift assignments and planned off days per staff member, used to drive attendance tracking and HR approvals.',

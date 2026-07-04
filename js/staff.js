@@ -411,7 +411,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a0aec0;padding:24px;">No incentive profiles found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:24px;">No incentive profiles found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -424,6 +424,7 @@ const Staff = {
         <td>${this._esc(p.profileType || p.type || '—')}</td>
         <td>${this._esc(p.revenueBase || '—')}</td>
         <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate)}/hr</td>
+        <td style="text-align:right;white-space:nowrap;">${p.otThresholdHours ?? 9}h/day</td>
         <td>${this._esc(l1)}</td>
         <td>${this._esc(l2)}</td>
         <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
@@ -449,6 +450,7 @@ const Staff = {
         document.getElementById('hrProfType').value        = p.profileType || p.type || '';
         document.getElementById('hrProfRevenueBase').value = p.revenueBase     || '';
         document.getElementById('hrProfOtRate').value      = p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate ?? '';
+        document.getElementById('hrProfOtThreshold').value = p.otThresholdHours ?? 9;
         document.getElementById('hrProfL1Type').value      = p.l1Type || p.hrProfL1Type || '';
         document.getElementById('hrProfL1Value').value     = p.l1Value || p.hrProfL1Value || '';
         document.getElementById('hrProfL2Type').value      = p.l2Type || p.hrProfL2Type || '';
@@ -479,6 +481,7 @@ const Staff = {
       profileType:   document.getElementById('hrProfType').value,
       revenueBase:   document.getElementById('hrProfRevenueBase').value,
       otHourlyRate:  parseFloat(document.getElementById('hrProfOtRate').value) || 0,
+      otThresholdHours: parseFloat(document.getElementById('hrProfOtThreshold').value) || 9,
       l1Type:        document.getElementById('hrProfL1Type').value,
       l1Value:       parseFloat(document.getElementById('hrProfL1Value').value) || 0,
       l2Type:        document.getElementById('hrProfL2Type').value,

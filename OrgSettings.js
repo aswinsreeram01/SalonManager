@@ -8,8 +8,11 @@ const OrgSettings = {
     currencySymbol:       '₹',
     defaultTargetPeriod:  'weekly',
     salaryPayDay:         10,
-    defaultEligibleOffs:  4,
-    otThresholdHours:     9 // hours worked per day before overtime kicks in
+    defaultEligibleOffs:  4
+    // otThresholdHours moved to IncentiveProfiles (per-profile, since it can
+    // vary by staff member) — see IncentiveProfiles.buildOTThresholdMap.
+    // A legacy 'otThresholdHours' row may still exist in old OrgSettings
+    // sheets; it's harmless and no longer read by any code.
   },
 
   // Plain-object settings read, shared by get() (public) and other backend
@@ -28,7 +31,7 @@ const OrgSettings = {
       const key   = String(data[i][0]);
       let   value = data[i][1];
       // Coerce numeric defaults to numbers
-      if (key === 'salaryPayDay' || key === 'defaultEligibleOffs' || key === 'otThresholdHours') {
+      if (key === 'salaryPayDay' || key === 'defaultEligibleOffs') {
         value = Number(value) || this._defaults[key];
       }
       settings[key] = value;
@@ -38,10 +41,6 @@ const OrgSettings = {
 
   get() {
     return Utils.createResponse('success', 'Org settings retrieved', { settings: this._getRaw() });
-  },
-
-  getOTThreshold() {
-    return Number(this._getRaw().otThresholdHours) || 9;
   },
 
   update(data) {

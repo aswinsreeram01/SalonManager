@@ -30,7 +30,9 @@ const Utils = {
 
   // ── Overtime calculation (shared by Attendance and HRApprovals) ──────────
   // Was previously duplicated with a hardcoded 9h threshold in both places;
-  // now a single implementation, threshold configurable via OrgSettings.
+  // now a single implementation. Threshold is per-staff-member, sourced from
+  // their assigned Incentive Profile (IncentiveProfiles.buildOTThresholdMap)
+  // — it can differ from person to person, not one company-wide value.
   // No break-time deduction — Shifts.breakMins is intentionally not used.
   _timeStrToMinutes(timeStr) {
     const t = String(timeStr || '');
@@ -39,9 +41,9 @@ const Utils = {
     return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
   },
 
-  // thresholdHours: fetch once per request via OrgSettings.getOTThreshold()
-  // and pass it in — avoids re-reading the OrgSettings sheet per attendance
-  // row in a bulk save.
+  // thresholdHours: look up via IncentiveProfiles.buildOTThresholdMap(orgId)
+  // once per request/batch and pass the per-staffId value in — avoids
+  // re-reading the Staff/IncentiveProfiles sheets per attendance row.
   computeHoursAndOT(clockIn, clockOut, thresholdHours) {
     if (!clockIn || !clockOut) return { hoursWorked: 0, otHours: 0 };
     const workedMins  = this._timeStrToMinutes(clockOut) - this._timeStrToMinutes(clockIn);

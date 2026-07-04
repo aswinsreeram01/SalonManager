@@ -14,10 +14,10 @@ const ACTION_PERMISSIONS = {
   get_customers: ['customers', 'read'],
   add_customer: ['customers', 'update'],
 
-  // Loyalty (configured from the Settings page)
-  get_loyalty_config: ['settings', 'read'],
-  update_loyalty_config: ['settings', 'update'],
-  toggle_happy_hour: ['settings', 'update'],
+  // Loyalty (configured from the Customers page)
+  get_loyalty_config: ['customers', 'read'],
+  update_loyalty_config: ['customers', 'update'],
+  toggle_happy_hour: ['customers', 'update'],
 
   // Service Groups / Services / Price Books (all under the Services page)
   get_service_groups: ['services', 'read'],

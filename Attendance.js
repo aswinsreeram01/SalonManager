@@ -195,7 +195,10 @@ const Attendance = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
 
-    const otThreshold = OrgSettings.getOTThreshold(); // one read for the whole batch
+    // OT threshold now lives on each staff member's Incentive Profile (was a
+    // single company-wide OrgSettings value) — build the staffId lookup once
+    // for this batch rather than re-reading the sheets per record.
+    const otThresholdMap = IncentiveProfiles.buildOTThresholdMap(data.orgId);
     const records = Array.isArray(data.records) ? data.records : [data];
     const existingRows = sheet.getDataRange().getValues();
 
@@ -212,6 +215,7 @@ const Attendance = {
     const now = new Date().toISOString();
 
     records.forEach(rec => {
+      const otThreshold = otThresholdMap[rec.staffId] || 9;
       const { hoursWorked, otHours } = Utils.computeHoursAndOT(rec.clockIn, rec.clockOut, otThreshold);
 
       const recDate = rec.date instanceof Date ? Utils.businessDate(rec.date) : String(rec.date).slice(0, 10);
