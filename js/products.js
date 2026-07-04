@@ -12,6 +12,7 @@ const Products = {
   _pos:        [],
   _movements:  [],
   _editingId:  null,
+  _venEditingId: null,
   _activeTab:  'products',
 
   // ─── Init ────────────────────────────────────────────────────────────────────
@@ -29,6 +30,13 @@ const Products = {
     document.getElementById('prodSearch').addEventListener('input', () => this._renderProducts());
     document.getElementById('prodCatFilter').addEventListener('change', () => this._renderProducts());
     document.getElementById('prodCategory').addEventListener('change', () => this._toggleProfessionalFields());
+
+    // Vendors tab
+    document.getElementById('venAddBtn').addEventListener('click', () => this._openVenForm());
+    document.getElementById('venCancelBtn').addEventListener('click', () => this._closeVenForm());
+    document.getElementById('vendorForm').addEventListener('submit', e => this._handleVenSubmit(e));
+    document.getElementById('venSearch').addEventListener('input', () => this._renderVendors());
+    document.getElementById('venStatusFilter').addEventListener('change', () => this._renderVendors());
 
     // Purchase Orders tab
     document.getElementById('poCreateBtn').addEventListener('click', () => this._openPOForm());
@@ -93,6 +101,7 @@ const Products = {
       this._populateVendorDropdowns();
       this._populateProductDropdowns();
       this._renderProducts();
+      this._renderVendors();
       this._renderPOs();
       this._renderRegister();
     } catch(e) {
@@ -327,6 +336,125 @@ const Products = {
       }
     } catch(err) {
       UI.showMessage('prodMessage', 'Error deleting product', 'error');
+      await this.load();
+    }
+  },
+
+  // ─── VENDORS TAB ─────────────────────────────────────────────────────────────
+
+  _renderVendors() {
+    const statusF = document.getElementById('venStatusFilter').value; // '' | 'active' | 'inactive'
+    const q       = (document.getElementById('venSearch').value || '').toLowerCase();
+    let list = statusF ? this._vendors.filter(v => v.status === statusF) : this._vendors;
+    if (q) list = list.filter(v => v.name.toLowerCase().includes(q) || (v.phone || '').includes(q));
+
+    const tbody = document.getElementById('venTableBody');
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:24px;">${q ? 'No vendors match search' : 'No vendors yet'}</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(v => `<tr>
+      <td style="font-weight:500;">${this._esc(v.name)}</td>
+      <td>${this._esc(v.contactPerson || '—')}</td>
+      <td>${this._esc(v.phone || '—')}</td>
+      <td>${this._esc(v.email || '—')}</td>
+      <td><span class="status-badge status-${v.status}">${v.status}</span></td>
+      <td>
+        <button class="action-btn action-btn-edit" onclick="Products._openVenForm('${v.vendorId}')">Edit</button>
+        <button class="action-btn action-btn-delete" onclick="Products._removeVendor('${v.vendorId}')">Remove</button>
+      </td>
+    </tr>`).join('');
+  },
+
+  _openVenForm(vendorId) {
+    this._venEditingId = vendorId || null;
+    document.getElementById('venFormTitle').textContent = vendorId ? 'Edit Vendor' : 'Add Vendor';
+    document.getElementById('venSaveBtn').textContent   = vendorId ? 'Update Vendor' : 'Save Vendor';
+    document.getElementById('vendorForm').reset();
+
+    if (vendorId) {
+      const v = this._vendors.find(x => x.vendorId === vendorId);
+      if (v) {
+        document.getElementById('venName').value          = v.name;
+        document.getElementById('venContactPerson').value = v.contactPerson || '';
+        document.getElementById('venPhone').value         = v.phone || '';
+        document.getElementById('venEmail').value         = v.email || '';
+        document.getElementById('venAddress').value       = v.address || '';
+        document.getElementById('venNotes').value         = v.notes || '';
+        document.getElementById('venStatus').value        = v.status || 'active';
+      }
+    }
+
+    const card = document.getElementById('venFormCard');
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  },
+
+  _closeVenForm() {
+    document.getElementById('venFormCard').style.display = 'none';
+    document.getElementById('vendorForm').reset();
+    this._venEditingId = null;
+  },
+
+  async _handleVenSubmit(e) {
+    e.preventDefault();
+    const data = {
+      name:          document.getElementById('venName').value.trim(),
+      contactPerson: document.getElementById('venContactPerson').value.trim(),
+      phone:         document.getElementById('venPhone').value.trim(),
+      email:         document.getElementById('venEmail').value.trim(),
+      address:       document.getElementById('venAddress').value.trim(),
+      notes:         document.getElementById('venNotes').value.trim(),
+      status:        document.getElementById('venStatus').value
+    };
+
+    const btn = document.getElementById('venSaveBtn');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = this._venEditingId
+        ? await API.updateVendor({ ...data, vendorId: this._venEditingId })
+        : await API.addVendor(data);
+
+      if (res.status === 'success') {
+        if (this._venEditingId) {
+          const idx = this._vendors.findIndex(x => x.vendorId === this._venEditingId);
+          if (idx >= 0) this._vendors[idx] = { ...this._vendors[idx], ...data };
+        } else {
+          this._vendors.push({ ...data, vendorId: res.vendorId || ('VEN' + Date.now()) });
+        }
+        this._closeVenForm();
+        this._renderVendors();
+        this._populateVendorDropdowns();
+        UI.showMessage('venMessage', this._venEditingId ? 'Vendor updated.' : 'Vendor added.', 'success');
+      } else {
+        UI.showMessage('venMessage', res.message || 'Error saving vendor', 'error');
+      }
+    } catch(err) {
+      UI.showMessage('venMessage', 'Error saving vendor', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  },
+
+  async _removeVendor(vendorId) {
+    if (!confirm('Remove this vendor? This cannot be undone.')) return;
+    this._vendors = this._vendors.filter(v => v.vendorId !== vendorId);
+    this._renderVendors();
+    this._populateVendorDropdowns();
+    try {
+      const res = await API.removeVendor(vendorId);
+      if (res.status === 'success') {
+        UI.showMessage('venMessage', 'Vendor removed.', 'success');
+      } else {
+        UI.showMessage('venMessage', res.message || 'Error removing vendor', 'error');
+        await this.load();
+      }
+    } catch(err) {
+      UI.showMessage('venMessage', 'Error removing vendor', 'error');
       await this.load();
     }
   },

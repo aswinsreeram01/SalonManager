@@ -5,86 +5,105 @@
 const ALWAYS_ALLOWED_ACTIONS = ['logout', 'change_own_password'];
 
 // action -> [menuItem, 'read' | 'update']. 'update' covers add/edit/delete.
-// Menu items are page-level, matching the sidebar/pages/*.html structure.
+// menuItem is either a page-level key (e.g. 'billing') for pages with no
+// tabs, or a 'page:tab' composite key (e.g. 'staff:hr-payroll') for pages
+// broken into tabs — this lets a role be granted e.g. every Staff & HR tab
+// except Payroll. menuItem may also be an ARRAY of alternative keys; the
+// caller passes if they have the requested access on ANY one of them — used
+// where the same read powers more than one tab of the same page (e.g. the
+// Vendors directory backs dropdowns on several Products tabs).
 // Public actions (see publicActions below) and staff-portal actions (see
 // STAFF_ACTIONS) are authenticated by a different mechanism and are not
 // listed here.
 const ACTION_PERMISSIONS = {
   // Customers
-  get_customers: ['customers', 'read'],
-  add_customer: ['customers', 'update'],
+  get_customers: ['customers:cust-list', 'read'],
+  add_customer: ['customers:cust-list', 'update'],
 
-  // Loyalty (configured from the Customers page)
-  get_loyalty_config: ['customers', 'read'],
-  update_loyalty_config: ['customers', 'update'],
-  toggle_happy_hour: ['customers', 'update'],
+  // Loyalty (Loyalty Programme + Happy Hour tabs on the Customers page).
+  // get_loyalty_config backs the initial load of BOTH tabs, so either tab's
+  // read is enough; the two saves are owned by their own tab specifically.
+  get_loyalty_config: [['customers:cust-loyalty', 'customers:cust-happyhour'], 'read'],
+  update_loyalty_config: ['customers:cust-loyalty', 'update'],
+  update_happy_hour_config: ['customers:cust-happyhour', 'update'],
+  toggle_happy_hour: ['customers:cust-happyhour', 'update'],
 
-  // Service Groups / Services / Price Books (all under the Services page)
-  get_service_groups: ['services', 'read'],
-  add_service_group: ['services', 'update'],
-  update_service_group: ['services', 'update'],
-  delete_service_group: ['services', 'update'],
-  get_services: ['services', 'read'],
-  add_service: ['services', 'update'],
-  update_service: ['services', 'update'],
-  delete_service: ['services', 'update'],
-  get_pricebooks: ['services', 'read'],
-  add_pricebook: ['services', 'update'],
-  update_pricebook: ['services', 'update'],
-  delete_pricebook: ['services', 'update'],
-  get_pricebook_items: ['services', 'read'],
-  add_pricebook_item: ['services', 'update'],
-  update_pricebook_item: ['services', 'update'],
-  delete_pricebook_item: ['services', 'update'],
+  // Service Groups / Services / Price Books (tabs under the Services page).
+  // get_service_groups also backs the Service Catalog tab's grouping, and
+  // get_services also backs the Price Books tab's service picker.
+  get_service_groups: [['services:svc-groups', 'services:svc-catalog'], 'read'],
+  add_service_group: ['services:svc-groups', 'update'],
+  update_service_group: ['services:svc-groups', 'update'],
+  delete_service_group: ['services:svc-groups', 'update'],
+  get_services: [['services:svc-catalog', 'services:svc-pricebooks'], 'read'],
+  add_service: ['services:svc-catalog', 'update'],
+  update_service: ['services:svc-catalog', 'update'],
+  delete_service: ['services:svc-catalog', 'update'],
+  get_pricebooks: ['services:svc-pricebooks', 'read'],
+  add_pricebook: ['services:svc-pricebooks', 'update'],
+  update_pricebook: ['services:svc-pricebooks', 'update'],
+  delete_pricebook: ['services:svc-pricebooks', 'update'],
+  get_pricebook_items: ['services:svc-pricebooks', 'read'],
+  add_pricebook_item: ['services:svc-pricebooks', 'update'],
+  update_pricebook_item: ['services:svc-pricebooks', 'update'],
+  delete_pricebook_item: ['services:svc-pricebooks', 'update'],
 
-  // Products, Product Groups, Purchase Orders, Stock (all under the Products page)
-  get_products: ['products', 'read'],
-  add_product: ['products', 'update'],
-  update_product: ['products', 'update'],
-  update_product_stock: ['products', 'update'],
-  delete_product: ['products', 'update'],
-  receive_stock: ['products', 'update'],
-  get_stock_register: ['products', 'read'],
-  save_stock_audit: ['products', 'update'],
-  get_product_groups: ['products', 'read'],
-  add_product_group: ['products', 'update'],
-  update_product_group: ['products', 'update'],
-  delete_product_group: ['products', 'update'],
-  get_purchase_orders: ['products', 'read'],
-  create_purchase_order: ['products', 'update'],
-  update_po_status: ['products', 'update'],
-  get_po_items: ['products', 'read'],
+  // Products, Vendors, Purchase Orders, Receive Stock, Stock Register/Audit
+  // (all tabs under the Products page). get_products and get_vendors back
+  // dropdowns on several sibling tabs, so their read is OR'd across every
+  // tab that actually consumes them; get_purchase_orders/get_po_items/
+  // get_stock_register are shared between Purchase Orders/Receive Stock/
+  // Stock Audit for the same reason.
+  get_products: [['products:products', 'products:purchase-orders', 'products:receive-stock', 'products:stock-register', 'products:stock-audit'], 'read'],
+  add_product: ['products:products', 'update'],
+  update_product: ['products:products', 'update'],
+  update_product_stock: ['products:products', 'update'],
+  delete_product: ['products:products', 'update'],
+  receive_stock: ['products:receive-stock', 'update'],
+  get_stock_register: [['products:stock-register', 'products:receive-stock', 'products:stock-audit'], 'read'],
+  save_stock_audit: ['products:stock-audit', 'update'],
+  get_product_groups: ['products:product-groups', 'read'],
+  add_product_group: ['products:product-groups', 'update'],
+  update_product_group: ['products:product-groups', 'update'],
+  delete_product_group: ['products:product-groups', 'update'],
+  get_purchase_orders: [['products:purchase-orders', 'products:receive-stock'], 'read'],
+  create_purchase_order: ['products:purchase-orders', 'update'],
+  update_po_status: ['products:purchase-orders', 'update'],
+  get_po_items: [['products:purchase-orders', 'products:receive-stock'], 'read'],
 
-  // Vendors (its own sidebar page)
-  get_vendors: ['vendors', 'read'],
-  add_vendor: ['vendors', 'update'],
-  update_vendor: ['vendors', 'update'],
-  remove_vendor: ['vendors', 'update'],
+  // Vendors (now a tab under Products, between Products and Purchase Orders)
+  get_vendors: [['products:products', 'products:vendors', 'products:purchase-orders', 'products:receive-stock'], 'read'],
+  add_vendor: ['products:vendors', 'update'],
+  update_vendor: ['products:vendors', 'update'],
+  remove_vendor: ['products:vendors', 'update'],
 
-  // Staff, Incentive Profiles, Shifts, Schedule, Attendance, Advances,
-  // Weekly Incentive, Payroll (all tabs under the Staff page)
-  get_staff: ['staff', 'read'],
-  add_staff: ['staff', 'update'],
-  update_staff: ['staff', 'update'],
-  delete_staff: ['staff', 'update'],
-  get_incentive_profiles: ['staff', 'read'],
-  add_incentive_profile: ['staff', 'update'],
-  update_incentive_profile: ['staff', 'update'],
-  delete_incentive_profile: ['staff', 'update'],
-  get_shifts: ['staff', 'read'],
-  save_shift: ['staff', 'update'],
-  get_attendance: ['staff', 'read'],
-  save_attendance: ['staff', 'update'],
-  get_week_schedule: ['staff', 'read'],
-  save_week_schedule: ['staff', 'update'],
-  get_advances: ['staff', 'read'],
-  add_advance: ['staff', 'update'],
-  save_weekly_incentive: ['staff', 'update'],
-  get_weekly_incentives: ['staff', 'read'],
-  calculate_payroll: ['staff', 'read'],
-  save_payroll: ['staff', 'update'],
-  get_payroll: ['staff', 'read'],
-  update_payroll_status: ['staff', 'update'],
+  // Staff, Incentive Profiles, Shifts, Attendance, Payroll (tabs under the
+  // Staff & HR page). get_staff and get_incentive_profiles/get_shifts back
+  // dropdowns and grids on sibling tabs, so their read is OR'd accordingly.
+  // Payroll's own actions are deliberately NOT shared with any other tab, so
+  // a role can be denied Payroll specifically while keeping every other tab.
+  get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-payroll'], 'read'],
+  add_staff: ['staff:hr-staff', 'update'],
+  update_staff: ['staff:hr-staff', 'update'],
+  delete_staff: ['staff:hr-staff', 'update'],
+  get_advances: ['staff:hr-staff', 'read'],
+  add_advance: ['staff:hr-staff', 'update'],
+  get_incentive_profiles: [['staff:hr-staff', 'staff:hr-profiles'], 'read'],
+  add_incentive_profile: ['staff:hr-profiles', 'update'],
+  update_incentive_profile: ['staff:hr-profiles', 'update'],
+  delete_incentive_profile: ['staff:hr-profiles', 'update'],
+  get_shifts: [['staff:hr-shifts', 'staff:hr-attendance'], 'read'],
+  save_shift: ['staff:hr-shifts', 'update'],
+  get_attendance: ['staff:hr-attendance', 'read'],
+  save_attendance: ['staff:hr-attendance', 'update'],
+  get_week_schedule: ['staff:hr-attendance', 'read'],
+  save_week_schedule: ['staff:hr-attendance', 'update'],
+  save_weekly_incentive: ['staff:hr-payroll', 'update'],
+  get_weekly_incentives: ['staff:hr-payroll', 'read'],
+  calculate_payroll: ['staff:hr-payroll', 'read'],
+  save_payroll: ['staff:hr-payroll', 'update'],
+  get_payroll: ['staff:hr-payroll', 'read'],
+  update_payroll_status: ['staff:hr-payroll', 'update'],
 
   // HR Approvals (its own sidebar page)
   get_pending_attendance: ['hrapprovals', 'read'],
@@ -202,8 +221,10 @@ function doPost(e) {
         if (!rule) {
           return Utils.createResponse('error', 'This action is not configured for access control (' + action + ').');
         }
-        const [menuItem, kind] = rule;
-        if (!Permissions.check(callerRoleId, menuItem, kind)) {
+        const [menuItemSpec, kind] = rule;
+        const menuItems = Array.isArray(menuItemSpec) ? menuItemSpec : [menuItemSpec];
+        const allowed = menuItems.some(menuItem => Permissions.check(callerRoleId, menuItem, kind));
+        if (!allowed) {
           return Utils.createResponse('error', 'You do not have permission to perform this action.');
         }
       }
@@ -235,6 +256,7 @@ function doPost(e) {
       // Loyalty
       case 'get_loyalty_config':     return LoyaltyPoints.getConfig();
       case 'update_loyalty_config':  return LoyaltyPoints.updateConfig(data);
+      case 'update_happy_hour_config': return LoyaltyPoints.updateConfig(data);
       case 'toggle_happy_hour':      return LoyaltyPoints.toggleHappyHour(data);
       case 'get_customer_loyalty':   return LoyaltyPoints.getCustomerLoyalty(data);
       case 'get_loyalty_ledger':     return LoyaltyPoints.getLedger(data);

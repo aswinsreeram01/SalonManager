@@ -37,7 +37,6 @@ const PAGE_TITLES = {
     expenses:      'Expenses',
     services:      'Services',
     products:      'Products',
-    vendors:       'Vendors',
     staff:         'Staff & HR',
     hrapprovals:   'Approvals',
     customers:     'Customers',
@@ -56,7 +55,6 @@ const PAGE_SHEETS = {
     expenses:      'Expenses',
     services:      'Services',
     products:      'Products',
-    vendors:       'Vendors',
     staff:         'Staff',
     hrapprovals:   'StaffAttendance',
     customers:     'Customers',
@@ -78,7 +76,6 @@ const TILE_CONFIG = [
     { section: 'Catalogue & Inventory' },
     { page: 'services',      label: 'Services',     emoji: '✂️',  color: '#2f855a' },
     { page: 'products',      label: 'Products',     emoji: '📦', color: '#2c7a7b' },
-    { page: 'vendors',       label: 'Vendors',      emoji: '🏪', color: '#c05621' },
     { section: 'People' },
     { page: 'staff',         label: 'Staff & HR',   emoji: '👥', color: '#b83280' },
     { page: 'hrapprovals',   label: 'Approvals',    emoji: '📋', color: '#3f9142' },
@@ -105,7 +102,6 @@ const NAV_ICONS = {
     expenses:      _icon('<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>'),
     services:      _icon('<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/>'),
     products:      _icon('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
-    vendors:       _icon('<path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>'),
     staff:         _icon('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
     hrapprovals:   _icon('<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'),
     customers:     _icon('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>'),
@@ -342,7 +338,6 @@ const Navigation = {
             history:       () => History.load(),
             appointments:  () => Appointments.load(),
             expenses:      () => Expenses.load(),
-            vendors:       () => Vendors.load(),
             services:      () => Promise.all([ServiceGroups.load(), Services.load(), PriceBooks.load()]),
             products:      () => Products.load(),
             staff:         () => Staff.load(),
@@ -357,21 +352,67 @@ const Navigation = {
         return (map[page] || (() => Promise.resolve()))();
     },
 
+    // Pages broken into tabs (see js/permissions.js MENU_STRUCTURE) — their
+    // permission rows are all composite 'page:tab' keys, not a flat 'page'
+    // row, so page-level (sidebar/tile) readability has to be derived from
+    // "is any child tab readable" rather than a single row lookup.
+    _TABBED_PAGES: ['products', 'staff', 'customers', 'services'],
+
     applyPermissions(permissions) {
         // Server enforces access by canRead/canUpdate now; a menu item with
         // no row (or canRead !== true) means the role has no read access —
         // hide its tile so users aren't sent to a page that will error out.
         // Dashboard has no entry in TILE_CONFIG's page list and no dedicated
         // backend action, so it's unaffected here (always reachable).
-        const readable = new Set((permissions || [])
+        const perms = permissions || [];
+        const readableFlat = new Set(perms
             .filter(p => p.canRead === true || p.canRead === 'TRUE')
             .map(p => p.menuItem));
+
+        const readable = new Set(readableFlat);
+        this._TABBED_PAGES.forEach(page => {
+            const anyTabReadable = [...readableFlat].some(key => key.startsWith(page + ':'));
+            if (anyTabReadable) readable.add(page);
+        });
 
         this._hiddenTiles = new Set(
             TILE_CONFIG.filter(item => item.page && !readable.has(item.page)).map(item => item.page)
         );
         // Re-render home so hidden tiles are removed
         this._renderHome();
+
+        this.applyTabPermissions(perms);
+    },
+
+    // Hides individual tab buttons/panels within a tabbed page when the role
+    // lacks read access to that specific tab (e.g. Payroll under Staff & HR),
+    // even though the page itself remains reachable via its other tabs.
+    applyTabPermissions(permissions) {
+        const canRead = new Set((permissions || [])
+            .filter(p => p.canRead === true || p.canRead === 'TRUE')
+            .map(p => p.menuItem));
+
+        this._TABBED_PAGES.forEach(page => {
+            const container = document.getElementById(page);
+            if (!container) return;
+
+            let firstVisibleTab = null;
+            let activeIsVisible = false;
+            container.querySelectorAll('.prod-tab[data-tab]').forEach(btn => {
+                const tabKey = btn.dataset.tab;
+                const visible = canRead.has(`${page}:${tabKey}`);
+                btn.style.display = visible ? '' : 'none';
+                const panel = container.querySelector(`#prod-tab-${tabKey}`);
+                if (panel && !visible) panel.style.display = 'none';
+                else if (panel) panel.style.removeProperty('display');
+                if (visible && !firstVisibleTab) firstVisibleTab = btn;
+                if (visible && btn.classList.contains('active')) activeIsVisible = true;
+            });
+            // If the tab that would normally be active on load has no read
+            // access, fall back to the first tab the role can actually see
+            // so the page doesn't land on a blank/hidden panel.
+            if (!activeIsVisible && firstVisibleTab) firstVisibleTab.click();
+        });
     }
 };
 
@@ -388,7 +429,7 @@ function _timeGreeting() {
 // Pages are small static files; parallel HTTP/2 fetch completes in ~100ms.
 const PAGE_HTML = [
     'dashboard','billing','history','appointments','expenses',
-    'services','products','vendors','staff','hrapprovals',
+    'services','products','staff','hrapprovals',
     'customers','organizations','users','roles','permissions','settings'
 ];
 
@@ -430,7 +471,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     _init(Permissions,   'Permissions');
     _init(Appointments,  'Appointments');
     _init(Expenses,      'Expenses');
-    _init(Vendors,       'Vendors');
     _init(Settings,      'Settings');
     _init(HRApprovals,   'HRApprovals');
 

@@ -119,5 +119,72 @@ const Permissions = {
     const entry = map[menuItem];
     if (!entry) return false;
     return kind === 'update' ? !!entry.canUpdate : !!entry.canRead;
+  },
+
+  // ── One-time migration: page-level -> tab-level permissions ──────────────
+  // Run manually from the Apps Script editor (select migrateToTabPermissions,
+  // click Run) ONCE after deploying the tab-level permission model for
+  // Products/Staff/Customers/Services. Copies each role's existing
+  // page-level grant (e.g. 'staff' canRead/canUpdate) onto every new tab key
+  // under that page (e.g. 'staff:hr-staff' .. 'staff:hr-payroll') so nobody
+  // loses access on deploy — admins can then narrow down individual tabs
+  // (e.g. uncheck Payroll) from the Roles > Permissions screen afterward.
+  // Safe to re-run: skips any (roleId, tabKey) pair that already has a row.
+  _TAB_MIGRATION_MAP: {
+    products: ['products:product-groups', 'products:products', 'products:vendors',
+               'products:purchase-orders', 'products:receive-stock',
+               'products:stock-register', 'products:stock-audit'],
+    // Vendors used to be its own top-level page, before it moved to be a
+    // Products tab — carry its old grant onto the new products:vendors key too.
+    vendors:   ['products:vendors'],
+    staff:     ['staff:hr-staff', 'staff:hr-profiles', 'staff:hr-shifts',
+                'staff:hr-attendance', 'staff:hr-payroll'],
+    customers: ['customers:cust-list', 'customers:cust-loyalty', 'customers:cust-happyhour'],
+    services:  ['services:svc-groups', 'services:svc-catalog', 'services:svc-pricebooks']
+  },
+
+  migrateToTabPermissions() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Permissions');
+    if (!sheet) { Logger.log('Permissions sheet not found'); return; }
+
+    const rows = sheet.getDataRange().getValues();
+    const existingKeys = new Set(); // "roleId|menuItem"
+    for (let i = 1; i < rows.length; i++) {
+      existingKeys.add(rows[i][1] + '|' + rows[i][2]);
+    }
+
+    const toAdd = [];
+    for (let i = 1; i < rows.length; i++) {
+      const roleId    = rows[i][1];
+      const menuItem  = rows[i][2];
+      const canRead   = rows[i][3] === true || rows[i][3] === 'TRUE';
+      const canUpdate = rows[i][4] === true || rows[i][4] === 'TRUE';
+      const newTabs = this._TAB_MIGRATION_MAP[menuItem];
+      if (!newTabs) continue;
+
+      newTabs.forEach(tabKey => {
+        const key = roleId + '|' + tabKey;
+        if (existingKeys.has(key)) return; // already has its own row — don't overwrite a deliberate choice
+        existingKeys.add(key); // avoid double-adding if two old rows map to the same new tab (products + vendors both -> products:vendors)
+        toAdd.push([
+          'PERM' + Date.now() + Math.random(),
+          roleId, tabKey, canRead, canUpdate
+        ]);
+      });
+    }
+
+    if (toAdd.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, toAdd.length, 5).setValues(toAdd);
+    }
+
+    // Clear every role's permission caches so the new rows take effect immediately.
+    const roleIds = new Set();
+    for (let i = 1; i < rows.length; i++) roleIds.add(rows[i][1]);
+    roleIds.forEach(roleId => {
+      Utils.clearCached('perms_' + roleId);
+      Utils.clearCached('permmap_' + roleId);
+    });
+
+    Logger.log('Migration complete: added ' + toAdd.length + ' tab-level permission rows across ' + roleIds.size + ' roles.');
   }
 };

@@ -307,7 +307,7 @@ const Customers = {
         const btn = get('loyaltyHHSaveBtn');
         if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
         try {
-            const res = await API.updateLoyaltyConfig(loyalty);
+            const res = await API.updateHappyHourConfig(loyalty);
             if (res.status !== 'success') throw new Error(res.message);
             this._loyaltyCfg = loyalty;
             UI.showMessage('customerMessage', 'Happy Hour settings saved.', 'success');
