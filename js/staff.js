@@ -1379,12 +1379,21 @@ const Staff = {
       'half-day': { abbr: 'Half-day', bg: '#fefcbf', color: '#975a16' }
     };
 
-    let present = 0, absent = 0, halfDay = 0, totalOt = 0;
+    let present = 0, weekdayAbsence = 0, weekendAbsence = 0, totalOt = 0;
     this._attSumOriginal = {}; // dateStr -> { dayStatus, otHours } for editable (unclocked) days only
 
     // Fri/Sat/Sun — same weekend definition the Attendance tab's week grid
     // uses (isWeekendDay there), highlighted in red here per request.
     const isWeekendDow = dow => dow === 0 || dow === 5 || dow === 6;
+
+    // Absent and half-day aren't shown as separate counts — half-day is
+    // just +0.5 toward whichever bucket (weekday/weekend) that day falls in.
+    const tallyAbsence = (status, isWeekend) => {
+      const amount = status === 'absent' ? 1 : status === 'half-day' ? 0.5 : 0;
+      if (amount === 0) return;
+      if (isWeekend) weekendAbsence += amount;
+      else weekdayAbsence += amount;
+    };
 
     const dowHeaders = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
       .map((d, dow) => `<div class="att-cal-dow${isWeekendDow(dow) ? ' weekend' : ''}">${d}</div>`).join('');
@@ -1395,7 +1404,8 @@ const Staff = {
       const day = i + 1;
       const dateStr = `${period}-${String(day).padStart(2, '0')}`;
       const dow = new Date(year, month - 1, day).getDay();
-      const weekendClass = isWeekendDow(dow) ? ' weekend' : '';
+      const isWeekend = isWeekendDow(dow);
+      const weekendClass = isWeekend ? ' weekend' : '';
       const rec = (this._attendance || []).find(a => a.staffId === staffId && a.date === dateStr);
       const hasClockData = !!(rec && (rec.clockIn || rec.clockOut));
 
@@ -1403,8 +1413,7 @@ const Staff = {
         const st  = rec.dayStatus || 'present';
         const cfg = statusCfg[st] || { abbr: st, bg: '#edf2f7', color: '#4a5568' };
         if (st === 'present') present++;
-        else if (st === 'absent') absent++;
-        else if (st === 'half-day') halfDay++;
+        tallyAbsence(st, isWeekend);
         const ot = parseFloat(rec.otHours) || 0;
         if (ot > 0) totalOt += ot;
         const otHtml = ot > 0 ? `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>` : '';
@@ -1423,12 +1432,17 @@ const Staff = {
       this._attSumOriginal[dateStr] = { dayStatus: status, otHours };
 
       if (status === 'present') present++;
-      else if (status === 'absent') absent++;
-      else if (status === 'half-day') halfDay++;
+      tallyAbsence(status, isWeekend);
       if (otHours > 0) totalOt += otHours;
 
+      // Shade to match the selected status, same colors as locked cells —
+      // updates live via _onAttSumStatusChange as the dropdown is changed.
+      const editableBg = status === 'absent' ? statusCfg.absent.bg
+        : status === 'half-day' ? statusCfg['half-day'].bg
+        : '#f7fafc';
+
       const opt = (val, label) => `<option value="${val}" ${status === val ? 'selected' : ''}>${label}</option>`;
-      return `<div class="att-cal-day editable${weekendClass}" data-date="${dateStr}">
+      return `<div class="att-cal-day editable${weekendClass}" data-date="${dateStr}" style="background:${editableBg};">
         <div class="att-cal-daynum">${day}</div>
         <select class="attsum-status-select" data-date="${dateStr}" onchange="Staff._onAttSumStatusChange(this)">
           ${opt('present', 'Present')}${opt('half-day', 'Half-day')}${opt('absent', 'Absent')}
@@ -1443,11 +1457,12 @@ const Staff = {
       <div class="att-cal-grid">${emptyCells}${dayCells}</div>
     `;
 
+    const fmtDays = n => (n % 1 === 0 ? n : n.toFixed(1));
     stats.style.display = 'flex';
     stats.innerHTML = `
       <div class="att-sum-stat" style="color:#276749;">Present: ${present}</div>
-      <div class="att-sum-stat" style="color:#9b2c2c;">Absent: ${absent}</div>
-      <div class="att-sum-stat" style="color:#975a16;">Half-day: ${halfDay}</div>
+      <div class="att-sum-stat" style="color:#9b2c2c;">Weekday Absence: ${fmtDays(weekdayAbsence)}</div>
+      <div class="att-sum-stat" style="color:#9b2c2c;">Weekend Absence: ${fmtDays(weekendAbsence)}</div>
       <div class="att-sum-stat" style="color:#2b6cb0;">Total OT: ${totalOt.toFixed(1)}h</div>
     `;
     saveWrap.style.display = 'block';
@@ -1457,6 +1472,12 @@ const Staff = {
     const cell = selectEl.closest('.att-cal-day');
     const otInput = cell ? cell.querySelector('.attsum-ot-input') : null;
     if (!otInput) return;
+
+    // Shade to match the newly selected status — same colors used for
+    // locked (already-clocked) days, so the whole grid reads consistently.
+    const bgByStatus = { absent: '#fed7d7', 'half-day': '#fefcbf', present: '#f7fafc' };
+    if (cell) cell.style.background = bgByStatus[selectEl.value] || '#f7fafc';
+
     if (selectEl.value === 'absent') {
       otInput.disabled = true;
       otInput.value = 0;
