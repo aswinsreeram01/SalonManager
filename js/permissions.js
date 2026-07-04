@@ -31,7 +31,7 @@ const Permissions = {
         ]},
         { key: 'staff', label: 'Staff & HR', tabs: [
             { key: 'hr-staff',      label: 'Staff (also used by Billing/Appointments/Dashboard)' },
-            { key: 'hr-profiles',   label: 'Incentive Profiles' },
+            { key: 'hr-profiles',   label: 'Comp Plans' },
             { key: 'hr-shifts',     label: 'Shifts' },
             { key: 'hr-attendance', label: 'Attendance' },
             { key: 'hr-payroll',    label: 'Payroll (includes its Attendance & OT Summary sub-view)' },

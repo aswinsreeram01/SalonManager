@@ -7,7 +7,7 @@
 
     <div class="prod-tabs">
         <button class="prod-tab active" data-tab="hr-staff"><span class="ptab-icon">👥</span><span class="ptab-label">Staff</span></button>
-        <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Incentive Profiles</span></button>
+        <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Comp Plans</span></button>
         <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
         <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
         <button class="prod-tab" data-tab="hr-payroll"><span class="ptab-icon">💰</span><span class="ptab-label">Payroll</span></button>
@@ -76,9 +76,9 @@
                         <input type="text" id="hrStaffSpecialization" placeholder="e.g., Hair Coloring">
                     </div>
                     <div class="form-group">
-                        <label for="hrStaffProfileId">Incentive Profile</label>
+                        <label for="hrStaffProfileId">Comp Plan</label>
                         <select id="hrStaffProfileId">
-                            <option value="">No Profile</option>
+                            <option value="">No Comp Plan</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -155,7 +155,7 @@
                 <table>
                     <thead><tr>
                         <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
-                        <th>Profile</th><th>Salary</th><th>Status</th><th>Actions</th>
+                        <th>Comp Plan</th><th>Salary</th><th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrStaffTableBody">
                         <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
@@ -165,18 +165,18 @@
         </div>
     </div>
 
-    <!-- ═══ TAB: INCENTIVE PROFILES ═══ -->
+    <!-- ═══ TAB: COMP PLANS ═══ -->
     <div id="prod-tab-hr-profiles" class="prod-tab-panel">
         <div id="hrProfFormCard" class="card" style="display:none;">
-            <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Incentive Profile</h3>
+            <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Comp Plan</h3>
             <form id="hrProfForm">
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
                     <div class="form-group">
-                        <label for="hrProfName">Profile Name*</label>
+                        <label for="hrProfName">Comp Plan Name*</label>
                         <input type="text" id="hrProfName" required>
                     </div>
                     <div class="form-group">
-                        <label for="hrProfType">Profile Type</label>
+                        <label for="hrProfType">Comp Plan Type</label>
                         <select id="hrProfType">
                             <option value="service_provider">Service Provider</option>
                             <option value="manager">Manager</option>
@@ -243,15 +243,15 @@
                     </div>
                 </div>
                 <div class="btn-group" style="margin-top:20px;">
-                    <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Profile</button>
+                    <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Comp Plan</button>
                     <button type="button" class="btn btn-secondary" id="hrProfCancelBtn">Cancel</button>
                 </div>
             </form>
         </div>
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Incentive Profiles</h3>
-                <button class="btn btn-primary" id="hrProfAddBtn">+ Add Profile</button>
+                <h3 style="color:#2d3748;margin:0;">Comp Plans</h3>
+                <button class="btn btn-primary" id="hrProfAddBtn">+ Add Comp Plan</button>
             </div>
             <div class="table-container">
                 <table>

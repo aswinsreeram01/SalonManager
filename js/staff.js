@@ -342,7 +342,7 @@ const Staff = {
     const sel = document.getElementById('hrStaffProfileId');
     if (!sel) return;
     const active = this._profiles.filter(p => p.status === 'active');
-    sel.innerHTML = '<option value="">No Profile</option>' +
+    sel.innerHTML = '<option value="">No Comp Plan</option>' +
       active.map(p => `<option value="${p.id || p.profileId}">${this._esc(p.profileName || p.name)}</option>`).join('');
   },
 
@@ -423,7 +423,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:24px;">No incentive profiles found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -451,8 +451,8 @@ const Staff = {
 
   openProfForm(id) {
     this._profEditingId = id || null;
-    document.getElementById('hrProfFormTitle').textContent = id ? 'Edit Profile' : 'Add Profile';
-    document.getElementById('hrProfSaveBtn').textContent   = id ? 'Update Profile' : 'Save Profile';
+    document.getElementById('hrProfFormTitle').textContent = id ? 'Edit Comp Plan' : 'Add Comp Plan';
+    document.getElementById('hrProfSaveBtn').textContent   = id ? 'Update Comp Plan' : 'Save Comp Plan';
     document.getElementById('hrProfForm').reset();
 
     if (id) {
@@ -515,14 +515,14 @@ const Staff = {
         : await API.addIncentiveProfile(data);
 
       if (res.status === 'success') {
-        UI.showMessage('staffMessage', res.message || (this._profEditingId ? 'Profile updated.' : 'Profile added.'), 'success');
+        UI.showMessage('staffMessage', res.message || (this._profEditingId ? 'Comp Plan updated.' : 'Comp Plan added.'), 'success');
         this.closeProfForm();
         await this._loadProfiles();
       } else {
-        UI.showMessage('staffMessage', res.message || 'Error saving profile', 'error');
+        UI.showMessage('staffMessage', res.message || 'Error saving comp plan', 'error');
       }
     } catch(err) {
-      UI.showMessage('staffMessage', 'Error saving profile', 'error');
+      UI.showMessage('staffMessage', 'Error saving comp plan', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = origText;
@@ -530,18 +530,18 @@ const Staff = {
   },
 
   async deleteProfile(id) {
-    if (!confirm('Delete this incentive profile? Any staff using it will lose their profile assignment.')) return;
+    if (!confirm('Delete this comp plan? Any staff using it will lose their comp plan assignment.')) return;
     UI.showLoading();
     try {
       const res = await API.deleteIncentiveProfile(id);
       if (res.status === 'success') {
-        UI.showMessage('staffMessage', res.message || 'Profile deleted.', 'success');
+        UI.showMessage('staffMessage', res.message || 'Comp Plan deleted.', 'success');
         await this._loadProfiles();
       } else {
-        UI.showMessage('staffMessage', res.message || 'Error deleting profile', 'error');
+        UI.showMessage('staffMessage', res.message || 'Error deleting comp plan', 'error');
       }
     } catch(err) {
-      UI.showMessage('staffMessage', 'Error deleting profile', 'error');
+      UI.showMessage('staffMessage', 'Error deleting comp plan', 'error');
     } finally {
       UI.hideLoading();
     }
@@ -1379,21 +1379,11 @@ const Staff = {
       'half-day': { abbr: 'Half-day', bg: '#fefcbf', color: '#975a16' }
     };
 
-    let present = 0, weekdayAbsence = 0, weekendAbsence = 0, totalOt = 0;
     this._attSumOriginal = {}; // dateStr -> { dayStatus, otHours } for editable (unclocked) days only
 
     // Fri/Sat/Sun — same weekend definition the Attendance tab's week grid
     // uses (isWeekendDay there), highlighted in red here per request.
     const isWeekendDow = dow => dow === 0 || dow === 5 || dow === 6;
-
-    // Absent and half-day aren't shown as separate counts — half-day is
-    // just +0.5 toward whichever bucket (weekday/weekend) that day falls in.
-    const tallyAbsence = (status, isWeekend) => {
-      const amount = status === 'absent' ? 1 : status === 'half-day' ? 0.5 : 0;
-      if (amount === 0) return;
-      if (isWeekend) weekendAbsence += amount;
-      else weekdayAbsence += amount;
-    };
 
     const dowHeaders = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
       .map((d, dow) => `<div class="att-cal-dow${isWeekendDow(dow) ? ' weekend' : ''}">${d}</div>`).join('');
@@ -1412,12 +1402,11 @@ const Staff = {
       if (hasClockData) {
         const st  = rec.dayStatus || 'present';
         const cfg = statusCfg[st] || { abbr: st, bg: '#edf2f7', color: '#4a5568' };
-        if (st === 'present') present++;
-        tallyAbsence(st, isWeekend);
-        const ot = parseFloat(rec.otHours) || 0;
-        if (ot > 0) totalOt += ot;
+        const ot  = parseFloat(rec.otHours) || 0;
         const otHtml = ot > 0 ? `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>` : '';
-        return `<div class="att-cal-day locked${weekendClass}" style="background:${cfg.bg};"
+        // data-status/data-ot let _recalcAttSumStats() read locked cells the
+        // same way it reads editable ones, for a single live-recompute path.
+        return `<div class="att-cal-day locked${weekendClass}" style="background:${cfg.bg};" data-status="${st}" data-ot="${ot}"
           onclick="Staff.openAttModal('${staffId}','${dateStr}','summary')" title="Clocked ${rec.clockIn || '?'}–${rec.clockOut || '?'} — click to view/edit">
           <div class="att-cal-daynum">${day}</div>
           <div class="att-cal-status" style="color:${cfg.color};">${cfg.abbr}</div>
@@ -1430,10 +1419,6 @@ const Staff = {
       const status  = rec ? (rec.dayStatus || 'present') : 'present';
       const otHours = rec ? (parseFloat(rec.otHours) || 0) : 0;
       this._attSumOriginal[dateStr] = { dayStatus: status, otHours };
-
-      if (status === 'present') present++;
-      tallyAbsence(status, isWeekend);
-      if (otHours > 0) totalOt += otHours;
 
       // Shade to match the selected status, same colors as locked cells —
       // updates live via _onAttSumStatusChange as the dropdown is changed.
@@ -1448,7 +1433,8 @@ const Staff = {
           ${opt('present', 'Present')}${opt('half-day', 'Half-day')}${opt('absent', 'Absent')}
         </select>
         <input type="number" class="attsum-ot-input" data-date="${dateStr}" min="0" step="0.5"
-          value="${otHours}" ${status === 'absent' ? 'disabled' : ''}>
+          value="${otHours}" ${status === 'absent' ? 'disabled' : ''}
+          oninput="Staff._recalcAttSumStats()">
       </div>`;
     }).join('');
 
@@ -1456,6 +1442,38 @@ const Staff = {
       <div class="att-cal-dow-row">${dowHeaders}</div>
       <div class="att-cal-grid">${emptyCells}${dayCells}</div>
     `;
+
+    saveWrap.style.display = 'block';
+    this._recalcAttSumStats();
+  },
+
+  // Reads the CURRENT state of every day cell in the grid (including
+  // unsaved edits) and redraws the stats strip — called on load and again
+  // on every status/OT change so the counts never wait for a Save.
+  _recalcAttSumStats() {
+    const stats = document.getElementById('hrAttSumStats');
+    if (!stats) return;
+
+    let present = 0, weekdayAbsence = 0, weekendAbsence = 0, totalOt = 0;
+    document.querySelectorAll('#hrAttSumCalWrap .att-cal-day:not(.empty)').forEach(cell => {
+      const isWeekend = cell.classList.contains('weekend');
+      let status, ot;
+      if (cell.classList.contains('editable')) {
+        status = cell.querySelector('.attsum-status-select').value;
+        ot = status === 'absent' ? 0 : (parseFloat(cell.querySelector('.attsum-ot-input').value) || 0);
+      } else {
+        status = cell.dataset.status || 'present';
+        ot = parseFloat(cell.dataset.ot) || 0;
+      }
+
+      if (status === 'present') present++;
+      const absenceAmount = status === 'absent' ? 1 : status === 'half-day' ? 0.5 : 0;
+      if (absenceAmount) {
+        if (isWeekend) weekendAbsence += absenceAmount;
+        else weekdayAbsence += absenceAmount;
+      }
+      totalOt += ot;
+    });
 
     const fmtDays = n => (n % 1 === 0 ? n : n.toFixed(1));
     stats.style.display = 'flex';
@@ -1465,7 +1483,6 @@ const Staff = {
       <div class="att-sum-stat" style="color:#9b2c2c;">Weekend Absence: ${fmtDays(weekendAbsence)}</div>
       <div class="att-sum-stat" style="color:#2b6cb0;">Total OT: ${totalOt.toFixed(1)}h</div>
     `;
-    saveWrap.style.display = 'block';
   },
 
   _onAttSumStatusChange(selectEl) {
@@ -1484,6 +1501,7 @@ const Staff = {
     } else {
       otInput.disabled = false;
     }
+    this._recalcAttSumStats();
   },
 
   async _saveAttSummary() {
