@@ -47,6 +47,36 @@
                     </div>
                 </div>
 
+                <!-- Portal Links -->
+                <div class="card">
+                    <div style="margin-bottom:16px;">
+                        <h3 style="margin:0;color:#2d3748;">Portal Links</h3>
+                        <p class="muted" style="margin:4px 0 0;">Share these with your team and customers. Neither requires a Salon Manager login.</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+                        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:8px;">
+                            <span style="font-size:22px;">🧑‍💼</span>
+                            <span style="flex:1;min-width:0;">
+                                <span style="display:block;font-weight:600;color:#2d3748;">Staff Portal</span>
+                                <span style="display:block;font-size:12px;color:#718096;">Sign in with phone + PIN — confirm bills, log attendance, request advances</span>
+                                <a href="staff.html" target="_blank" rel="noopener" id="staffPortalLink"
+                                   style="display:block;font-size:12px;color:#667eea;margin-top:4px;word-break:break-all;"></a>
+                            </span>
+                            <button type="button" class="btn btn-secondary" style="flex-shrink:0;" onclick="Settings.copyPortalLink('staffPortalLink', this)">Copy</button>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:8px;">
+                            <span style="font-size:22px;">💇</span>
+                            <span style="flex:1;min-width:0;">
+                                <span style="display:block;font-weight:600;color:#2d3748;">Customer Portal</span>
+                                <span style="display:block;font-size:12px;color:#718096;">Sign in with phone only — view Gems balance, tier, and visit history</span>
+                                <a href="customer.html" target="_blank" rel="noopener" id="customerPortalLink"
+                                   style="display:block;font-size:12px;color:#667eea;margin-top:4px;word-break:break-all;"></a>
+                            </span>
+                            <button type="button" class="btn btn-secondary" style="flex-shrink:0;" onclick="Settings.copyPortalLink('customerPortalLink', this)">Copy</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- General Settings -->
                 <div class="card">
                     <div style="margin-bottom:16px;">

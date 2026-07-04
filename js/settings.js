@@ -15,7 +15,44 @@ const Settings = {
     _loyaltyCfg: null,
 
     async load() {
+        this.renderPortalLinks();
         await Promise.all([this.loadSetupStatus(), this.loadLoyalty(), this.loadGeneralSettings()]);
+    },
+
+    // ── Portal Links ─────────────────────────────────────────────────────────────
+
+    // Resolved against the current document location rather than a
+    // hardcoded domain, so this is correct whether the app is served from
+    // GitHub Pages, a custom domain, or a local dev server.
+    renderPortalLinks() {
+        ['staffPortalLink', 'customerPortalLink'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const absoluteUrl = new URL(el.getAttribute('href'), document.baseURI).href;
+            el.href = absoluteUrl;
+            el.textContent = absoluteUrl;
+        });
+    },
+
+    async copyPortalLink(elementId, btn) {
+        const el = document.getElementById(elementId);
+        if (!el) return;
+        const url = el.href;
+        const original = btn.textContent;
+        try {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = 'Copied!';
+        } catch (e) {
+            // Clipboard API unavailable (e.g. non-HTTPS context) — fall back
+            // to selecting the text so the user can copy manually.
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            btn.textContent = 'Select & copy';
+        }
+        setTimeout(() => { btn.textContent = original; }, 1800);
     },
 
     // ── General Settings ────────────────────────────────────────────────────────
