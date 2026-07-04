@@ -212,24 +212,53 @@ const Attendance = {
     }
 
     let saved = 0;
+    const errors = [];
     const now = new Date().toISOString();
 
     records.forEach(rec => {
+      const recDate = rec.date instanceof Date ? Utils.businessDate(rec.date) : String(rec.date).slice(0, 10);
+      const key = rec.staffId + '|' + recDate;
+      const existingRow = existingMap[key];
+
+      // manualOnly: from the Payroll > Attendance & OT Summary bulk-edit grid,
+      // which only ever edits days with no clock-in/out on record (that grid
+      // sets a status + a direct OT-hours override instead of clock times).
+      // Re-check server-side too — never let it silently blank out a day that
+      // already has real clock-in/out data recorded some other way (e.g. the
+      // Staff Portal self-check-in) since that's a different source of truth.
+      if (rec.manualOnly) {
+        if (existingRow) {
+          const existingClockIn  = existingRows[existingRow - 1][4];
+          const existingClockOut = existingRows[existingRow - 1][5];
+          if (existingClockIn || existingClockOut) {
+            errors.push({ staffId: rec.staffId, date: recDate, message: 'Has clock-in/out data — edit from the Attendance tab instead.' });
+            return;
+          }
+          sheet.getRange(existingRow, 8).setValue(Number(rec.otHours) || 0);
+          sheet.getRange(existingRow, 9).setValue(rec.dayStatus || 'present');
+        } else {
+          const attendanceId = 'ATT' + Date.now() + Math.random().toString(36).substr(2, 4);
+          sheet.appendRow([
+            attendanceId, rec.staffId, recDate, '', '', '', 0,
+            Number(rec.otHours) || 0, rec.dayStatus || 'present', rec.notes || '',
+            now, data.orgId || '', 'approved'
+          ]);
+        }
+        saved++;
+        return;
+      }
+
       const otThreshold = otThresholdMap[rec.staffId] || 9;
       const { hoursWorked, otHours } = Utils.computeHoursAndOT(rec.clockIn, rec.clockOut, otThreshold);
 
-      const recDate = rec.date instanceof Date ? Utils.businessDate(rec.date) : String(rec.date).slice(0, 10);
-      const key = rec.staffId + '|' + recDate;
-
-      if (existingMap[key]) {
-        const row = existingMap[key];
-        sheet.getRange(row, 4).setValue(rec.shiftId);
-        sheet.getRange(row, 5).setValue(rec.clockIn   || '');
-        sheet.getRange(row, 6).setValue(rec.clockOut  || '');
-        sheet.getRange(row, 7).setValue(hoursWorked);
-        sheet.getRange(row, 8).setValue(otHours);
-        sheet.getRange(row, 9).setValue(rec.dayStatus || '');
-        sheet.getRange(row, 10).setValue(rec.notes   || '');
+      if (existingRow) {
+        sheet.getRange(existingRow, 4).setValue(rec.shiftId);
+        sheet.getRange(existingRow, 5).setValue(rec.clockIn   || '');
+        sheet.getRange(existingRow, 6).setValue(rec.clockOut  || '');
+        sheet.getRange(existingRow, 7).setValue(hoursWorked);
+        sheet.getRange(existingRow, 8).setValue(otHours);
+        sheet.getRange(existingRow, 9).setValue(rec.dayStatus || '');
+        sheet.getRange(existingRow, 10).setValue(rec.notes   || '');
       } else {
         const attendanceId = 'ATT' + Date.now() + Math.random().toString(36).substr(2, 4);
         sheet.appendRow([
@@ -251,7 +280,7 @@ const Attendance = {
       saved++;
     });
 
-    return Utils.createResponse('success', 'Attendance saved', { saved });
+    return Utils.createResponse('success', 'Attendance saved', { saved, errors });
   },
 
   // ── Advances ──────────────────────────────────────────────────────────────

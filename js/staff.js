@@ -16,6 +16,9 @@ const Staff = {
   _shiftEditingId:   null,
   _attData:          null,
   _payCalcResults:   [],
+  _attSumStaffId:    null,
+  _attSumPeriod:     null,
+  _attSumOriginal:   {},
 
   // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +60,7 @@ const Staff = {
       btn.addEventListener('click', () => this._switchPaySubTab(btn.dataset.subtab))
     );
     document.getElementById('hrAttSumLoadBtn').addEventListener('click', () => this._loadAttSummary());
+    document.getElementById('hrAttSumSaveBtn').addEventListener('click', () => this._saveAttSummary());
 
     // ── Attendance modal ──
     document.getElementById('hrAttModalSaveBtn').addEventListener('click',   () => this.saveAttendanceRecord());
@@ -1358,10 +1362,11 @@ const Staff = {
   },
 
   _renderAttSummaryCalendar() {
-    const wrap  = document.getElementById('hrAttSumCalWrap');
-    const stats = document.getElementById('hrAttSumStats');
+    const wrap    = document.getElementById('hrAttSumCalWrap');
+    const stats   = document.getElementById('hrAttSumStats');
+    const saveWrap = document.getElementById('hrAttSumSaveWrap');
     const staffId = this._attSumStaffId;
-    const period   = this._attSumPeriod;
+    const period  = this._attSumPeriod;
     if (!staffId || !period) return;
 
     const [year, month] = period.split('-').map(Number);
@@ -1375,6 +1380,7 @@ const Staff = {
     };
 
     let present = 0, absent = 0, halfDay = 0, totalOt = 0;
+    this._attSumOriginal = {}; // dateStr -> { dayStatus, otHours } for editable (unclocked) days only
 
     const dowHeaders = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
       .map(d => `<div class="att-cal-dow">${d}</div>`).join('');
@@ -1385,30 +1391,44 @@ const Staff = {
       const day = i + 1;
       const dateStr = `${period}-${String(day).padStart(2, '0')}`;
       const rec = (this._attendance || []).find(a => a.staffId === staffId && a.date === dateStr);
+      const hasClockData = !!(rec && (rec.clockIn || rec.clockOut));
 
-      let statusHtml = '';
-      let otHtml = '';
-      let bg = '#f7fafc';
-
-      if (rec) {
+      if (hasClockData) {
         const st  = rec.dayStatus || 'present';
         const cfg = statusCfg[st] || { abbr: st, bg: '#edf2f7', color: '#4a5568' };
-        bg = cfg.bg;
-        statusHtml = `<div class="att-cal-status" style="color:${cfg.color};">${cfg.abbr}</div>`;
         if (st === 'present') present++;
         else if (st === 'absent') absent++;
         else if (st === 'half-day') halfDay++;
         const ot = parseFloat(rec.otHours) || 0;
-        if (ot > 0) {
-          totalOt += ot;
-          otHtml = `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>`;
-        }
+        if (ot > 0) totalOt += ot;
+        const otHtml = ot > 0 ? `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>` : '';
+        return `<div class="att-cal-day locked" style="background:${cfg.bg};"
+          onclick="Staff.openAttModal('${staffId}','${dateStr}','summary')" title="Clocked ${rec.clockIn || '?'}–${rec.clockOut || '?'} — click to view/edit">
+          <div class="att-cal-daynum">${day}</div>
+          <div class="att-cal-status" style="color:${cfg.color};">${cfg.abbr}</div>
+          ${otHtml}
+        </div>`;
       }
 
-      return `<div class="att-cal-day" style="background:${bg};"
-        onclick="Staff.openAttModal('${staffId}','${dateStr}','summary')" title="${rec ? (rec.dayStatus || 'present') : 'No record'}">
+      // Editable: no clock-in/out on record — may still have a prior manual
+      // status/OT entry (rec exists but hasClockData is false), or nothing at all.
+      const status  = rec ? (rec.dayStatus || 'present') : 'present';
+      const otHours = rec ? (parseFloat(rec.otHours) || 0) : 0;
+      this._attSumOriginal[dateStr] = { dayStatus: status, otHours };
+
+      if (status === 'present') present++;
+      else if (status === 'absent') absent++;
+      else if (status === 'half-day') halfDay++;
+      if (otHours > 0) totalOt += otHours;
+
+      const opt = (val, label) => `<option value="${val}" ${status === val ? 'selected' : ''}>${label}</option>`;
+      return `<div class="att-cal-day editable" data-date="${dateStr}">
         <div class="att-cal-daynum">${day}</div>
-        ${statusHtml}${otHtml}
+        <select class="attsum-status-select" data-date="${dateStr}" onchange="Staff._onAttSumStatusChange(this)">
+          ${opt('present', 'Present')}${opt('half-day', 'Half-day')}${opt('absent', 'Absent')}
+        </select>
+        <input type="number" class="attsum-ot-input" data-date="${dateStr}" min="0" step="0.5"
+          value="${otHours}" ${status === 'absent' ? 'disabled' : ''}>
       </div>`;
     }).join('');
 
@@ -1424,6 +1444,60 @@ const Staff = {
       <div class="att-sum-stat" style="color:#975a16;">Half-day: ${halfDay}</div>
       <div class="att-sum-stat" style="color:#2b6cb0;">Total OT: ${totalOt.toFixed(1)}h</div>
     `;
+    saveWrap.style.display = 'block';
+  },
+
+  _onAttSumStatusChange(selectEl) {
+    const cell = selectEl.closest('.att-cal-day');
+    const otInput = cell ? cell.querySelector('.attsum-ot-input') : null;
+    if (!otInput) return;
+    if (selectEl.value === 'absent') {
+      otInput.disabled = true;
+      otInput.value = 0;
+    } else {
+      otInput.disabled = false;
+    }
+  },
+
+  async _saveAttSummary() {
+    const staffId = this._attSumStaffId;
+    const msgEl    = document.getElementById('hrAttSumMessage');
+    if (!staffId) return;
+
+    const records = [];
+    document.querySelectorAll('#hrAttSumCalWrap .att-cal-day.editable').forEach(cell => {
+      const dateStr = cell.dataset.date;
+      const dayStatus = cell.querySelector('.attsum-status-select').value;
+      const otHours   = dayStatus === 'absent' ? 0 : (parseFloat(cell.querySelector('.attsum-ot-input').value) || 0);
+      const original  = this._attSumOriginal[dateStr] || { dayStatus: 'present', otHours: 0 };
+      if (dayStatus !== original.dayStatus || otHours !== original.otHours) {
+        records.push({ staffId, date: dateStr, dayStatus, otHours, manualOnly: true });
+      }
+    });
+
+    if (!records.length) { this._showInlineMsg(msgEl, 'No changes to save.', 'info'); return; }
+
+    const btn = document.getElementById('hrAttSumSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await API.saveAttendance(records);
+      if (res.status === 'success') {
+        const errors = res.errors || [];
+        this._showInlineMsg(msgEl, errors.length
+          ? `Saved ${res.saved} day(s). ${errors.length} skipped — already have clock-in/out data.`
+          : `Saved ${res.saved} day(s).`, errors.length ? 'warning' : 'success');
+        await this._loadAttSummary();
+      } else {
+        this._showInlineMsg(msgEl, res.message || 'Error saving changes', 'error');
+      }
+    } catch(err) {
+      this._showInlineMsg(msgEl, 'Error saving changes', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Changes';
+    }
   },
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

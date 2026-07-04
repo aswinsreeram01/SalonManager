@@ -568,6 +568,32 @@
 
 .att-cal-ot { font-size: 11px; font-weight: 600; margin-top: 2px; color: #2b6cb0; }
 
+.att-cal-day.locked { cursor: pointer; }
+.att-cal-day.locked .att-cal-daynum::after { content: ' 🔒'; font-size: 9px; }
+
+.att-cal-day.editable { cursor: default; }
+
+.attsum-status-select {
+    width: 100%;
+    margin-top: 4px;
+    font-size: 11px;
+    padding: 2px 3px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    background: white;
+}
+
+.attsum-ot-input {
+    width: 100%;
+    margin-top: 4px;
+    font-size: 11px;
+    padding: 2px 3px;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+}
+
+.attsum-ot-input:disabled { background: #edf2f7; color: #a0aec0; }
+
 .att-sum-stats {
     display: flex;
     gap: 12px;
