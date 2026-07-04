@@ -214,27 +214,37 @@ const Navigation = {
                 <div class="home-greeting">${greeting}, ${name}</div>
             </div>`;
 
-        let inGrid = false;
+        // Group into sections first so a section whose every page is hidden
+        // (e.g. no access to either Services or Products) never renders its
+        // label or an empty grid.
+        const sections = [];
+        let current = null;
         TILE_CONFIG.forEach(item => {
             if (item.section) {
-                if (inGrid) { html += '</div>'; inGrid = false; }
-                html += `<div class="tile-section-label">${item.section}</div>
-                         <div class="tile-grid">`;
-                inGrid = true;
-                return;
+                current = { label: item.section, items: [] };
+                sections.push(current);
+            } else if (current) {
+                current.items.push(item);
             }
-            if (this._hiddenTiles.has(item.page)) return;
-            const iconHtml = NAV_ICONS[item.page]
-                ? `<span class="tile-icon">${NAV_ICONS[item.page]}</span>`
-                : `<span class="tile-emoji">${item.emoji}</span>`;
-            html += `
-                <button class="tile-card" data-page="${item.page}"
-                        style="--tile-color:${item.color}">
-                    ${iconHtml}
-                    <span class="tile-label">${item.label}</span>
-                </button>`;
         });
-        if (inGrid) html += '</div>';
+
+        sections.forEach(section => {
+            const visibleItems = section.items.filter(item => !this._hiddenTiles.has(item.page));
+            if (!visibleItems.length) return;
+            html += `<div class="tile-section-label">${section.label}</div><div class="tile-grid">`;
+            visibleItems.forEach(item => {
+                const iconHtml = NAV_ICONS[item.page]
+                    ? `<span class="tile-icon">${NAV_ICONS[item.page]}</span>`
+                    : `<span class="tile-emoji">${item.emoji}</span>`;
+                html += `
+                    <button class="tile-card" data-page="${item.page}"
+                            style="--tile-color:${item.color}">
+                        ${iconHtml}
+                        <span class="tile-label">${item.label}</span>
+                    </button>`;
+            });
+            html += '</div>';
+        });
 
         container.innerHTML = html;
 
@@ -380,6 +390,21 @@ const Navigation = {
         );
         // Re-render home so hidden tiles are removed
         this._renderHome();
+
+        // Sidebar: hide nav-items with no read access, and hide the whole
+        // section (title + wrapper) when every item inside it is hidden.
+        // The Home section has no data-page items to hide, so it's
+        // unaffected — always reachable, matching the always-open dashboard.
+        document.querySelectorAll('.nav-item[data-page]').forEach(btn => {
+            const page = btn.dataset.page;
+            btn.style.display = (page === 'home' || readable.has(page)) ? '' : 'none';
+        });
+        document.querySelectorAll('.sidebar .nav-section').forEach(section => {
+            const items = section.querySelectorAll('.nav-item[data-page]');
+            if (!items.length) return; // no page items (e.g. a title-only section) — leave as-is
+            const anyVisible = [...items].some(btn => btn.style.display !== 'none');
+            section.style.display = anyVisible ? '' : 'none';
+        });
 
         this.applyTabPermissions(perms);
     },
