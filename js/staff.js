@@ -52,6 +52,12 @@ const Staff = {
     document.getElementById('hrPaySaveBtn').addEventListener('click', () => this.savePayroll());
     document.getElementById('hrPayHistFilter').addEventListener('change', () => this.loadPayrollHistory());
 
+    // ── Payroll sub-tabs (Payroll / Attendance & OT Summary) ──
+    document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
+      btn.addEventListener('click', () => this._switchPaySubTab(btn.dataset.subtab))
+    );
+    document.getElementById('hrAttSumLoadBtn').addEventListener('click', () => this._loadAttSummary());
+
     // ── Attendance modal ──
     document.getElementById('hrAttModalSaveBtn').addEventListener('click',   () => this.saveAttendanceRecord());
     document.getElementById('hrAttModalCancelBtn').addEventListener('click', () => this.closeAttModal());
@@ -68,6 +74,8 @@ const Staff = {
     if (payPeriodEl) payPeriodEl.value = ym;
     const payHistEl = document.getElementById('hrPayHistFilter');
     if (payHistEl) payHistEl.value = ym;
+    const attSumMonthEl = document.getElementById('hrAttSumMonth');
+    if (attSumMonthEl) attSumMonthEl.value = ym;
   },
 
   // ─── Tab switching ───────────────────────────────────────────────────────────
@@ -946,12 +954,12 @@ const Staff = {
     }
   },
 
-  openAttModal(staffId, date) {
+  openAttModal(staffId, date, mode) {
     const staffMem  = this._staff.find(s => s.id === staffId);
     const staffName = staffMem ? staffMem.name : staffId;
     const rec       = (this._attendance || []).find(a => a.staffId === staffId && a.date === date);
 
-    this._attData = { staffId, date, attendanceId: rec ? (rec.attendanceId || null) : null };
+    this._attData = { staffId, date, attendanceId: rec ? (rec.attendanceId || null) : null, mode: mode || 'grid' };
 
     document.getElementById('hrAttModalTitle').textContent = `${staffName} — ${date}`;
     document.getElementById('hrAttModalMsg').innerHTML = '';
@@ -1026,8 +1034,13 @@ const Staff = {
     try {
       const res = await API.saveAttendance([{ staffId, date, clockIn, clockOut, dayStatus, notes }]);
       if (res.status === 'success') {
-        // Reload attendance data so the view panel shows updated values
-        await this.loadAttendance();
+        // Reload attendance data so the view panel shows updated values —
+        // which view depends on which one opened this modal.
+        if (this._attData.mode === 'summary') {
+          await this._loadAttSummary();
+        } else {
+          await this.loadAttendance();
+        }
         // Update view fields with what was just saved
         document.getElementById('hrAttViewIn').textContent     = clockIn  || '—';
         document.getElementById('hrAttViewOut').textContent    = clockOut || '—';
@@ -1285,6 +1298,132 @@ const Staff = {
     } finally {
       UI.hideLoading();
     }
+  },
+
+  // ─── TAB 5b: ATTENDANCE & OT SUMMARY (nested under Payroll) ─────────────────
+  // A single-staff, whole-month calendar view of the same StaffAttendance
+  // data the Attendance tab's week grid uses — reads via the same
+  // get_attendance action and edits via the same openAttModal/
+  // saveAttendanceRecord flow, just gated for Payroll access instead of
+  // Attendance access (see Main.js ACTION_PERMISSIONS OR-ing).
+
+  _switchPaySubTab(subtab) {
+    document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.subtab === subtab));
+    document.querySelectorAll('#prod-tab-hr-payroll .sub-tab-panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
+    if (subtab === 'hr-pay-attsummary') this._populateAttSumStaffDropdown();
+  },
+
+  _populateAttSumStaffDropdown() {
+    const sel = document.getElementById('hrAttSumStaff');
+    if (!sel) return;
+    const current = sel.value;
+    const sorted = [...this._staff].sort((a, b) => a.name.localeCompare(b.name));
+    sel.innerHTML = '<option value="">Select staff</option>' +
+      sorted.map(s => `<option value="${s.id}">${this._esc(s.name)}${s.status !== 'active' ? ' (inactive)' : ''}</option>`).join('');
+    if (current) sel.value = current;
+  },
+
+  async _loadAttSummary() {
+    const staffId = document.getElementById('hrAttSumStaff').value;
+    const period  = document.getElementById('hrAttSumMonth').value;
+    const msgEl   = document.getElementById('hrAttSumMessage');
+
+    if (!staffId) { this._showInlineMsg(msgEl, 'Please select a staff member.', 'error'); return; }
+    if (!period)  { this._showInlineMsg(msgEl, 'Please select a month.', 'error'); return; }
+
+    this._attSumStaffId = staffId;
+    this._attSumPeriod  = period;
+
+    const [year, month] = period.split('-').map(Number);
+    const fromDate = `${period}-01`;
+    const lastDay  = new Date(year, month, 0).getDate();
+    const toDate   = `${period}-${String(lastDay).padStart(2, '0')}`;
+
+    const btn = document.getElementById('hrAttSumLoadBtn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    try {
+      const res = await API.getAttendance({ fromDate, toDate });
+      this._attendance = res.status === 'success' ? (res.attendance || []) : [];
+      this._renderAttSummaryCalendar();
+    } catch(err) {
+      this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Load';
+    }
+  },
+
+  _renderAttSummaryCalendar() {
+    const wrap  = document.getElementById('hrAttSumCalWrap');
+    const stats = document.getElementById('hrAttSumStats');
+    const staffId = this._attSumStaffId;
+    const period   = this._attSumPeriod;
+    if (!staffId || !period) return;
+
+    const [year, month] = period.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDow    = new Date(year, month - 1, 1).getDay(); // 0=Sun..6=Sat
+
+    const statusCfg = {
+      present:    { abbr: 'Present',  bg: '#c6f6d5', color: '#276749' },
+      absent:     { abbr: 'Absent',   bg: '#fed7d7', color: '#9b2c2c' },
+      'half-day': { abbr: 'Half-day', bg: '#fefcbf', color: '#975a16' }
+    };
+
+    let present = 0, absent = 0, halfDay = 0, totalOt = 0;
+
+    const dowHeaders = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
+      .map(d => `<div class="att-cal-dow">${d}</div>`).join('');
+
+    const emptyCells = Array.from({ length: firstDow }, () => '<div class="att-cal-day empty"></div>').join('');
+
+    const dayCells = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const dateStr = `${period}-${String(day).padStart(2, '0')}`;
+      const rec = (this._attendance || []).find(a => a.staffId === staffId && a.date === dateStr);
+
+      let statusHtml = '';
+      let otHtml = '';
+      let bg = '#f7fafc';
+
+      if (rec) {
+        const st  = rec.dayStatus || 'present';
+        const cfg = statusCfg[st] || { abbr: st, bg: '#edf2f7', color: '#4a5568' };
+        bg = cfg.bg;
+        statusHtml = `<div class="att-cal-status" style="color:${cfg.color};">${cfg.abbr}</div>`;
+        if (st === 'present') present++;
+        else if (st === 'absent') absent++;
+        else if (st === 'half-day') halfDay++;
+        const ot = parseFloat(rec.otHours) || 0;
+        if (ot > 0) {
+          totalOt += ot;
+          otHtml = `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>`;
+        }
+      }
+
+      return `<div class="att-cal-day" style="background:${bg};"
+        onclick="Staff.openAttModal('${staffId}','${dateStr}','summary')" title="${rec ? (rec.dayStatus || 'present') : 'No record'}">
+        <div class="att-cal-daynum">${day}</div>
+        ${statusHtml}${otHtml}
+      </div>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div class="att-cal-dow-row">${dowHeaders}</div>
+      <div class="att-cal-grid">${emptyCells}${dayCells}</div>
+    `;
+
+    stats.style.display = 'flex';
+    stats.innerHTML = `
+      <div class="att-sum-stat" style="color:#276749;">Present: ${present}</div>
+      <div class="att-sum-stat" style="color:#9b2c2c;">Absent: ${absent}</div>
+      <div class="att-sum-stat" style="color:#975a16;">Half-day: ${halfDay}</div>
+      <div class="att-sum-stat" style="color:#2b6cb0;">Total OT: ${totalOt.toFixed(1)}h</div>
+    `;
   },
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────

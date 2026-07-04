@@ -34,7 +34,7 @@ const Permissions = {
             { key: 'hr-profiles',   label: 'Incentive Profiles' },
             { key: 'hr-shifts',     label: 'Shifts' },
             { key: 'hr-attendance', label: 'Attendance' },
-            { key: 'hr-payroll',    label: 'Payroll' },
+            { key: 'hr-payroll',    label: 'Payroll (includes its Attendance & OT Summary sub-view)' },
         ]},
         { key: 'hrapprovals',   label: 'HR Approvals' },
         { key: 'customers', label: 'Customers', tabs: [

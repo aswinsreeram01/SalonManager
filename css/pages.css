@@ -500,6 +500,90 @@
 .prod-tab-panel { display: none; }
 .prod-tab-panel.active { display: block; }
 
+/* ── Nested sub-tabs (e.g. Payroll's Attendance & OT Summary) ─────────── */
+.sub-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.sub-tab {
+    padding: 8px 14px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sub-tab:hover { border-color: #a5b4fc; color: #4f46e5; }
+
+.sub-tab.active {
+    background: #4f46e5;
+    border-color: transparent;
+    color: white;
+}
+
+.sub-tab-panel { display: none; }
+.sub-tab-panel.active { display: block; }
+
+/* ── Attendance / OT month calendar ────────────────────────────────────── */
+.att-cal-dow-row, .att-cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+}
+
+.att-cal-dow-row { margin-bottom: 6px; }
+
+.att-cal-dow {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: #718096;
+    padding: 4px 0;
+}
+
+.att-cal-day {
+    min-height: 64px;
+    border-radius: 8px;
+    padding: 6px;
+    cursor: pointer;
+    background: #f7fafc;
+    border: 1px solid #edf2f7;
+    transition: transform 0.1s ease;
+}
+
+.att-cal-day:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+
+.att-cal-day.empty { visibility: hidden; cursor: default; }
+
+.att-cal-daynum { font-size: 12px; font-weight: 600; color: #4a5568; }
+
+.att-cal-status { font-size: 11px; font-weight: 700; margin-top: 4px; }
+
+.att-cal-ot { font-size: 11px; font-weight: 600; margin-top: 2px; color: #2b6cb0; }
+
+.att-sum-stats {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.att-sum-stat {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #f7fafc;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+}
+
 /* PO item/receive item table inputs */
 .po-item-product,
 .rcv-item-product {
