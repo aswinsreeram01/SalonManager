@@ -7,6 +7,7 @@
 
     <div class="prod-tabs">
         <button class="prod-tab active" data-tab="hr-staff"><span class="ptab-icon">👥</span><span class="ptab-label">Staff</span></button>
+        <button class="prod-tab" data-tab="hr-advances"><span class="ptab-icon">💵</span><span class="ptab-label">Advances</span></button>
         <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Comp Plans</span></button>
         <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
         <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
@@ -107,18 +108,56 @@
                     <button type="button" class="btn btn-secondary" id="hrStaffCancelBtn">Cancel</button>
                 </div>
             </form>
-            <!-- Advance Ledger (shown when editing) -->
-            <div id="hrAdvanceSection" style="display:none;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:20px;">
-                <h4 style="color:#2d3748;margin-bottom:4px;">Advance Ledger — <span id="hrAdvanceName" style="color:#667eea;"></span></h4>
+        </div>
+        <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
+                <div style="display:flex;gap:10px;">
+                    <input type="search" id="hrStaffSearch" placeholder="Search staff…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
+                    <button class="btn btn-primary" id="hrStaffAddBtn">+ Add Staff</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
+                        <th>Comp Plan</th><th>Salary</th><th>Status</th><th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrStaffTableBody">
+                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ TAB: ADVANCES ═══ -->
+    <div id="prod-tab-hr-advances" class="prod-tab-panel">
+        <div class="card">
+            <h3 style="color:#2d3748;margin-bottom:16px;">Staff Advances</h3>
+            <div id="hrAdvMessage" class="message"></div>
+            <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;min-width:220px;">
+                    <label for="hrAdvStaff">Staff</label>
+                    <select id="hrAdvStaff">
+                        <option value="">Select staff</option>
+                    </select>
+                </div>
+            </div>
+
+            <p id="hrAdvEmptyHint" class="muted" style="text-align:center;padding:24px;">Select a staff member to view their advance ledger.</p>
+
+            <div id="hrAdvLedgerWrap" style="display:none;">
                 <p style="color:#718096;font-size:13px;margin-bottom:12px;">Outstanding balance: <strong id="hrAdvanceBalance">₹0.00</strong></p>
-                <div class="table-container" style="margin-bottom:16px;">
+                <div class="table-container" style="margin-bottom:20px;">
                     <table>
-                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Balance</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Status</th><th>Balance</th></tr></thead>
                         <tbody id="hrAdvanceTableBody">
-                            <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No entries</td></tr>
+                            <tr><td colspan="6" style="text-align:center;color:#a0aec0;">No entries</td></tr>
                         </tbody>
                     </table>
                 </div>
+                <h4 style="color:#2d3748;margin-bottom:12px;">Add Entry</h4>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Date</label>
@@ -141,26 +180,6 @@
                     </div>
                     <button class="btn btn-secondary" id="hrAdvSaveBtn" type="button" style="align-self:flex-end;">Add Entry</button>
                 </div>
-            </div>
-        </div>
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
-                <div style="display:flex;gap:10px;">
-                    <input type="search" id="hrStaffSearch" placeholder="Search staff…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
-                    <button class="btn btn-primary" id="hrStaffAddBtn">+ Add Staff</button>
-                </div>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr>
-                        <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
-                        <th>Comp Plan</th><th>Salary</th><th>Status</th><th>Actions</th>
-                    </tr></thead>
-                    <tbody id="hrStaffTableBody">
-                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>

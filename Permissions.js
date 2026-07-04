@@ -137,8 +137,8 @@ const Permissions = {
     // Vendors used to be its own top-level page, before it moved to be a
     // Products tab — carry its old grant onto the new products:vendors key too.
     vendors:   ['products:vendors'],
-    staff:     ['staff:hr-staff', 'staff:hr-profiles', 'staff:hr-shifts',
-                'staff:hr-attendance', 'staff:hr-payroll'],
+    staff:     ['staff:hr-staff', 'staff:hr-advances', 'staff:hr-profiles',
+                'staff:hr-shifts', 'staff:hr-attendance', 'staff:hr-payroll'],
     customers: ['customers:cust-list', 'customers:cust-loyalty', 'customers:cust-happyhour'],
     services:  ['services:svc-groups', 'services:svc-catalog', 'services:svc-pricebooks']
   },

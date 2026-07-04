@@ -19,6 +19,7 @@ const Staff = {
   _attSumStaffId:    null,
   _attSumPeriod:     null,
   _attSumOriginal:   {},
+  _advStaffId:       null,
 
   // ─── Init ────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,9 @@ const Staff = {
     document.getElementById('hrStaffCancelBtn').addEventListener('click', () => this.closeStaffForm());
     document.getElementById('hrStaffForm').addEventListener('submit', e => this.handleStaffSubmit(e));
     document.getElementById('hrStaffSearch').addEventListener('input', () => this._renderStaff());
+
+    // ── Advances tab ──
+    document.getElementById('hrAdvStaff').addEventListener('change', () => this._onAdvStaffChange());
     document.getElementById('hrAdvSaveBtn').addEventListener('click', () => this.addAdvance());
 
     // ── Profiles tab ──
@@ -93,6 +97,7 @@ const Staff = {
     );
     if (tab === 'hr-attendance') this.loadAttendance();
     if (tab === 'hr-payroll')    this.loadPayrollHistory();
+    if (tab === 'hr-advances')   this._populateAdvStaffDropdown();
   },
 
   // ─── Load ────────────────────────────────────────────────────────────────────
@@ -227,7 +232,6 @@ const Staff = {
     document.getElementById('hrStaffFormTitle').textContent = id ? 'Edit Staff Member' : 'Add Staff Member';
     document.getElementById('hrStaffSaveBtn').textContent   = id ? 'Update Staff Member' : 'Save Staff Member';
     document.getElementById('hrStaffForm').reset();
-    document.getElementById('hrAdvanceSection').style.display = 'none';
 
     // Refresh profile dropdown
     this._populateProfileDropdown();
@@ -250,12 +254,6 @@ const Staff = {
         document.getElementById('hrStaffProfileId').value      = s.profileId      || '';
         document.getElementById('hrStaffTargetPeriod').value   = s.targetPeriod   || '';
       }
-
-      // Show advance section
-      const advName = this._staff.find(x => x.id === id);
-      document.getElementById('hrAdvanceName').textContent = advName ? advName.name : '';
-      document.getElementById('hrAdvanceSection').style.display = 'block';
-      await this._loadAdvances(id);
     }
 
     const card = document.getElementById('hrStaffFormCard');
@@ -266,7 +264,6 @@ const Staff = {
   closeStaffForm() {
     document.getElementById('hrStaffFormCard').style.display = 'none';
     document.getElementById('hrStaffForm').reset();
-    document.getElementById('hrAdvanceSection').style.display = 'none';
     this._editingId = null;
   },
 
@@ -347,12 +344,38 @@ const Staff = {
   },
 
 
-  // ── Advances ──
+  // ── Advances (own tab) ───────────────────────────────────────────────────────
+
+  _populateAdvStaffDropdown() {
+    const sel = document.getElementById('hrAdvStaff');
+    if (!sel) return;
+    const current = sel.value;
+    const sorted = [...this._staff].sort((a, b) => a.name.localeCompare(b.name));
+    sel.innerHTML = '<option value="">Select staff</option>' +
+      sorted.map(s => `<option value="${s.id}">${this._esc(s.name)}${s.status !== 'active' ? ' (inactive)' : ''}</option>`).join('');
+    if (current) sel.value = current;
+  },
+
+  async _onAdvStaffChange() {
+    const staffId = document.getElementById('hrAdvStaff').value;
+    const wrap = document.getElementById('hrAdvLedgerWrap');
+    const hint = document.getElementById('hrAdvEmptyHint');
+    this._advStaffId = staffId || null;
+
+    if (!staffId) {
+      wrap.style.display = 'none';
+      hint.style.display = 'block';
+      return;
+    }
+    wrap.style.display = 'block';
+    hint.style.display = 'none';
+    await this._loadAdvances(staffId);
+  },
 
   async _loadAdvances(staffId) {
     const tbody  = document.getElementById('hrAdvanceTableBody');
     const balEl  = document.getElementById('hrAdvanceBalance');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
     try {
       const res = await API.getAdvances(staffId);
       if (res.status === 'success') {
@@ -360,13 +383,25 @@ const Staff = {
         const balance  = res.outstandingBalance || 0;
         balEl.textContent = this._fmt(balance);
         if (!advances.length) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;">No advance entries</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">No advance entries</td></tr>';
           return;
         }
+        const statusMap = {
+          disbursed: 'background:#c6f6d5;color:#22543d;',
+          approved:  'background:#bee3f8;color:#2c5282;',
+          pending:   'background:#fefcbf;color:#744210;',
+          rejected:  'background:#fed7d7;color:#c53030;'
+        };
+        // Running balance mirrors the backend's outstandingBalance math: only
+        // disbursed rows move the total. Pending/approved/rejected rows still
+        // show in the ledger for visibility, but skip the accumulation — this
+        // used to add every row regardless of status, which could make the
+        // last row's running total disagree with the balance shown above it.
         let running = 0;
         tbody.innerHTML = advances.map(a => {
           const amt = parseFloat(a.amount) || 0;
-          running += (a.type === 'repayment' ? -amt : amt);
+          const status = a.status || 'disbursed';
+          if (status === 'disbursed') running += (a.type === 'repayment' ? -amt : amt);
           const typeStyle = a.type === 'repayment'
             ? 'background:#c6f6d5;color:#22543d;'
             : 'background:#fed7d7;color:#c53030;';
@@ -375,14 +410,15 @@ const Staff = {
             <td><span class="status-badge" style="${typeStyle}">${a.type}</span></td>
             <td style="text-align:right;white-space:nowrap;">${this._fmt(amt)}</td>
             <td>${this._esc(a.notes || '—')}</td>
+            <td><span class="status-badge" style="${statusMap[status] || ''}">${status}</span></td>
             <td style="text-align:right;white-space:nowrap;font-weight:600;">${this._fmt(running)}</td>
           </tr>`;
         }).join('');
       } else {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#fc8181;">Failed to load advances</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#fc8181;">Failed to load advances</td></tr>';
       }
     } catch(err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#fc8181;">Error loading advances</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#fc8181;">Error loading advances</td></tr>';
     }
   },
 
@@ -392,26 +428,27 @@ const Staff = {
     const amount = parseFloat(document.getElementById('hrAdvAmount').value) || 0;
     const notes  = document.getElementById('hrAdvNotes').value.trim();
     const btn    = document.getElementById('hrAdvSaveBtn');
+    const msgEl  = document.getElementById('hrAdvMessage');
 
-    if (!date)      { UI.showMessage('staffMessage', 'Please select a date for the advance entry.', 'error'); return; }
-    if (amount <= 0){ UI.showMessage('staffMessage', 'Amount must be greater than zero.', 'error'); return; }
-    if (!this._editingId) return;
+    if (!this._advStaffId) { this._showInlineMsg(msgEl, 'Please select a staff member first.', 'error'); return; }
+    if (!date)      { this._showInlineMsg(msgEl, 'Please select a date for the advance entry.', 'error'); return; }
+    if (amount <= 0){ this._showInlineMsg(msgEl, 'Amount must be greater than zero.', 'error'); return; }
 
     btn.disabled = true;
     btn.textContent = 'Saving…';
     try {
-      const res = await API.addAdvance({ staffId: this._editingId, date, type, amount, notes });
+      const res = await API.addAdvance({ staffId: this._advStaffId, date, type, amount, notes });
       if (res.status === 'success') {
-        UI.showMessage('staffMessage', 'Advance entry added.', 'success');
+        this._showInlineMsg(msgEl, 'Advance entry added.', 'success');
         document.getElementById('hrAdvDate').value   = '';
         document.getElementById('hrAdvAmount').value = '';
         document.getElementById('hrAdvNotes').value  = '';
-        await this._loadAdvances(this._editingId);
+        await this._loadAdvances(this._advStaffId);
       } else {
-        UI.showMessage('staffMessage', res.message || 'Error adding advance entry', 'error');
+        this._showInlineMsg(msgEl, res.message || 'Error adding advance entry', 'error');
       }
     } catch(err) {
-      UI.showMessage('staffMessage', 'Error adding advance entry', 'error');
+      this._showInlineMsg(msgEl, 'Error adding advance entry', 'error');
     } finally {
       btn.disabled = false;
       btn.textContent = 'Add Entry';

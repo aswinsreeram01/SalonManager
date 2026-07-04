@@ -77,17 +77,18 @@ const ACTION_PERMISSIONS = {
   update_vendor: ['products:vendors', 'update'],
   remove_vendor: ['products:vendors', 'update'],
 
-  // Staff, Incentive Profiles, Shifts, Attendance, Payroll (tabs under the
+  // Staff, Advances, Comp Plans, Shifts, Attendance, Payroll (tabs under the
   // Staff & HR page). get_staff and get_incentive_profiles/get_shifts back
   // dropdowns and grids on sibling tabs, so their read is OR'd accordingly.
-  // Payroll's own actions are deliberately NOT shared with any other tab, so
-  // a role can be denied Payroll specifically while keeping every other tab.
+  // Advances and Payroll's own actions are deliberately NOT shared with any
+  // other tab, so a role can be denied either specifically while keeping
+  // every other tab.
   get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-payroll'], 'read'],
   add_staff: ['staff:hr-staff', 'update'],
   update_staff: ['staff:hr-staff', 'update'],
   delete_staff: ['staff:hr-staff', 'update'],
-  get_advances: ['staff:hr-staff', 'read'],
-  add_advance: ['staff:hr-staff', 'update'],
+  get_advances: ['staff:hr-advances', 'read'],
+  add_advance: ['staff:hr-advances', 'update'],
   get_incentive_profiles: [['staff:hr-staff', 'staff:hr-profiles'], 'read'],
   add_incentive_profile: ['staff:hr-profiles', 'update'],
   update_incentive_profile: ['staff:hr-profiles', 'update'],
