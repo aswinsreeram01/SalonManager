@@ -1382,14 +1382,20 @@ const Staff = {
     let present = 0, absent = 0, halfDay = 0, totalOt = 0;
     this._attSumOriginal = {}; // dateStr -> { dayStatus, otHours } for editable (unclocked) days only
 
+    // Fri/Sat/Sun — same weekend definition the Attendance tab's week grid
+    // uses (isWeekendDay there), highlighted in red here per request.
+    const isWeekendDow = dow => dow === 0 || dow === 5 || dow === 6;
+
     const dowHeaders = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
-      .map(d => `<div class="att-cal-dow">${d}</div>`).join('');
+      .map((d, dow) => `<div class="att-cal-dow${isWeekendDow(dow) ? ' weekend' : ''}">${d}</div>`).join('');
 
     const emptyCells = Array.from({ length: firstDow }, () => '<div class="att-cal-day empty"></div>').join('');
 
     const dayCells = Array.from({ length: daysInMonth }, (_, i) => {
       const day = i + 1;
       const dateStr = `${period}-${String(day).padStart(2, '0')}`;
+      const dow = new Date(year, month - 1, day).getDay();
+      const weekendClass = isWeekendDow(dow) ? ' weekend' : '';
       const rec = (this._attendance || []).find(a => a.staffId === staffId && a.date === dateStr);
       const hasClockData = !!(rec && (rec.clockIn || rec.clockOut));
 
@@ -1402,7 +1408,7 @@ const Staff = {
         const ot = parseFloat(rec.otHours) || 0;
         if (ot > 0) totalOt += ot;
         const otHtml = ot > 0 ? `<div class="att-cal-ot">+${ot.toFixed(1)}h OT</div>` : '';
-        return `<div class="att-cal-day locked" style="background:${cfg.bg};"
+        return `<div class="att-cal-day locked${weekendClass}" style="background:${cfg.bg};"
           onclick="Staff.openAttModal('${staffId}','${dateStr}','summary')" title="Clocked ${rec.clockIn || '?'}–${rec.clockOut || '?'} — click to view/edit">
           <div class="att-cal-daynum">${day}</div>
           <div class="att-cal-status" style="color:${cfg.color};">${cfg.abbr}</div>
@@ -1422,7 +1428,7 @@ const Staff = {
       if (otHours > 0) totalOt += otHours;
 
       const opt = (val, label) => `<option value="${val}" ${status === val ? 'selected' : ''}>${label}</option>`;
-      return `<div class="att-cal-day editable" data-date="${dateStr}">
+      return `<div class="att-cal-day editable${weekendClass}" data-date="${dateStr}">
         <div class="att-cal-daynum">${day}</div>
         <select class="attsum-status-select" data-date="${dateStr}" onchange="Staff._onAttSumStatusChange(this)">
           ${opt('present', 'Present')}${opt('half-day', 'Half-day')}${opt('absent', 'Absent')}

@@ -548,6 +548,10 @@
     padding: 4px 0;
 }
 
+.att-cal-dow.weekend { color: #c53030; }
+
+.att-cal-day.weekend { box-shadow: inset 0 0 0 2px #e53e3e; }
+
 .att-cal-day {
     min-height: 64px;
     border-radius: 8px;
