@@ -44,11 +44,11 @@ const Payroll = {
 
   // Builds weekday/weekend absence date lists, total days off (weekend
   // absence still weighted 2x, matching pre-existing behavior), OT hours,
-  // and auto-detects a long-absence block. A day counts toward the
-  // long-absence block if it's explicitly 'absent' OR has no attendance
-  // record at all — covers the new-joiner / mid-month-exit case, where
-  // there's usually no row at all for days outside employment, not an
-  // explicit 'absent' entry for each one.
+  // and auto-detects a long-absence block. Unless a day is explicitly
+  // marked 'absent' in StaffAttendance, it's assumed present with 9 hours
+  // worked (no OT) — a day with no attendance record at all is NOT treated
+  // as an absence anywhere in this calculation, only an explicit 'absent'
+  // status is.
   _computeAttendanceDerived(staffId, period) {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const [yr, mo] = period.split('-').map(Number);
@@ -100,13 +100,14 @@ const Payroll = {
       totalDaysOff += amount;
     }
 
-    // Long-absence block: a run of >=8 consecutive calendar days, each
-    // either 'absent' or with no attendance record at all, touching day 1
-    // or the last day of the month.
+    // Long-absence block: a run of >=8 consecutive calendar days explicitly
+    // marked 'absent', touching day 1 or the last day of the month. A day
+    // with NO attendance record at all is assumed present (9 hours worked,
+    // no OT) rather than absent — only an explicit 'absent' entry counts as
+    // an absence anywhere in this calculation.
     const isBlockDay = day => {
       const dateStr = fromStr.slice(0, 8) + String(day).padStart(2, '0');
-      const status = byDate[dateStr];
-      return status === 'absent' || status === undefined;
+      return byDate[dateStr] === 'absent';
     };
 
     let leadingRun = 0;
@@ -539,6 +540,31 @@ const Payroll = {
 
     sheet.getRange(existing.index + 1, 1, 1, 32).setValues([this._breakdownToRowValues(breakdown)]);
     return Utils.createResponse('success', 'Payroll record updated successfully', breakdown);
+  },
+
+  // Lightweight lookup for Quick Entry — returns just the four manual
+  // override fields (plus whether a row exists at all) for one staff+period,
+  // never the full breakdown. Deliberately gated on staff:hr-quickentry
+  // alone in Main.js (not staff:hr-payroll), so a Quick-Entry-only role can
+  // see and re-enter these values without needing Payroll tab access.
+  getOverrides(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return Utils.createResponse('success', 'No payroll record found', { found: false });
+    if (!data || !data.staffId || !data.period) {
+      return Utils.createResponse('error', 'staffId and period are required');
+    }
+
+    const existing = this._findRowByStaffPeriod(sheet, data.staffId, data.period);
+    if (!existing) return Utils.createResponse('success', 'No payroll record found', { found: false });
+
+    const b = this._rowToBreakdown(existing.row);
+    return Utils.createResponse('success', 'Payroll overrides retrieved', {
+      found: true,
+      serviceValue: b.serviceValue,
+      makeupValue:  b.makeupValue,
+      productCount: b.productCount,
+      tipsOverride: b.tipsOverride
+    });
   },
 
   getAll(data) {

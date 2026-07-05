@@ -115,6 +115,10 @@ const ACTION_PERMISSIONS = {
   save_weekly_incentive: ['staff:hr-payroll', 'update'],
   get_weekly_incentives: ['staff:hr-payroll', 'read'],
   upsert_payroll_from_attendance: ['staff:hr-quickentry', 'update'],
+  // Deliberately its own permission, not OR'd with staff:hr-payroll — this
+  // only returns the 4 manual override fields (never the full breakdown),
+  // so a Quick-Entry-only role can see/re-enter them without Payroll access.
+  get_payroll_overrides: ['staff:hr-quickentry', 'read'],
   update_payroll_row: ['staff:hr-payroll', 'update'],
   get_payroll: ['staff:hr-payroll', 'read'],
   update_payroll_status: ['staff:hr-payroll', 'update'],
@@ -482,6 +486,7 @@ function doPost(e) {
 
       // Payroll
       case 'upsert_payroll_from_attendance': return Payroll.upsertFromAttendance(data);
+      case 'get_payroll_overrides': return Payroll.getOverrides(data);
       case 'update_payroll_row': return Payroll.updateRow(data);
       case 'get_payroll': return Payroll.getAll(data);
       case 'update_payroll_status': return Payroll.updateStatus(data);

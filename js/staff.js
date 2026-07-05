@@ -19,6 +19,7 @@ const Staff = {
   _payReviewId:      null,
   _attSumStaffId:    null,
   _attSumPeriod:     null,
+  _attSumOverrides:  null,
   _attSumOriginal:   {},
   _advStaffId:       null,
 
@@ -65,6 +66,12 @@ const Staff = {
     document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
     document.getElementById('hrPayRevCloseBtn').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayReviewCloseX').addEventListener('click', () => this.closePayrollReview());
+    document.getElementById('hrPayRevExplainClose').addEventListener('click', () => {
+      document.getElementById('hrPayRevExplainWrap').style.display = 'none';
+    });
+    document.querySelectorAll('#hrPayReviewModal .calc-help-btn').forEach(btn =>
+      btn.addEventListener('click', () => this._showCalcExplanation(btn.dataset.calcField))
+    );
 
     // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
@@ -1282,6 +1289,7 @@ const Staff = {
 
     document.getElementById('hrPayReviewTitle').textContent = `Payroll Review — ${r.staffName || r.staffId} (${r.period})`;
     document.getElementById('hrPayReviewMsg').innerHTML = '';
+    document.getElementById('hrPayRevExplainWrap').style.display = 'none';
     this._renderPayrollReviewReadonly(r);
 
     document.getElementById('hrPayRevPayableDays').value = r.payableDays ?? '';
@@ -1310,8 +1318,94 @@ const Staff = {
     document.getElementById('hrPayRevNetPay').textContent      = this._fmt(r.netPay);
   },
 
+  // Shows the exact formula + real numbers behind one of the read-only
+  // calculated fields, using whatever is currently in this._payrollRows for
+  // the record being reviewed (i.e. as of the last load/Calculate, not
+  // necessarily reflecting unsaved edits still sitting in the input fields).
+  _showCalcExplanation(field) {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    const wrap = document.getElementById('hrPayRevExplainWrap');
+    const textEl = document.getElementById('hrPayRevExplainText');
+    if (!r || !wrap || !textEl) return;
+    textEl.textContent = this._buildCalcExplanation(field, r);
+    wrap.style.display = 'block';
+  },
+
+  _buildCalcExplanation(field, r) {
+    const staff = (this._staff || []).find(s => s.id === r.staffId);
+    const profile = staff ? (this._profiles || []).find(p => (p.id || p.profileId) === staff.profileId) : null;
+    const fmt = n => this._fmt(n || 0);
+
+    switch (field) {
+      case 'base':
+        return `Base Salary is set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\nCurrent value: ${fmt(r.baseSalary)}`;
+
+      case 'daysOff': {
+        const wd = (r.weekdayAbsentDates || '').split(',').filter(Boolean);
+        const we = (r.weekendAbsentDates || '').split(',').filter(Boolean);
+        return `Only days explicitly marked 'absent' count — a day with no attendance record is assumed present (9 hours, no OT).\n\n`
+          + `Weekday absences (Mon–Thu), 1 day each: ${wd.length}${wd.length ? ' — ' + wd.join(', ') : ''}\n`
+          + `Weekend absences (Fri/Sat/Sun), 2 days each: ${we.length}${we.length ? ' — ' + we.join(', ') : ''} → ${we.length * 2}\n\n`
+          + `Days Off = ${wd.length} + ${we.length * 2} = ${r.totalDaysOff}`;
+      }
+
+      case 'leaveDeduct': {
+        const excess = Math.max(0, (r.totalDaysOff || 0) - (r.eligibleOffs || 0));
+        const perDay = r.payableDays ? r.baseSalary / r.payableDays : 0;
+        return `Excess Leaves = max(0, Days Off (${r.totalDaysOff}) − Eligible Offs (${r.eligibleOffs})) = ${excess}\n`
+          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Payable Days (${r.payableDays}) = ${fmt(perDay)}\n\n`
+          + `Leave Deduct = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
+      }
+
+      case 'adjBase':
+        return `Adjusted Base = Base Salary (${fmt(r.baseSalary)}) − Leave Deduct (${fmt(r.leaveDeduction)})\n= ${fmt(r.adjustedBaseSalary)}`;
+
+      case 'ot': {
+        const rate = r.otHours > 0 ? r.otPay / r.otHours : (profile ? profile.otHourlyRate : 0);
+        return `OT Hours are hours worked beyond the Comp Plan's OT threshold each day.\n\n`
+          + `OT Pay = OT Hours (${r.otHours}) × OT Hourly Rate (${fmt(rate)}/hr${profile ? ', from Comp Plan' : ''})\n= ${fmt(r.otPay)}`;
+      }
+
+      case 'allowances':
+        return `Allowances are set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\nCurrent value: ${fmt(r.allowances)}`;
+
+      case 'incentives': {
+        const revenue = r.serviceIncentive || 0;
+        let targetExplain = 'Target Incentive: no Comp Plan found for this staff member — 0.';
+        if (profile) {
+          const L1 = profile.l1Type === 'salary_pct' ? r.baseSalary * profile.l1Value / 100 : profile.l1Value;
+          const L2 = profile.l2Type === 'salary_pct' ? r.baseSalary * profile.l2Value / 100 : profile.l2Value;
+          if (revenue < L1) {
+            targetExplain = `Revenue (${fmt(revenue)}) is below L1 (${fmt(L1)}) → Target Incentive = 0`;
+          } else if (revenue < L2) {
+            targetExplain = `Revenue (${fmt(revenue)}) is between L1 (${fmt(L1)}) and L2 (${fmt(L2)}):\n`
+              + `L1 × X% (${profile.xPct}%) + (Revenue − L1) × Y% (${profile.yPct}%)\n`
+              + `= ${fmt(L1 * profile.xPct / 100)} + ${fmt((revenue - L1) * profile.yPct / 100)} = ${fmt(r.targetIncentive)}`;
+          } else {
+            targetExplain = `Revenue (${fmt(revenue)}) is above L2 (${fmt(L2)}):\n`
+              + `L1 × X% + (L2 − L1) × Y% + (Revenue − L2) × Z% (${profile.zPct}%)\n`
+              + `= ${fmt(L1 * profile.xPct / 100)} + ${fmt((L2 - L1) * profile.yPct / 100)} + ${fmt((revenue - L2) * profile.zPct / 100)} = ${fmt(r.targetIncentive)}`;
+          }
+        }
+        const makeupExplain = r.makeupValue !== '' && r.makeupValue != null
+          ? `Make Up Value: manually entered as ${fmt(r.makeupIncentive)}.`
+          : `Make Up Value: a flat % of revenue from Flat-mode Service Groups (their own override, or the Comp Plan's Flat Incentive %) = ${fmt(r.makeupIncentive)}.`;
+        return `${targetExplain}\n\n${makeupExplain}\n\nIncentives = Target (${fmt(r.targetIncentive)}) + Make Up (${fmt(r.makeupIncentive)}) = ${fmt(r.targetIncentive + r.makeupIncentive)}`;
+      }
+
+      case 'netPay':
+        return `Net Pay = Adjusted Base (${fmt(r.adjustedBaseSalary)}) + Allowances (${fmt(r.allowances)}) + OT Pay (${fmt(r.otPay)})\n`
+          + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
+          + `= ${fmt(r.netPay)}`;
+
+      default:
+        return '';
+    }
+  },
+
   closePayrollReview() {
     document.getElementById('hrPayReviewModal').style.display = 'none';
+    document.getElementById('hrPayRevExplainWrap').style.display = 'none';
     this._payReviewId = null;
   },
 
@@ -1352,6 +1446,7 @@ const Staff = {
         const idx = (this._payrollRows || []).findIndex(x => x.payrollId === payrollId);
         if (idx >= 0) this._payrollRows[idx] = res;
         this._renderPayrollReviewReadonly(res);
+        document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
         this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
       } else {
@@ -1409,8 +1504,14 @@ const Staff = {
     btn.textContent = 'Loading…';
 
     try {
-      const res = await API.getAttendance({ fromDate, toDate });
-      this._attendance = res.status === 'success' ? (res.attendance || []) : [];
+      const [attRes, ovrRes] = await Promise.all([
+        API.getAttendance({ fromDate, toDate }),
+        // Gated on staff:hr-quickentry alone (not staff:hr-payroll) — a
+        // Quick-Entry-only role can still see/re-enter these values.
+        API.getPayrollOverrides({ staffId, period }).catch(() => ({ status: 'error' }))
+      ]);
+      this._attendance = attRes.status === 'success' ? (attRes.attendance || []) : [];
+      this._attSumOverrides = ovrRes.status === 'success' ? ovrRes : { found: false };
       this._renderAttSummaryCalendar();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
@@ -1503,15 +1604,26 @@ const Staff = {
     `;
 
     saveWrap.style.display = 'block';
-    // Payroll override fields always render blank — no calculation, no
-    // pre-population, per design. Left blank + saved just leaves whatever
-    // is already on that staff's payroll row for the period untouched.
+    // Payroll override fields pre-populate from that staff's existing
+    // payroll row for the period, if one exists — even for a role with
+    // Quick Entry access but no Payroll tab access (get_payroll_overrides
+    // is gated separately). A field left blank on the existing row (never
+    // set) stays blank here too, rather than showing 0.
     const overridesWrap = document.getElementById('hrAttSumPayrollOverrides');
     if (overridesWrap) {
       overridesWrap.style.display = 'block';
-      ['hrAttSumServiceValue', 'hrAttSumMakeupValue', 'hrAttSumProductCount', 'hrAttSumTips'].forEach(id => {
+      const ovr = this._attSumOverrides && this._attSumOverrides.found ? this._attSumOverrides : null;
+      const fieldMap = {
+        hrAttSumServiceValue: 'serviceValue',
+        hrAttSumMakeupValue:  'makeupValue',
+        hrAttSumProductCount: 'productCount',
+        hrAttSumTips:         'tipsOverride'
+      };
+      Object.entries(fieldMap).forEach(([id, key]) => {
         const el = document.getElementById(id);
-        if (el) el.value = '';
+        if (!el) return;
+        const val = ovr ? ovr[key] : '';
+        el.value = (val === '' || val === null || val === undefined) ? '' : val;
       });
     }
     this._recalcAttSumStats();
