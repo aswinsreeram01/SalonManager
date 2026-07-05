@@ -77,22 +77,27 @@ const ACTION_PERMISSIONS = {
   update_vendor: ['products:vendors', 'update'],
   remove_vendor: ['products:vendors', 'update'],
 
-  // Staff, Advances, Comp Plans, Shifts, Attendance, Payroll (tabs under the
-  // Staff & HR page). get_staff and get_incentive_profiles/get_shifts back
-  // dropdowns and grids on sibling tabs, so their read is OR'd accordingly.
-  // Advances and Payroll's own actions are deliberately NOT shared with any
-  // other tab, so a role can be denied either specifically while keeping
-  // every other tab.
+  // Staff, Advances, Shifts, Attendance, Payroll (tabs under the Staff & HR
+  // page). get_staff and get_shifts back dropdowns and grids on sibling
+  // tabs, so their read is OR'd accordingly. Advances and Payroll's own
+  // actions are deliberately NOT shared with any other tab, so a role can
+  // be denied either specifically while keeping every other tab.
+  //
+  // Comp Plans and Staff Salary are nested sub-tabs INSIDE Payroll (not
+  // their own top-level Staff & HR tab), and are gated purely by
+  // staff:hr-payroll — same permission as Payroll itself, no separate key.
+  // update_staff is OR'd with staff:hr-payroll because the Staff Salary
+  // sub-tab reuses this same action to save salary/allowance/comp plan.
   get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-payroll'], 'read'],
   add_staff: ['staff:hr-staff', 'update'],
-  update_staff: ['staff:hr-staff', 'update'],
+  update_staff: [['staff:hr-staff', 'staff:hr-payroll'], 'update'],
   delete_staff: ['staff:hr-staff', 'update'],
   get_advances: ['staff:hr-advances', 'read'],
   add_advance: ['staff:hr-advances', 'update'],
-  get_incentive_profiles: [['staff:hr-staff', 'staff:hr-profiles'], 'read'],
-  add_incentive_profile: ['staff:hr-profiles', 'update'],
-  update_incentive_profile: ['staff:hr-profiles', 'update'],
-  delete_incentive_profile: ['staff:hr-profiles', 'update'],
+  get_incentive_profiles: ['staff:hr-payroll', 'read'],
+  add_incentive_profile: ['staff:hr-payroll', 'update'],
+  update_incentive_profile: ['staff:hr-payroll', 'update'],
+  delete_incentive_profile: ['staff:hr-payroll', 'update'],
   get_shifts: [['staff:hr-shifts', 'staff:hr-attendance'], 'read'],
   save_shift: ['staff:hr-shifts', 'update'],
   // Also readable/writable from Payroll's nested Attendance & OT Summary

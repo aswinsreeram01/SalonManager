@@ -8,7 +8,6 @@
     <div class="prod-tabs">
         <button class="prod-tab active" data-tab="hr-staff"><span class="ptab-icon">👥</span><span class="ptab-label">Staff</span></button>
         <button class="prod-tab" data-tab="hr-advances"><span class="ptab-icon">💵</span><span class="ptab-label">Advances</span></button>
-        <button class="prod-tab" data-tab="hr-profiles"><span class="ptab-icon">🎯</span><span class="ptab-label">Comp Plans</span></button>
         <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
         <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance</span></button>
         <button class="prod-tab" data-tab="hr-payroll"><span class="ptab-icon">💰</span><span class="ptab-label">Payroll</span></button>
@@ -65,22 +64,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="hrStaffSalary">Base Salary (₹)</label>
-                        <input type="number" id="hrStaffSalary" step="0.01" placeholder="15000">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrStaffAllowance">Allowances (₹)</label>
-                        <input type="number" id="hrStaffAllowance" step="0.01" placeholder="500">
-                    </div>
-                    <div class="form-group">
                         <label for="hrStaffSpecialization">Specialization</label>
                         <input type="text" id="hrStaffSpecialization" placeholder="e.g., Hair Coloring">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrStaffProfileId">Comp Plan</label>
-                        <select id="hrStaffProfileId">
-                            <option value="">No Comp Plan</option>
-                        </select>
                     </div>
                     <div class="form-group">
                         <label for="hrStaffTargetPeriod">Target Period</label>
@@ -120,11 +105,11 @@
             <div class="table-container">
                 <table>
                     <thead><tr>
-                        <th>Name</th><th>Phone</th><th>Role</th><th>Type</th>
-                        <th>Comp Plan</th><th>Salary</th><th>Status</th><th>Actions</th>
+                        <th>Name</th><th>Role</th><th>Type</th>
+                        <th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrStaffTableBody">
-                        <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -188,109 +173,6 @@
                     </div>
                     <button class="btn btn-secondary" id="hrAdvSaveBtn" type="button" style="align-self:flex-end;">Add Entry</button>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ═══ TAB: COMP PLANS ═══ -->
-    <div id="prod-tab-hr-profiles" class="prod-tab-panel">
-        <div id="hrProfFormCard" class="card" style="display:none;">
-            <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Comp Plan</h3>
-            <form id="hrProfForm">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
-                    <div class="form-group">
-                        <label for="hrProfName">Comp Plan Name*</label>
-                        <input type="text" id="hrProfName" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfType">Comp Plan Type</label>
-                        <select id="hrProfType">
-                            <option value="service_provider">Service Provider</option>
-                            <option value="manager">Manager</option>
-                            <option value="housekeeping">Housekeeping</option>
-                            <option value="custom">Custom</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfRevenueBase">Revenue Base</label>
-                        <select id="hrProfRevenueBase">
-                            <option value="individual">Individual (own revenue)</option>
-                            <option value="org">Org (total salon revenue)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfOtRate">OT Hourly Rate (₹)</label>
-                        <input type="number" id="hrProfOtRate" min="0" step="0.01" value="50">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfOtThreshold">OT Threshold (hours/day)</label>
-                        <input type="number" id="hrProfOtThreshold" min="1" step="0.5" value="9">
-                        <p class="muted" style="margin:4px 0 0;font-size:12px;">Hours worked beyond this in a day count as overtime for staff on this profile.</p>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfL1Type">Target1 Type</label>
-                        <select id="hrProfL1Type">
-                            <option value="fixed">Fixed Amount (₹)</option>
-                            <option value="salary_pct">% of Base Salary</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfL1Value">Target1 Value</label>
-                        <input type="number" id="hrProfL1Value" min="0" step="0.01" placeholder="e.g. 10000 or 150">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfL2Type">Target2 Type</label>
-                        <select id="hrProfL2Type">
-                            <option value="fixed">Fixed Amount (₹)</option>
-                            <option value="salary_pct">% of Base Salary</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfL2Value">Target2 Value</label>
-                        <input type="number" id="hrProfL2Value" min="0" step="0.01" placeholder="e.g. 35000 or 350">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfXPct">X% (0 → T1)</label>
-                        <input type="number" id="hrProfXPct" min="0" max="100" step="0.01" value="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfYPct">Y% (T1 → T2)</label>
-                        <input type="number" id="hrProfYPct" min="0" max="100" step="0.01" value="1.5">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfZPct">Z% (above T2)</label>
-                        <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrProfStatus">Status</label>
-                        <select id="hrProfStatus">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="btn-group" style="margin-top:20px;">
-                    <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Comp Plan</button>
-                    <button type="button" class="btn btn-secondary" id="hrProfCancelBtn">Cancel</button>
-                </div>
-            </form>
-        </div>
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Comp Plans</h3>
-                <button class="btn btn-primary" id="hrProfAddBtn">+ Add Comp Plan</button>
-            </div>
-            <div class="table-container">
-                <table>
-                    <thead><tr>
-                        <th>Name</th><th>Type</th><th>Revenue Base</th>
-                        <th>OT Rate</th><th>OT Threshold</th><th>Target1</th><th>Target2</th>
-                        <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
-                    </tr></thead>
-                    <tbody id="hrProfTableBody">
-                        <tr><td colspan="10" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
-                    </tbody>
-                </table>
             </div>
         </div>
     </div>
@@ -374,6 +256,8 @@
     <div id="prod-tab-hr-payroll" class="prod-tab-panel">
         <div class="sub-tabs">
             <button class="sub-tab active" data-subtab="hr-pay-generate">Payroll</button>
+            <button class="sub-tab" data-subtab="hr-pay-salary">Staff Salary</button>
+            <button class="sub-tab" data-subtab="hr-pay-compplans">Comp Plans</button>
             <button class="sub-tab" data-subtab="hr-pay-attsummary">Attendance &amp; OT Summary</button>
         </div>
 
@@ -426,6 +310,125 @@
                 </table>
             </div>
         </div>
+        </div>
+
+        <div id="sub-tab-hr-pay-salary" class="sub-tab-panel">
+            <div class="card">
+                <h3 style="color:#2d3748;margin-bottom:16px;">Staff Salary</h3>
+                <p class="muted" style="margin:0 0 16px;font-size:12px;">Update Base Salary, Allowances, and Comp Plan for existing staff. New staff members are added from the Staff tab; this tab does not add new staff.</p>
+                <div class="table-container">
+                    <table>
+                        <thead><tr>
+                            <th>Name</th><th>Phone</th><th>Base Salary (₹)</th><th>Allowances (₹)</th><th>Comp Plan</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="hrSalaryTableBody">
+                            <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="sub-tab-hr-pay-compplans" class="sub-tab-panel">
+            <div id="hrProfFormCard" class="card" style="display:none;">
+                <h3 id="hrProfFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Comp Plan</h3>
+                <form id="hrProfForm">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+                        <div class="form-group">
+                            <label for="hrProfName">Comp Plan Name*</label>
+                            <input type="text" id="hrProfName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfType">Comp Plan Type</label>
+                            <select id="hrProfType">
+                                <option value="service_provider">Service Provider</option>
+                                <option value="manager">Manager</option>
+                                <option value="housekeeping">Housekeeping</option>
+                                <option value="custom">Custom</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfRevenueBase">Revenue Base</label>
+                            <select id="hrProfRevenueBase">
+                                <option value="individual">Individual (own revenue)</option>
+                                <option value="org">Org (total salon revenue)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfOtRate">OT Hourly Rate (₹)</label>
+                            <input type="number" id="hrProfOtRate" min="0" step="0.01" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfOtThreshold">OT Threshold (hours/day)</label>
+                            <input type="number" id="hrProfOtThreshold" min="1" step="0.5" value="9">
+                            <p class="muted" style="margin:4px 0 0;font-size:12px;">Hours worked beyond this in a day count as overtime for staff on this profile.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfL1Type">Target1 Type</label>
+                            <select id="hrProfL1Type">
+                                <option value="fixed">Fixed Amount (₹)</option>
+                                <option value="salary_pct">% of Base Salary</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfL1Value">Target1 Value</label>
+                            <input type="number" id="hrProfL1Value" min="0" step="0.01" placeholder="e.g. 10000 or 150">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfL2Type">Target2 Type</label>
+                            <select id="hrProfL2Type">
+                                <option value="fixed">Fixed Amount (₹)</option>
+                                <option value="salary_pct">% of Base Salary</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfL2Value">Target2 Value</label>
+                            <input type="number" id="hrProfL2Value" min="0" step="0.01" placeholder="e.g. 35000 or 350">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfXPct">X% (0 → T1)</label>
+                            <input type="number" id="hrProfXPct" min="0" max="100" step="0.01" value="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfYPct">Y% (T1 → T2)</label>
+                            <input type="number" id="hrProfYPct" min="0" max="100" step="0.01" value="1.5">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfZPct">Z% (above T2)</label>
+                            <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfStatus">Status</label>
+                            <select id="hrProfStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="btn-group" style="margin-top:20px;">
+                        <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Comp Plan</button>
+                        <button type="button" class="btn btn-secondary" id="hrProfCancelBtn">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h3 style="color:#2d3748;margin:0;">Comp Plans</h3>
+                    <button class="btn btn-primary" id="hrProfAddBtn">+ Add Comp Plan</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead><tr>
+                            <th>Name</th><th>Type</th><th>Revenue Base</th>
+                            <th>OT Rate</th><th>OT Threshold</th><th>Target1</th><th>Target2</th>
+                            <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
+                        </tr></thead>
+                        <tbody id="hrProfTableBody">
+                            <tr><td colspan="10" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <div id="sub-tab-hr-pay-attsummary" class="sub-tab-panel">

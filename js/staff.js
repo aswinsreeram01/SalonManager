@@ -158,7 +158,6 @@ const Staff = {
       if (res.status === 'success') {
         this._profiles = res.incentiveProfiles || [];
         this._renderProfiles();
-        this._populateProfileDropdown();
       }
     } catch(e) {
       // non-fatal — profiles may not exist yet
@@ -191,12 +190,10 @@ const Staff = {
     }
     const tbody = document.getElementById('hrStaffTableBody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">No staff found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:24px;">No staff found</td></tr>';
       return;
     }
     tbody.innerHTML = list.map(s => {
-      const profile = this._profiles.find(p => p.id === s.profileId || p.profileId === s.profileId);
-      const profileName = profile ? this._esc(profile.profileName || profile.name) : '—';
       const typeBadge = this._staffTypeBadge(s.staffType);
       return `<tr>
         <td>
@@ -205,8 +202,6 @@ const Staff = {
         </td>
         <td>${this._esc(s.role || '—')}</td>
         <td>${typeBadge}</td>
-        <td>${profileName}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(s.salary)}</td>
         <td><span class="status-badge status-${s.status}">${s.status}</span></td>
         <td>
           <button class="action-btn action-btn-edit"   onclick="Staff.openStaffForm('${s.id}')">Edit</button>
@@ -233,9 +228,6 @@ const Staff = {
     document.getElementById('hrStaffSaveBtn').textContent   = id ? 'Update Staff Member' : 'Save Staff Member';
     document.getElementById('hrStaffForm').reset();
 
-    // Refresh profile dropdown
-    this._populateProfileDropdown();
-
     if (id) {
       const s = this._staff.find(x => x.id === id);
       if (s) {
@@ -247,11 +239,8 @@ const Staff = {
         document.getElementById('hrStaffStartDate').value      = s.startDate      || '';
         document.getElementById('hrStaffRole').value           = s.role           || '';
         document.getElementById('hrStaffType').value           = s.staffType      || '';
-        document.getElementById('hrStaffSalary').value         = s.salary         || '';
-        document.getElementById('hrStaffAllowance').value      = s.allowance      || '';
         document.getElementById('hrStaffSpecialization').value = s.specialization || '';
         document.getElementById('hrStaffStatus').value         = s.status         || 'active';
-        document.getElementById('hrStaffProfileId').value      = s.profileId      || '';
         document.getElementById('hrStaffTargetPeriod').value   = s.targetPeriod   || '';
       }
     }
@@ -270,6 +259,12 @@ const Staff = {
   async handleStaffSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('hrStaffSaveBtn');
+    // Base Salary, Allowances, and Comp Plan are managed on the Staff Salary
+    // tab now, not this form. Staff.update() overwrites every column from
+    // this payload with no partial-update fallback, so an edit made here
+    // must carry forward whatever was already set for those 3 fields — new
+    // staff simply start at 0/blank until someone sets them on that tab.
+    const existing = this._editingId ? this._staff.find(x => x.id === this._editingId) : null;
     const data = {
       name:              document.getElementById('hrStaffName').value.trim(),
       phone:             document.getElementById('hrStaffPhone').value.trim(),
@@ -279,11 +274,11 @@ const Staff = {
       startDate:         document.getElementById('hrStaffStartDate').value,
       role:              document.getElementById('hrStaffRole').value.trim(),
       staffType:         document.getElementById('hrStaffType').value,
-      salary:            parseFloat(document.getElementById('hrStaffSalary').value) || 0,
-      allowance:         parseFloat(document.getElementById('hrStaffAllowance').value) || 0,
+      salary:            existing ? existing.salary    : 0,
+      allowance:         existing ? existing.allowance : 0,
+      profileId:         existing ? existing.profileId : '',
       specialization:    document.getElementById('hrStaffSpecialization').value.trim(),
       status:            document.getElementById('hrStaffStatus').value,
-      profileId:         document.getElementById('hrStaffProfileId').value,
       targetPeriod:      document.getElementById('hrStaffTargetPeriod').value,
       incentiveStructure: ''
     };
@@ -335,14 +330,69 @@ const Staff = {
     }
   },
 
-  _populateProfileDropdown() {
-    const sel = document.getElementById('hrStaffProfileId');
-    if (!sel) return;
-    const active = this._profiles.filter(p => p.status === 'active');
-    sel.innerHTML = '<option value="">No Comp Plan</option>' +
-      active.map(p => `<option value="${p.id || p.profileId}">${this._esc(p.profileName || p.name)}</option>`).join('');
+  // ── Staff Salary (own sub-tab under Payroll) ────────────────────────────────
+  // Base Salary, Allowances, and Comp Plan — moved off the Add/Edit Staff form.
+  // Existing staff only: no add-new here, matching the requirement that this
+  // tab can't create staff records.
+
+  _renderStaffSalaryTable() {
+    const tbody = document.getElementById('hrSalaryTableBody');
+    if (!tbody) return;
+    if (!this._staff.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:24px;">No staff found</td></tr>';
+      return;
+    }
+    const activeProfiles = this._profiles.filter(p => p.status === 'active');
+    const profileOpts = selected => '<option value="">No Comp Plan</option>' +
+      activeProfiles.map(p => {
+        const pid = p.id || p.profileId;
+        return `<option value="${pid}" ${pid === selected ? 'selected' : ''}>${this._esc(p.profileName || p.name)}</option>`;
+      }).join('');
+
+    const sorted = [...this._staff].sort((a, b) => a.name.localeCompare(b.name));
+    tbody.innerHTML = sorted.map(s => `
+      <tr data-staff-id="${s.id}">
+        <td style="font-weight:500;">${this._esc(s.name)}${s.status !== 'active' ? ' <span class="muted" style="font-size:11px;">(inactive)</span>' : ''}</td>
+        <td>${this._esc(s.phone || '—')}</td>
+        <td><input type="number" class="sal-salary-input" min="0" step="0.01" value="${s.salary || 0}" style="width:110px;"></td>
+        <td><input type="number" class="sal-allow-input" min="0" step="0.01" value="${s.allowance || 0}" style="width:110px;"></td>
+        <td><select class="sal-profile-input">${profileOpts(s.profileId)}</select></td>
+        <td><button class="action-btn action-btn-edit" onclick="Staff._saveStaffSalaryRow('${s.id}', this)">Save</button></td>
+      </tr>
+    `).join('');
   },
 
+  async _saveStaffSalaryRow(staffId, btn) {
+    const row = document.querySelector(`#hrSalaryTableBody tr[data-staff-id="${staffId}"]`);
+    const existing = this._staff.find(s => s.id === staffId);
+    if (!row || !existing) return;
+
+    const salary    = parseFloat(row.querySelector('.sal-salary-input').value) || 0;
+    const allowance = parseFloat(row.querySelector('.sal-allow-input').value)  || 0;
+    const profileId = row.querySelector('.sal-profile-input').value;
+
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    try {
+      // Full-record update — Staff.update() has no partial-update path, so
+      // every other field must come along unchanged from the cached record.
+      const res = await API.updateStaff({ ...existing, id: staffId, salary, allowance, profileId });
+      if (res.status === 'success') {
+        existing.salary = salary;
+        existing.allowance = allowance;
+        existing.profileId = profileId;
+        UI.showMessage('staffMessage', 'Salary details updated.', 'success');
+      } else {
+        UI.showMessage('staffMessage', res.message || 'Error saving salary details', 'error');
+      }
+    } catch(err) {
+      UI.showMessage('staffMessage', 'Error saving salary details', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  },
 
   // ── Advances (own tab) ───────────────────────────────────────────────────────
 
@@ -1358,6 +1408,7 @@ const Staff = {
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab-panel').forEach(p =>
       p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
     if (subtab === 'hr-pay-attsummary') this._populateAttSumStaffDropdown();
+    if (subtab === 'hr-pay-salary')     this._renderStaffSalaryTable();
   },
 
   _populateAttSumStaffDropdown() {

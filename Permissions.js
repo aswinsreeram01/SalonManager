@@ -137,7 +137,10 @@ const Permissions = {
     // Vendors used to be its own top-level page, before it moved to be a
     // Products tab — carry its old grant onto the new products:vendors key too.
     vendors:   ['products:vendors'],
-    staff:     ['staff:hr-staff', 'staff:hr-advances', 'staff:hr-profiles',
+    // 'staff:hr-profiles' (Comp Plans) is no longer its own tab key — it's
+    // now nested inside Payroll and gated by staff:hr-payroll alone, so it's
+    // deliberately not in this list; any old rows for it are simply unread.
+    staff:     ['staff:hr-staff', 'staff:hr-advances',
                 'staff:hr-shifts', 'staff:hr-attendance', 'staff:hr-payroll'],
     customers: ['customers:cust-list', 'customers:cust-loyalty', 'customers:cust-happyhour'],
     services:  ['services:svc-groups', 'services:svc-catalog', 'services:svc-pricebooks']
