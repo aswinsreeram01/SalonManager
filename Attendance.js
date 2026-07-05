@@ -192,6 +192,26 @@ const Attendance = {
   },
 
   saveAttendance(data) {
+    // Serialize against other concurrent saves to the same row: the
+    // manualOnly branch below does a read-check-write on clockIn/clockOut
+    // (checking it's still blank before applying a manual override), and
+    // without a lock a concurrent Staff Portal self-check-in or Week Grid
+    // save for the same staff+date can write in between the check and the
+    // write, leaving otHours/dayStatus inconsistent with the clock times.
+    const lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(20000);
+    } catch (e) {
+      return Utils.createResponse('error', 'System is busy. Please try again.');
+    }
+    try {
+      return this._saveAttendanceLocked(data);
+    } finally {
+      lock.releaseLock();
+    }
+  },
+
+  _saveAttendanceLocked(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAttendance');
     if (!sheet) return Utils.createResponse('error', 'StaffAttendance sheet not found');
 
