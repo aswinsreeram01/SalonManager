@@ -5,7 +5,7 @@
 A multi-tenant salon management SPA. Backend is Google Apps Script (GAS) running as a web app; frontend is a static GitHub Pages site.
 
 - **Frontend**: `https://aswinsreeram01.github.io/SalonManager/`
-- **Backend deploy ID**: `AKfycbwjXsy6pNbru0Nzlu6WsHQYHdhnEgB_xcTl1GefJknLQkUqPiJ4r_vdJpoYtNjmWaPrAw` (version @76)
+- **Backend deploy ID**: `AKfycbxUvJpo3QCygTQmt602dW5M_strqP2nslEn5JV-nnJ_gHK_Z4B_LterahMjUGEfwG7sNQ` (version @78)
 - **GAS project**: `10BKxCLeGeCfNpkvFqtLGkY0d4tSMQMAaBmSTSOMc_KMEih8OsK5exlVo`
 - **Deploy**: `npx clasp push && npx clasp deploy --description "..."` from repo root
 

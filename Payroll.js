@@ -28,6 +28,18 @@
 
 const Payroll = {
 
+  // Sheets sometimes auto-converts a "YYYY-MM" string (e.g. from appendRow)
+  // into an actual Date cell depending on locale/column formatting — reading
+  // it back then yields a Date object, not the string, so a strict === / !==
+  // comparison against a period string like '2026-07' silently never matches
+  // and every row gets filtered out. Always normalize before comparing.
+  _normalizePeriod(v) {
+    if (v instanceof Date) {
+      return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM');
+    }
+    return String(v || '').slice(0, 7);
+  },
+
   // ── Attendance-derived numbers ────────────────────────────────────────────
 
   // Builds weekday/weekend absence date lists, total days off (weekend
@@ -376,7 +388,7 @@ const Payroll = {
 
   _rowToBreakdown(row) {
     return {
-      payrollId: row[0], staffId: row[1], staffName: row[2], period: row[3],
+      payrollId: row[0], staffId: row[1], staffName: row[2], period: this._normalizePeriod(row[3]),
       baseSalary: Number(row[4]) || 0, payableDays: Number(row[5]) || 0,
       eligibleOffs: Number(row[6]) || 0, totalDaysOff: Number(row[7]) || 0,
       excessLeaves: Number(row[8]) || 0, leaveDeduction: Number(row[9]) || 0,
@@ -420,7 +432,7 @@ const Payroll = {
   _findRowByStaffPeriod(sheet, staffId, period) {
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
-      if (rows[i][1] === staffId && rows[i][3] === period) return { index: i, row: rows[i] };
+      if (rows[i][1] === staffId && this._normalizePeriod(rows[i][3]) === period) return { index: i, row: rows[i] };
     }
     return null;
   },
@@ -544,7 +556,7 @@ const Payroll = {
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
-      if (filterPeriod  && rows[i][3] !== filterPeriod)  continue;
+      if (filterPeriod  && this._normalizePeriod(rows[i][3]) !== filterPeriod) continue;
       const rowOrg = rows[i][24] || '';
       if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
 
