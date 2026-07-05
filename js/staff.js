@@ -59,9 +59,14 @@ const Staff = {
     document.getElementById('hrPaySaveBtn').addEventListener('click', () => this.savePayroll());
     document.getElementById('hrPayHistFilter').addEventListener('change', () => this.loadPayrollHistory());
 
-    // ── Payroll sub-tabs (Payroll / Attendance & OT Summary) ──
+    // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
       btn.addEventListener('click', () => this._switchPaySubTab(btn.dataset.subtab))
+    );
+
+    // ── Attendance sub-tabs (Week Grid / Attendance & OT Summary) ──
+    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab').forEach(btn =>
+      btn.addEventListener('click', () => this._switchAttSubTab(btn.dataset.subtab))
     );
     document.getElementById('hrAttSumLoadBtn').addEventListener('click', () => this._loadAttSummary());
     document.getElementById('hrAttSumSaveBtn').addEventListener('click', () => this._saveAttSummary());
@@ -1395,20 +1400,25 @@ const Staff = {
     }
   },
 
-  // ─── TAB 5b: ATTENDANCE & OT SUMMARY (nested under Payroll) ─────────────────
-  // A single-staff, whole-month calendar view of the same StaffAttendance
-  // data the Attendance tab's week grid uses — reads via the same
-  // get_attendance action and edits via the same openAttModal/
-  // saveAttendanceRecord flow, just gated for Payroll access instead of
-  // Attendance access (see Main.js ACTION_PERMISSIONS OR-ing).
-
   _switchPaySubTab(subtab) {
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(b =>
       b.classList.toggle('active', b.dataset.subtab === subtab));
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab-panel').forEach(p =>
       p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
-    if (subtab === 'hr-pay-attsummary') this._populateAttSumStaffDropdown();
-    if (subtab === 'hr-pay-salary')     this._renderStaffSalaryTable();
+    if (subtab === 'hr-pay-salary') this._renderStaffSalaryTable();
+  },
+
+  // ─── TAB 4b: ATTENDANCE & OT SUMMARY (nested under Attendance) ──────────────
+  // A single-staff, whole-month calendar view of the same StaffAttendance
+  // data the Week Grid sub-tab uses — reads via the same get_attendance
+  // action and edits via the same openAttModal/saveAttendanceRecord flow.
+
+  _switchAttSubTab(subtab) {
+    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab').forEach(b =>
+      b.classList.toggle('active', b.dataset.subtab === subtab));
+    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab-panel').forEach(p =>
+      p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
+    if (subtab === 'hr-att-summary') this._populateAttSumStaffDropdown();
   },
 
   _populateAttSumStaffDropdown() {

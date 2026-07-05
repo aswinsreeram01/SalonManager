@@ -229,6 +229,12 @@
 
     <!-- ═══ TAB: ATTENDANCE ═══ -->
     <div id="prod-tab-hr-attendance" class="prod-tab-panel">
+        <div class="sub-tabs">
+            <button class="sub-tab active" data-subtab="hr-att-weekgrid">Week Grid</button>
+            <button class="sub-tab" data-subtab="hr-att-summary">Attendance &amp; OT Summary</button>
+        </div>
+
+        <div id="sub-tab-hr-att-weekgrid" class="sub-tab-panel active">
         <div class="card">
             <div id="hrAttMessage" class="message"></div>
             <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
@@ -250,6 +256,38 @@
                 <p style="color:#a0aec0;text-align:center;padding:24px;">Select a month and click Load</p>
             </div>
         </div>
+        </div>
+
+        <div id="sub-tab-hr-att-summary" class="sub-tab-panel">
+            <div class="card">
+                <h3 style="color:#2d3748;margin-bottom:16px;">Attendance &amp; OT Summary</h3>
+                <div id="hrAttSumMessage" class="message"></div>
+                <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
+                    <div class="form-group" style="margin-bottom:0;min-width:200px;">
+                        <label for="hrAttSumStaff">Staff</label>
+                        <select id="hrAttSumStaff">
+                            <option value="">Select staff</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttSumMonth">Month</label>
+                        <input type="month" id="hrAttSumMonth">
+                    </div>
+                    <button class="btn btn-primary" id="hrAttSumLoadBtn" type="button" style="align-self:flex-end;">Load</button>
+                </div>
+                <div id="hrAttSumStats" class="att-sum-stats" style="display:none;"></div>
+                <p class="muted" style="margin:0 0 12px;font-size:12px;">
+                    Days with no clock-in/out on record can be marked directly here (status + OT hours).
+                    Days already clocked in/out are locked — click one to view/edit it from the Week Grid tab's full editor instead.
+                </p>
+                <div id="hrAttSumCalWrap">
+                    <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
+                </div>
+                <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
+                    <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ═══ TAB: PAYROLL ═══ -->
@@ -258,7 +296,6 @@
             <button class="sub-tab active" data-subtab="hr-pay-generate">Payroll</button>
             <button class="sub-tab" data-subtab="hr-pay-salary">Staff Salary</button>
             <button class="sub-tab" data-subtab="hr-pay-compplans">Comp Plans</button>
-            <button class="sub-tab" data-subtab="hr-pay-attsummary">Attendance &amp; OT Summary</button>
         </div>
 
         <div id="sub-tab-hr-pay-generate" class="sub-tab-panel active">
@@ -431,36 +468,6 @@
             </div>
         </div>
 
-        <div id="sub-tab-hr-pay-attsummary" class="sub-tab-panel">
-            <div class="card">
-                <h3 style="color:#2d3748;margin-bottom:16px;">Attendance &amp; OT Summary</h3>
-                <div id="hrAttSumMessage" class="message"></div>
-                <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
-                    <div class="form-group" style="margin-bottom:0;min-width:200px;">
-                        <label for="hrAttSumStaff">Staff</label>
-                        <select id="hrAttSumStaff">
-                            <option value="">Select staff</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label for="hrAttSumMonth">Month</label>
-                        <input type="month" id="hrAttSumMonth">
-                    </div>
-                    <button class="btn btn-primary" id="hrAttSumLoadBtn" type="button" style="align-self:flex-end;">Load</button>
-                </div>
-                <div id="hrAttSumStats" class="att-sum-stats" style="display:none;"></div>
-                <p class="muted" style="margin:0 0 12px;font-size:12px;">
-                    Days with no clock-in/out on record can be marked directly here (status + OT hours).
-                    Days already clocked in/out are locked — click one to view/edit it from the Attendance tab's full editor instead.
-                </p>
-                <div id="hrAttSumCalWrap">
-                    <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
-                </div>
-                <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
-                    <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Attendance Modal -->

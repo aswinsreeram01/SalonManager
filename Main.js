@@ -100,10 +100,10 @@ const ACTION_PERMISSIONS = {
   delete_incentive_profile: ['staff:hr-payroll', 'update'],
   get_shifts: [['staff:hr-shifts', 'staff:hr-attendance'], 'read'],
   save_shift: ['staff:hr-shifts', 'update'],
-  // Also readable/writable from Payroll's nested Attendance & OT Summary
-  // sub-tab, which reuses this same action rather than a new endpoint.
-  get_attendance: [['staff:hr-attendance', 'staff:hr-payroll'], 'read'],
-  save_attendance: [['staff:hr-attendance', 'staff:hr-payroll'], 'update'],
+  // Also readable/writable from the Attendance tab's nested Attendance & OT
+  // Summary sub-tab, which reuses this same action rather than a new one.
+  get_attendance: ['staff:hr-attendance', 'read'],
+  save_attendance: ['staff:hr-attendance', 'update'],
   get_week_schedule: ['staff:hr-attendance', 'read'],
   save_week_schedule: ['staff:hr-attendance', 'update'],
   save_weekly_incentive: ['staff:hr-payroll', 'update'],
