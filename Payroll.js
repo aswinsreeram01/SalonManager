@@ -10,21 +10,32 @@
 // orgId(24),
 // weekdayAbsentDates(25) — comma-separated ISO dates, Mon-Thu absences,
 // weekendAbsentDates(26) — comma-separated ISO dates, Fri/Sat/Sun absences,
-// longAbsenceExcludedDays(27) — auto-detected run of >=8 consecutive absent/no-record
+// longAbsenceExcludedDays(27) — auto-detected run of >=8 consecutive absent
 //   calendar days touching the start or end of the month; excluded from both
 //   totalDaysOff and payableDays. Editable on the Payroll page.
-// serviceValue(28) — manual revenue override (Quick Entry), blank by default,
+// serviceValue(28) — manual REVENUE override (Quick Entry), blank by default;
+//   runs through the Comp Plan's L1/L2/X/Y/Z slabs same as bill-scanned revenue,
 // productCount(29) — manual count, record-keeping only, no $ effect, blank by default,
 // tipsOverride(30) — manual flat $ addition to net pay, blank by default,
-// makeupValue(31) — manual final-$ override for makeup incentive, blank by default.
+// makeupValue(31) — manual REVENUE override for the makeup incentive (parallels
+//   serviceValue, not a final $ amount) — multiplied by the applicable flat/direct
+//   incentive % (the staff's Comp Plan flatIncentivePct, since a manual entry has
+//   no specific Service Group to pull an override from) to get makeupIncentive(16),
+// weekdayHalfDayDates(32) — comma-separated ISO dates, Mon-Thu half-days,
+// weekendHalfDayDates(33) — comma-separated ISO dates, Fri/Sat/Sun half-days.
 //
-// Attendance-derived columns (5,7,8,9,10,12,13,25,26,27) are fully recomputed
-// every time Quick Entry saves attendance for that staff+period via
-// upsertFromAttendance — they always reflect the latest attendance data.
+// Attendance-derived columns (5,7,8,9,10,12,13,25,26,27,32,33) are fully
+// recomputed every time Quick Entry saves attendance for that staff+period
+// via upsertFromAttendance — they always reflect the latest attendance data.
 // Everything else (serviceValue, productCount, tipsOverride, makeupValue,
 // advanceDeducted, status, notes, and the derived incentive/net-pay figures)
 // is owned by the Payroll page's reconcile screen and is preserved across
 // Quick Entry saves.
+//
+// Date-list columns (25, 26, 32, 33) are read through _normalizeDateListCell
+// — Sheets can silently coerce a single bare date string into a real Date
+// cell, which then serializes as a full ISO timestamp rather than a plain
+// date. Always normalize on read, never trust the raw cell type.
 
 const Payroll = {
 
@@ -38,6 +49,20 @@ const Payroll = {
       return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM');
     }
     return String(v || '').slice(0, 7);
+  },
+
+  // Same Sheets auto-date-coercion problem as _normalizePeriod, but for the
+  // comma-joined absence/half-day date-list columns: a cell holding exactly
+  // ONE date (no comma) looks like a valid date to Sheets and can get
+  // silently converted to a real Date cell on write. Reading it back then
+  // yields a Date object which, once it crosses JSON.stringify, turns into a
+  // full ISO timestamp string (e.g. "2026-06-12T05:00:00.000Z") instead of
+  // the plain "2026-06-12" — always normalize before returning to the client.
+  _normalizeDateListCell(v) {
+    if (v instanceof Date) {
+      return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+    return String(v || '');
   },
 
   // ── Attendance-derived numbers ────────────────────────────────────────────
@@ -78,8 +103,10 @@ const Payroll = {
     }
 
     const peakDays = new Set([5, 6, 0]); // Fri, Sat, Sun (JS getDay())
-    const weekdayAbsentDates = [];
-    const weekendAbsentDates = [];
+    const weekdayAbsentDates  = [];
+    const weekendAbsentDates  = [];
+    const weekdayHalfDayDates = [];
+    const weekendHalfDayDates = [];
     let totalDaysOff = 0;
     const dayOffAmountByDate = {}; // for long-absence-block subtraction below
 
@@ -95,6 +122,7 @@ const Payroll = {
         (isPeak ? weekendAbsentDates : weekdayAbsentDates).push(dateStr);
       } else if (dayStatus === 'half-day') {
         amount = isPeak ? 1 : 0.5;
+        (isPeak ? weekendHalfDayDates : weekdayHalfDayDates).push(dateStr);
       }
       dayOffAmountByDate[dateStr] = amount;
       totalDaysOff += amount;
@@ -143,6 +171,8 @@ const Payroll = {
       otHours,
       weekdayAbsentDates,
       weekendAbsentDates,
+      weekdayHalfDayDates,
+      weekendHalfDayDates,
       longAbsenceExcludedDays
     };
   },
@@ -295,8 +325,14 @@ const Payroll = {
 
     const revenue = (serviceValueOverride === '' || serviceValueOverride === null || serviceValueOverride === undefined)
       ? billScannedRevenue : Number(serviceValueOverride) || 0;
+    // makeupValueOverride is a REVENUE figure, same as serviceValueOverride —
+    // not a final dollar amount. It's multiplied by the applicable flat/
+    // direct incentive %; a manual entry has no specific Service Group to
+    // pull an override from, so it always uses the staff's Comp Plan
+    // flatIncentivePct.
     const makeupIncentive = (makeupValueOverride === '' || makeupValueOverride === null || makeupValueOverride === undefined)
-      ? billScannedMakeup : Number(makeupValueOverride) || 0;
+      ? billScannedMakeup
+      : (Number(makeupValueOverride) || 0) * (profile.flatIncentivePct || 0) / 100;
 
     return { revenue, makeupIncentive };
   },
@@ -316,7 +352,8 @@ const Payroll = {
     const {
       staffId, staffName, period, orgId, salary, allowances, profile, targetPeriod,
       payableDays, eligibleOffsInput, totalDaysOff, otHours,
-      weekdayAbsentDates, weekendAbsentDates, longAbsenceExcludedDays,
+      weekdayAbsentDates, weekendAbsentDates, weekdayHalfDayDates, weekendHalfDayDates,
+      longAbsenceExcludedDays,
       serviceValue, productCount, tipsOverride, makeupValue, advanceDeducted,
       status, notes, payrollId, createdAt
     } = inputs;
@@ -379,6 +416,8 @@ const Payroll = {
       status: status || 'draft', notes: notes || '', createdAt: createdAt || new Date().toISOString(),
       weekdayAbsentDates: (weekdayAbsentDates || []).join(','),
       weekendAbsentDates: (weekendAbsentDates || []).join(','),
+      weekdayHalfDayDates: (weekdayHalfDayDates || []).join(','),
+      weekendHalfDayDates: (weekendHalfDayDates || []).join(','),
       longAbsenceExcludedDays,
       serviceValue: serviceValue === '' || serviceValue === null || serviceValue === undefined ? '' : Number(serviceValue),
       productCount: productCount === '' || productCount === null || productCount === undefined ? '' : Number(productCount),
@@ -401,12 +440,15 @@ const Payroll = {
       netPay: Number(row[20]) || 0, status: row[21], notes: row[22],
       createdAt: row[23] instanceof Date ? row[23].toISOString() : String(row[23] || ''),
       orgId: row[24] || '',
-      weekdayAbsentDates: row[25] || '', weekendAbsentDates: row[26] || '',
+      weekdayAbsentDates: this._normalizeDateListCell(row[25]),
+      weekendAbsentDates: this._normalizeDateListCell(row[26]),
       longAbsenceExcludedDays: Number(row[27]) || 0,
       serviceValue: row[28] === '' || row[28] == null ? '' : Number(row[28]),
       productCount: row[29] === '' || row[29] == null ? '' : Number(row[29]),
       tipsOverride: row[30] === '' || row[30] == null ? '' : Number(row[30]),
-      makeupValue:  row[31] === '' || row[31] == null ? '' : Number(row[31])
+      makeupValue:  row[31] === '' || row[31] == null ? '' : Number(row[31]),
+      weekdayHalfDayDates: this._normalizeDateListCell(row[32]),
+      weekendHalfDayDates: this._normalizeDateListCell(row[33])
     };
   },
 
@@ -418,7 +460,8 @@ const Payroll = {
       b.serviceIncentive, b.productIncentive, b.makeupIncentive, b.targetIncentive,
       b.totalIncentive, b.advanceDeducted, b.netPay, b.status, b.notes, b.createdAt,
       b.orgId, b.weekdayAbsentDates, b.weekendAbsentDates, b.longAbsenceExcludedDays,
-      b.serviceValue, b.productCount, b.tipsOverride, b.makeupValue
+      b.serviceValue, b.productCount, b.tipsOverride, b.makeupValue,
+      b.weekdayHalfDayDates, b.weekendHalfDayDates
     ];
   },
 
@@ -477,6 +520,8 @@ const Payroll = {
       daysInMonth: attDerived.daysInMonth,
       weekdayAbsentDates: attDerived.weekdayAbsentDates,
       weekendAbsentDates: attDerived.weekendAbsentDates,
+      weekdayHalfDayDates: attDerived.weekdayHalfDayDates,
+      weekendHalfDayDates: attDerived.weekendHalfDayDates,
       longAbsenceExcludedDays: attDerived.longAbsenceExcludedDays,
       serviceValue: data.serviceValue !== undefined ? data.serviceValue : (existingBreakdown ? existingBreakdown.serviceValue : ''),
       productCount: data.productCount !== undefined ? data.productCount : (existingBreakdown ? existingBreakdown.productCount : ''),
@@ -490,7 +535,7 @@ const Payroll = {
     });
 
     if (existing) {
-      sheet.getRange(existing.index + 1, 1, 1, 32).setValues([this._breakdownToRowValues(breakdown)]);
+      sheet.getRange(existing.index + 1, 1, 1, 34).setValues([this._breakdownToRowValues(breakdown)]);
     } else {
       sheet.appendRow(this._breakdownToRowValues(breakdown));
     }
@@ -527,6 +572,8 @@ const Payroll = {
       daysInMonth: payableDays + longAbsenceExcludedDays,
       weekdayAbsentDates: (current.weekdayAbsentDates || '').split(',').filter(Boolean),
       weekendAbsentDates: (current.weekendAbsentDates || '').split(',').filter(Boolean),
+      weekdayHalfDayDates: (current.weekdayHalfDayDates || '').split(',').filter(Boolean),
+      weekendHalfDayDates: (current.weekendHalfDayDates || '').split(',').filter(Boolean),
       longAbsenceExcludedDays,
       serviceValue: data.serviceValue !== undefined ? data.serviceValue : current.serviceValue,
       productCount: data.productCount !== undefined ? data.productCount : current.productCount,
@@ -538,7 +585,7 @@ const Payroll = {
       payrollId: current.payrollId, createdAt: current.createdAt
     });
 
-    sheet.getRange(existing.index + 1, 1, 1, 32).setValues([this._breakdownToRowValues(breakdown)]);
+    sheet.getRange(existing.index + 1, 1, 1, 34).setValues([this._breakdownToRowValues(breakdown)]);
     return Utils.createResponse('success', 'Payroll record updated successfully', breakdown);
   },
 

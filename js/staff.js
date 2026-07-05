@@ -1341,12 +1341,17 @@ const Staff = {
         return `Base Salary is set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\nCurrent value: ${fmt(r.baseSalary)}`;
 
       case 'daysOff': {
-        const wd = (r.weekdayAbsentDates || '').split(',').filter(Boolean);
-        const we = (r.weekendAbsentDates || '').split(',').filter(Boolean);
-        return `Only days explicitly marked 'absent' count — a day with no attendance record is assumed present (9 hours, no OT).\n\n`
-          + `Weekday absences (Mon–Thu), 1 day each: ${wd.length}${wd.length ? ' — ' + wd.join(', ') : ''}\n`
-          + `Weekend absences (Fri/Sat/Sun), 2 days each: ${we.length}${we.length ? ' — ' + we.join(', ') : ''} → ${we.length * 2}\n\n`
-          + `Days Off = ${wd.length} + ${we.length * 2} = ${r.totalDaysOff}`;
+        const wdAbsent = (r.weekdayAbsentDates || '').split(',').filter(Boolean);
+        const weAbsent = (r.weekendAbsentDates || '').split(',').filter(Boolean);
+        const wdHalf   = (r.weekdayHalfDayDates || '').split(',').filter(Boolean);
+        const weHalf   = (r.weekendHalfDayDates || '').split(',').filter(Boolean);
+        const list = (arr) => arr.length ? arr.join(', ') : 'none';
+        return `Only days explicitly marked 'absent' or 'half-day' count — a day with no attendance record is assumed present (9 hours, no OT).\n\n`
+          + `Weekday absences (Mon–Thu), 1 day each: ${wdAbsent.length} — ${list(wdAbsent)}\n`
+          + `Weekend absences (Fri/Sat/Sun), 2 days each: ${weAbsent.length} — ${list(weAbsent)}\n`
+          + `Weekday half-days (Mon–Thu), 0.5 day each: ${wdHalf.length} — ${list(wdHalf)}\n`
+          + `Weekend half-days (Fri/Sat/Sun), 1 day each: ${weHalf.length} — ${list(weHalf)}\n\n`
+          + `Calculated Days of Absence = ${wdAbsent.length} + (${weAbsent.length} × 2) + (${wdHalf.length} × 0.5) + (${weHalf.length} × 1) = ${r.totalDaysOff}`;
       }
 
       case 'leaveDeduct': {
@@ -1387,9 +1392,16 @@ const Staff = {
               + `= ${fmt(L1 * profile.xPct / 100)} + ${fmt((L2 - L1) * profile.yPct / 100)} + ${fmt((revenue - L2) * profile.zPct / 100)} = ${fmt(r.targetIncentive)}`;
           }
         }
-        const makeupExplain = r.makeupValue !== '' && r.makeupValue != null
-          ? `Make Up Value: manually entered as ${fmt(r.makeupIncentive)}.`
-          : `Make Up Value: a flat % of revenue from Flat-mode Service Groups (their own override, or the Comp Plan's Flat Incentive %) = ${fmt(r.makeupIncentive)}.`;
+        let makeupExplain;
+        if (r.makeupValue !== '' && r.makeupValue != null) {
+          const flatPct = profile ? (profile.flatIncentivePct || 0) : 0;
+          makeupExplain = `Make Up Value is a manually entered REVENUE figure, same as Service Value — not a final amount.\n`
+            + `Make Up Incentive = Make Up Value (${fmt(r.makeupValue)}) × Comp Plan Flat Incentive % (${flatPct}%)\n`
+            + `= ${fmt(r.makeupIncentive)}`;
+        } else {
+          makeupExplain = `Make Up Incentive: sum of (line revenue × applicable flat %) across Flat-mode Service Groups this staff member billed — `
+            + `each group uses its own override % if set, else the Comp Plan's Flat Incentive %.\n= ${fmt(r.makeupIncentive)}`;
+        }
         return `${targetExplain}\n\n${makeupExplain}\n\nIncentives = Target (${fmt(r.targetIncentive)}) + Make Up (${fmt(r.makeupIncentive)}) = ${fmt(r.targetIncentive + r.makeupIncentive)}`;
       }
 
