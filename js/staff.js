@@ -16,6 +16,7 @@ const Staff = {
   _shiftEditingId:   null,
   _attData:          null,
   _payrollRows:      [],
+  _payReviewId:      null,
   _attSumStaffId:    null,
   _attSumPeriod:     null,
   _attSumOriginal:   {},
@@ -59,6 +60,11 @@ const Staff = {
 
     // ── Payroll tab ──
     document.getElementById('hrPayPeriod').addEventListener('change', () => this.loadPayrollForMonth());
+
+    // ── Payroll review modal ──
+    document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
+    document.getElementById('hrPayReviewCloseBtn').addEventListener('click', () => this.closePayrollReview());
+    document.getElementById('hrPayReviewCloseX').addEventListener('click', () => this.closePayrollReview());
 
     // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
@@ -107,11 +113,16 @@ const Staff = {
   async load() {
     UI.showLoading();
     try {
+      // Orgs must be loaded BEFORE the others render — each of their render
+      // functions calls _orgName() as soon as its own fetch resolves, so
+      // running this in the same Promise.all race let staff/profiles/shifts
+      // finish first and render raw org IDs instead of names whenever the
+      // orgs request was the slowest of the four.
+      await this._loadOrgs();
       await Promise.all([
         this._loadStaff(),
         this._loadProfiles(),
-        this._loadShifts(),
-        this._loadOrgs()
+        this._loadShifts()
       ]);
     } catch(e) {
       UI.showMessage('staffMessage', 'Failed to load HR data', 'error');
@@ -1216,20 +1227,20 @@ const Staff = {
     const period = document.getElementById('hrPayPeriod').value;
     const tbody  = document.getElementById('hrPayTableBody');
     const msgEl  = document.getElementById('hrPayMessage');
-    if (!period) { tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>'; return; }
+    if (!period) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>'; return; }
 
-    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
     try {
       const res = await API.getPayroll({ period });
       if (res.status === 'success') {
         this._payrollRows = res.payroll || [];
         this._renderPayrollTable();
       } else {
-        tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#fc8181;">Failed to load payroll records</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#fc8181;">Failed to load payroll records</td></tr>';
       }
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading payroll records', 'error');
-      tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#fc8181;">Error loading payroll records</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#fc8181;">Error loading payroll records</td></tr>';
     }
   },
 
@@ -1237,47 +1248,78 @@ const Staff = {
     const tbody = document.getElementById('hrPayTableBody');
     const rows  = this._payrollRows || [];
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;padding:24px;">No payroll records for this month yet — run Quick Entry for a staff member first.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;padding:24px;">No payroll records for this month yet — run Quick Entry for a staff member first.</td></tr>';
       return;
     }
     const sorted = [...rows].sort((a, b) => String(a.staffName || '').localeCompare(String(b.staffName || '')));
-    const numInput = (id, value, width) =>
-      `<input type="number" id="${id}" value="${value ?? ''}" step="0.01" style="width:${width || 90}px;text-align:right;">`;
 
-    tbody.innerHTML = sorted.map(r => {
-      const pid = r.payrollId;
-      const incentives = (r.targetIncentive || 0) + (r.makeupIncentive || 0);
-      return `<tr data-payroll-id="${pid}">
+    tbody.innerHTML = sorted.map(r => `<tr data-payroll-id="${r.payrollId}">
         <td style="font-weight:500;white-space:nowrap;">${this._esc(r.staffName || r.staffId)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.baseSalary)}</td>
-        <td style="text-align:center;">${r.totalDaysOff ?? 0}</td>
-        <td>${numInput(`hrPayPayableDays_${pid}`, r.payableDays, 70)}</td>
-        <td>${numInput(`hrPayEligOffs_${pid}`, r.eligibleOffs, 60)}</td>
-        <td>${numInput(`hrPayLongAbsence_${pid}`, r.longAbsenceExcludedDays, 60)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.leaveDeduction)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.adjustedBaseSalary)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.otPay)}</td>
-        <td>${numInput(`hrPaySvcValue_${pid}`, r.serviceValue, 90)}</td>
-        <td>${numInput(`hrPayMakeupValue_${pid}`, r.makeupValue, 90)}</td>
-        <td>${numInput(`hrPayProdCount_${pid}`, r.productCount, 70)}</td>
-        <td>${numInput(`hrPayTips_${pid}`, r.tipsOverride, 80)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(incentives)}</td>
-        <td>${numInput(`hrPayAdvDeduct_${pid}`, r.advanceDeducted, 80)}</td>
         <td style="text-align:right;white-space:nowrap;font-weight:600;">${this._fmt(r.netPay)}</td>
+        <td>${this._payrollStatusBadge(r.status)}</td>
         <td>
-          <select id="hrPayStatus_${pid}" style="padding:4px 6px;font-size:12px;">
-            ${['draft', 'approved', 'paid', 'voided'].map(s => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
+          <button class="action-btn action-btn-edit" onclick="Staff.openPayrollReview('${r.payrollId}')">Review</button>
         </td>
-        <td>
-          <button class="action-btn action-btn-edit" onclick="Staff.savePayrollRow('${pid}')">Save</button>
-        </td>
-      </tr>`;
-    }).join('');
+      </tr>`).join('');
   },
 
-  async savePayrollRow(payrollId) {
-    const msgEl = document.getElementById('hrPayMessage');
+  _payrollStatusBadge(status) {
+    const map = {
+      draft:    'background:#edf2f7;color:#4a5568;',
+      approved: 'background:#bee3f8;color:#2c5282;',
+      paid:     'background:#c6f6d5;color:#22543d;',
+      voided:   'background:#fed7d7;color:#c53030;'
+    };
+    return `<span class="status-badge" style="${map[status] || ''}">${this._esc(status || 'draft')}</span>`;
+  },
+
+  // ── Payroll Review modal ──────────────────────────────────────────────────
+
+  openPayrollReview(payrollId) {
+    const r = (this._payrollRows || []).find(x => x.payrollId === payrollId);
+    if (!r) return;
+    this._payReviewId = payrollId;
+
+    document.getElementById('hrPayReviewTitle').textContent = `Payroll Review — ${r.staffName || r.staffId} (${r.period})`;
+    document.getElementById('hrPayReviewMsg').innerHTML = '';
+    this._renderPayrollReviewReadonly(r);
+
+    document.getElementById('hrPayRevPayableDays').value = r.payableDays ?? '';
+    document.getElementById('hrPayRevEligOffs').value     = r.eligibleOffs ?? '';
+    document.getElementById('hrPayRevLongAbsence').value  = r.longAbsenceExcludedDays ?? '';
+    document.getElementById('hrPayRevSvcValue').value     = r.serviceValue ?? '';
+    document.getElementById('hrPayRevMakeupValue').value  = r.makeupValue ?? '';
+    document.getElementById('hrPayRevProdCount').value    = r.productCount ?? '';
+    document.getElementById('hrPayRevTips').value         = r.tipsOverride ?? '';
+    document.getElementById('hrPayRevAdvDeduct').value    = r.advanceDeducted ?? 0;
+    document.getElementById('hrPayRevStatus').value       = r.status || 'draft';
+    document.getElementById('hrPayRevNotes').value        = r.notes || '';
+
+    document.getElementById('hrPayReviewModal').style.display = 'flex';
+  },
+
+  _renderPayrollReviewReadonly(r) {
+    const incentives = (r.targetIncentive || 0) + (r.makeupIncentive || 0);
+    document.getElementById('hrPayRevBase').textContent        = this._fmt(r.baseSalary);
+    document.getElementById('hrPayRevDaysOff').textContent     = r.totalDaysOff ?? 0;
+    document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
+    document.getElementById('hrPayRevAdjBase').textContent     = this._fmt(r.adjustedBaseSalary);
+    document.getElementById('hrPayRevOt').textContent          = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
+    document.getElementById('hrPayRevAllowances').textContent  = this._fmt(r.allowances);
+    document.getElementById('hrPayRevIncentives').textContent  = this._fmt(incentives);
+    document.getElementById('hrPayRevNetPay').textContent      = this._fmt(r.netPay);
+  },
+
+  closePayrollReview() {
+    document.getElementById('hrPayReviewModal').style.display = 'none';
+    this._payReviewId = null;
+  },
+
+  async calculatePayrollReview() {
+    const payrollId = this._payReviewId;
+    if (!payrollId) return;
+    const msgEl = document.getElementById('hrPayReviewMsg');
+
     const val = id => {
       const el = document.getElementById(id);
       if (!el) return undefined;
@@ -1287,34 +1329,39 @@ const Staff = {
 
     const data = {
       payrollId,
-      payableDays:             val(`hrPayPayableDays_${payrollId}`),
-      eligibleOffs:            val(`hrPayEligOffs_${payrollId}`),
-      longAbsenceExcludedDays: val(`hrPayLongAbsence_${payrollId}`),
-      serviceValue:            val(`hrPaySvcValue_${payrollId}`),
-      makeupValue:             val(`hrPayMakeupValue_${payrollId}`),
-      productCount:            val(`hrPayProdCount_${payrollId}`),
-      tipsOverride:            val(`hrPayTips_${payrollId}`),
-      advanceDeducted:         val(`hrPayAdvDeduct_${payrollId}`),
-      status: (document.getElementById(`hrPayStatus_${payrollId}`) || {}).value
+      payableDays:             val('hrPayRevPayableDays'),
+      eligibleOffs:            val('hrPayRevEligOffs'),
+      longAbsenceExcludedDays: val('hrPayRevLongAbsence'),
+      serviceValue:            val('hrPayRevSvcValue'),
+      makeupValue:             val('hrPayRevMakeupValue'),
+      productCount:            val('hrPayRevProdCount'),
+      tipsOverride:            val('hrPayRevTips'),
+      advanceDeducted:         val('hrPayRevAdvDeduct'),
+      status: document.getElementById('hrPayRevStatus').value,
+      notes:  document.getElementById('hrPayRevNotes').value.trim()
     };
 
-    const btn = document.querySelector(`tr[data-payroll-id="${payrollId}"] .action-btn-edit`);
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    const btn = document.getElementById('hrPayRevCalcBtn');
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = 'Calculating…';
 
     try {
       const res = await API.updatePayrollRow(data);
       if (res.status === 'success') {
-        const idx = (this._payrollRows || []).findIndex(r => r.payrollId === payrollId);
+        const idx = (this._payrollRows || []).findIndex(x => x.payrollId === payrollId);
         if (idx >= 0) this._payrollRows[idx] = res;
+        this._renderPayrollReviewReadonly(res);
         this._renderPayrollTable();
-        this._showInlineMsg(msgEl, 'Payroll record updated.', 'success');
+        this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
       } else {
-        this._showInlineMsg(msgEl, res.message || 'Error updating payroll record', 'error');
+        this._showInlineMsg(msgEl, res.message || 'Error calculating payroll', 'error');
       }
     } catch(err) {
-      this._showInlineMsg(msgEl, 'Network error updating payroll record', 'error');
+      this._showInlineMsg(msgEl, 'Network error calculating payroll', 'error');
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+      btn.disabled = false;
+      btn.textContent = origText;
     }
   },
 

@@ -38,7 +38,11 @@ const Users = {
     },
 
     async load() {
-        await Promise.all([this.loadDropdowns(), this.loadUsers()]);
+        // Dropdowns (which fetches orgs) must load BEFORE loadUsers renders —
+        // otherwise the grid can render with this.orgs still empty (whenever
+        // that request is slower), showing raw org IDs instead of names.
+        await this.loadDropdowns();
+        await this.loadUsers();
     },
 
     async loadDropdowns() {

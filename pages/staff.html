@@ -345,15 +345,10 @@
             <div class="table-container">
                 <table>
                     <thead><tr>
-                        <th>Staff</th><th>Base</th><th>Days Off</th>
-                        <th>Payable Days</th><th>Elig. Offs</th><th>Long Absence Days</th>
-                        <th>Leave Deduct</th><th>Adj. Base</th><th>OT Pay</th>
-                        <th>Service Value</th><th>Make Up Value</th><th>Product Count</th><th>Tips</th>
-                        <th>Incentives</th><th>Advance Deduct</th><th>Net Pay</th>
-                        <th>Status</th><th>Actions</th>
+                        <th>Staff</th><th style="text-align:right;">Net Pay</th><th>Status</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrPayTableBody">
-                        <tr><td colspan="18" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>
+                        <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -504,6 +499,87 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Payroll Review Modal -->
+    <div id="hrPayReviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div class="modal-box" style="max-width:640px;width:100%;max-height:85vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 id="hrPayReviewTitle" style="color:#2d3748;margin:0;">Payroll Review</h3>
+                <button id="hrPayReviewCloseX" type="button" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a0aec0;line-height:1;padding:2px 6px;">✕</button>
+            </div>
+            <div id="hrPayReviewMsg" class="message"></div>
+
+            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Attendance-derived (read-only)</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 16px;margin-bottom:16px;font-size:14px;">
+                <div><span style="color:#718096;">Base Salary</span><div id="hrPayRevBase" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Days Off</span><div id="hrPayRevDaysOff" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Leave Deduct</span><div id="hrPayRevLeaveDeduct" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Adjusted Base</span><div id="hrPayRevAdjBase" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">OT Hours / Pay</span><div id="hrPayRevOt" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Allowances</span><div id="hrPayRevAllowances" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Incentives (Target + Make Up)</span><div id="hrPayRevIncentives" style="font-weight:600;">—</div></div>
+            </div>
+
+            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Editable</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevPayableDays">Payable Days</label>
+                    <input type="number" id="hrPayRevPayableDays" step="1">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevEligOffs">Eligible Offs</label>
+                    <input type="number" id="hrPayRevEligOffs" step="1">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevLongAbsence">Long Absence Days</label>
+                    <input type="number" id="hrPayRevLongAbsence" step="1">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevSvcValue">Service Value (₹)</label>
+                    <input type="number" id="hrPayRevSvcValue" step="0.01" placeholder="Leave blank">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevMakeupValue">Make Up Value (₹)</label>
+                    <input type="number" id="hrPayRevMakeupValue" step="0.01" placeholder="Leave blank">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevProdCount">Product Count</label>
+                    <input type="number" id="hrPayRevProdCount" step="1" placeholder="Leave blank">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevTips">Tips (₹)</label>
+                    <input type="number" id="hrPayRevTips" step="0.01" placeholder="Leave blank">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevAdvDeduct">Advance Deducted (₹)</label>
+                    <input type="number" id="hrPayRevAdvDeduct" step="0.01">
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevStatus">Status</label>
+                    <select id="hrPayRevStatus">
+                        <option value="draft">draft</option>
+                        <option value="approved">approved</option>
+                        <option value="paid">paid</option>
+                        <option value="voided">voided</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;grid-column:1/-1;">
+                    <label for="hrPayRevNotes">Notes</label>
+                    <input type="text" id="hrPayRevNotes" placeholder="Optional">
+                </div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #e2e8f0;margin-bottom:16px;">
+                <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Pay</span>
+                <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button">Calculate</button>
+                <button class="btn btn-secondary" id="hrPayRevCloseBtn" type="button">Close</button>
+            </div>
+        </div>
     </div>
 
     <!-- Attendance Modal -->

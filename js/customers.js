@@ -56,7 +56,11 @@ const Customers = {
     },
 
     async load() {
-        await Promise.all([this._loadOrgs(), this.loadCustomers(), this.loadLoyalty()]);
+        // Orgs must load BEFORE loadCustomers renders — otherwise the grid
+        // can render with _orgs still empty (whenever the orgs request is
+        // the slowest of the three), showing raw org IDs instead of names.
+        await this._loadOrgs();
+        await Promise.all([this.loadCustomers(), this.loadLoyalty()]);
     },
 
     async handleSubmit(e) {
