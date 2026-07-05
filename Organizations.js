@@ -1,9 +1,12 @@
 const Organizations = {
-  getAll(data) {
+  // Plain-array read shared by getAll and by every other entity's org-scoping
+  // logic (isWithinScope/scopeOrgIds below) — do NOT read .organizations off
+  // getAll's return value, that's a ContentService.TextOutput.
+  _getAllRaw() {
     let allOrgs = Utils.getCached('orgs');
     if (!allOrgs) {
       const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Organizations');
-      if (!sheet) return Utils.createResponse('success', 'Organizations retrieved', { organizations: [] });
+      if (!sheet) return [];
 
       const orgData = sheet.getDataRange().getValues();
       allOrgs = [];
@@ -15,7 +18,11 @@ const Organizations = {
       }
       Utils.setCached('orgs', allOrgs);
     }
+    return allOrgs;
+  },
 
+  getAll(data) {
+    const allOrgs = this._getAllRaw();
     if (data.userOrgId) {
       const allowed = this.getOrgAndChildren(data.userOrgId, allOrgs);
       return Utils.createResponse('success', 'Organizations retrieved', { organizations: allowed });
@@ -33,6 +40,33 @@ const Organizations = {
       });
     }
     return result;
+  },
+
+  // ── Shared org-scoping helpers (used by every entity's add/update/getAll) ──
+
+  // Server-side check for a client-picked targetOrgId: is it the caller's own
+  // org, or a genuine descendant of it? Never trust targetOrgId without this
+  // — a caller could otherwise pass any orgId string and reassign/create a
+  // record in an org they have no relationship to.
+  isWithinScope(callerOrgId, targetOrgId) {
+    if (!targetOrgId) return true; // no reassignment requested
+    if (targetOrgId === callerOrgId) return true;
+    if (!callerOrgId) return false;
+    const allOrgs = this._getAllRaw();
+    return this.getOrgAndChildren(callerOrgId, allOrgs).some(o => o.id === targetOrgId);
+  },
+
+  // Set of org ids a read should include: just the caller's own org by
+  // default (matches today's exact-match behavior), or the caller's org plus
+  // every descendant when includeChildren is true (the opt-in "sub-orgs"
+  // toggle on a grid). Returns null when callerOrgId is blank (no org
+  // context at all — e.g. a global/unscoped role) so callers can skip
+  // filtering entirely, same as today.
+  scopeOrgIds(callerOrgId, includeChildren) {
+    if (!callerOrgId) return null;
+    if (!includeChildren) return new Set([callerOrgId]);
+    const allOrgs = this._getAllRaw();
+    return new Set(this.getOrgAndChildren(callerOrgId, allOrgs).map(o => o.id));
   },
 
   add(data) {

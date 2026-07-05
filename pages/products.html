@@ -172,11 +172,9 @@
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
-                                <div class="form-group" id="prodOrgGroup" style="display:none;">
+                                <div class="form-group" id="prodOrgGroup">
                                     <label for="prodOrgId">Organization</label>
-                                    <select id="prodOrgId">
-                                        <option value="">Keep current</option>
-                                    </select>
+                                    <select id="prodOrgId"></select>
                                 </div>
                             </div>
                             <p class="muted" id="prodUsageHint" style="display:none;margin:8px 0 0;font-size:12px;">
@@ -200,7 +198,11 @@
                                 <h3 style="color:#2d3748;margin:0;">Products</h3>
                                 <span id="prodLowStockBadge" style="display:none;background:#fed7d7;color:#c53030;font-size:12px;font-weight:600;padding:2px 10px;border-radius:12px;"></span>
                             </div>
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;">
+                                    <input type="checkbox" id="prodIncludeChildren">
+                                    Include sub-orgs
+                                </label>
                                 <select id="prodCatFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
                                     <option value="">All Categories</option>
                                     <option value="Retail">Retail</option>
@@ -221,11 +223,12 @@
                                         <th style="text-align:center;">GST</th>
                                         <th style="text-align:center;">Stock (Curr/Base)</th>
                                         <th>Vendor</th>
+                                        <th>Org</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="prodTableBody">
-                                    <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
+                                    <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
                                 </tbody>
                             </table>
                         </div>

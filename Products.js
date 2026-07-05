@@ -18,19 +18,30 @@
 const Products = {
   getAll(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'products_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Products retrieved', { products: cached });
+    // includeChildren: the grid's "Include sub-orgs" toggle. Bypasses the
+    // cache (unlike the default exact-org case) since a sub-tree read's
+    // cache key would need to change any time ANY descendant org's data
+    // changes, not just this caller's own — simpler and safe to just read
+    // fresh from the sheet for this less-common path.
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      const cacheKey = 'products_' + orgId;
+      cached = Utils.getCached(cacheKey);
+      if (cached) return Utils.createResponse('success', 'Products retrieved', { products: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Products');
     if (!sheet) return Utils.createResponse('success', 'Products retrieved', { products: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const rows = sheet.getDataRange().getValues();
     const products = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       const rowOrg = rows[i][15] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       products.push({
         id: rows[i][0], name: rows[i][1], category: rows[i][2], uom: rows[i][3],
         unitCost: rows[i][4], retailPrice: rows[i][5], gst: rows[i][6],
@@ -46,13 +57,21 @@ const Products = {
       });
     }
 
-    Utils.setCached(cacheKey, products);
+    if (!includeChildren) Utils.setCached('products_' + orgId, products);
     return Utils.createResponse('success', 'Products retrieved', { products });
   },
 
   add(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Products');
     if (!sheet) return Utils.createResponse('error', 'Products sheet not found');
+
+    // The Org picker on the add form always sends targetOrgId now (the
+    // caller's own org, or a descendant they explicitly chose) — never trust
+    // it blindly, it could otherwise be any string the client sends.
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
 
     const id = 'PRD' + Date.now();
     sheet.appendRow([
@@ -61,16 +80,20 @@ const Products = {
       Number(data.currentStock) || 0, Number(data.baseStock) || 0,
       data.manufacturer || '', data.vendorName || '', data.vendorContact || '',
       data.status || 'active', data.vendorId || '', data.groupId || '',
-      data.orgId || '',
+      orgId,
       Number(data.contentQty) || 0, data.usageUom || ''
     ]);
-    Utils.clearCached('products_' + (data.orgId || ''));
+    Utils.clearCached('products_' + orgId);
     return Utils.createResponse('success', 'Product added successfully', { id });
   },
 
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Products');
     if (!sheet) return Utils.createResponse('error', 'Products sheet not found');
+
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const sheetData = sheet.getDataRange().getValues();
     for (let i = 1; i < sheetData.length; i++) {

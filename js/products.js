@@ -30,6 +30,7 @@ const Products = {
     document.getElementById('prodSearch').addEventListener('input', () => this._renderProducts());
     document.getElementById('prodCatFilter').addEventListener('change', () => this._renderProducts());
     document.getElementById('prodCategory').addEventListener('change', () => this._toggleProfessionalFields());
+    document.getElementById('prodIncludeChildren').addEventListener('change', () => this._reloadProducts());
 
     // Vendors tab
     document.getElementById('venAddBtn').addEventListener('click', () => this._openVenForm());
@@ -90,8 +91,10 @@ const Products = {
 
       // Org picker is optional — a role with Products access but no
       // Organizations access simply won't see it (form still works fine).
+      // Scoped to the caller's own org + descendants (Organizations.getAll's
+      // userOrgId param), not every org in the system.
       try {
-        const orgRes = await API.getOrganizations();
+        const orgRes = await API.getOrganizations(Auth.currentUser?.orgId);
         this._orgs = orgRes.status === 'success' ? (orgRes.organizations || []) : [];
       } catch (e) {
         this._orgs = [];
@@ -126,14 +129,38 @@ const Products = {
   // ─── PRODUCTS TAB ────────────────────────────────────────────────────────────
 
   _populateOrgDropdown() {
-    const group = document.getElementById('prodOrgGroup');
-    const sel   = document.getElementById('prodOrgId');
-    if (!sel || !group) return;
-    // Only worth showing when there's more than one org to move a product between.
-    if (this._orgs.length < 2) { group.style.display = 'none'; return; }
-    sel.innerHTML = '<option value="">Keep current</option>' +
-      this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
-    group.style.display = '';
+    const sel = document.getElementById('prodOrgId');
+    if (!sel) return;
+    sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+    // A leaf org (no descendants) has nothing to pick between — grey it out
+    // rather than hide it, so the form still shows which org the record is in.
+    sel.disabled = this._orgs.length < 2;
+  },
+
+  // Re-fetches just the product list (not the whole page) when the
+  // "Include sub-orgs" toggle changes.
+  async _reloadProducts() {
+    const includeChildren = document.getElementById('prodIncludeChildren').checked;
+    UI.showLoading();
+    try {
+      const res = await API.getProducts({ includeChildren });
+      if (res.status === 'success') {
+        this._products = res.products || [];
+        this._renderProducts();
+        this._populateProductDropdowns();
+      } else {
+        UI.showMessage('prodMessage', res.message || 'Failed to load products', 'error');
+      }
+    } catch (e) {
+      UI.showMessage('prodMessage', 'Failed to load products', 'error');
+    } finally {
+      UI.hideLoading();
+    }
+  },
+
+  _orgName(orgId) {
+    const org = this._orgs.find(o => o.id === orgId);
+    return org ? org.name : (orgId || '—');
   },
 
   _populateVendorDropdowns() {
@@ -176,7 +203,7 @@ const Products = {
 
     const tbody = document.getElementById('prodTableBody');
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#a0aec0;padding:24px;">No products found</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:#a0aec0;padding:24px;">No products found</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(p => {
@@ -196,6 +223,7 @@ const Products = {
         <td style="text-align:center;">${p.gst}%</td>
         <td style="text-align:center;">${this._stockCell(p.currentStock, p.baseStock)}</td>
         <td>${this._esc(vendorName)}</td>
+        <td>${this._esc(this._orgName(p.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit" onclick="Products._openProdForm('${p.id}')">Edit</button>
           <button class="action-btn action-btn-delete" onclick="Products._deleteProd('${p.id}')">Delete</button>
@@ -229,6 +257,10 @@ const Products = {
     document.getElementById('prodCurrentStock').value = '0';
     document.getElementById('prodBaseStock').value = '0';
 
+    // Org field defaults to the record's current org when editing, or the
+    // current user's own org for a brand-new product — never blank.
+    let recordOrgId = Auth.currentUser?.orgId || '';
+
     if (id) {
       const p = this._products.find(x => x.id === id);
       if (p) {
@@ -245,8 +277,11 @@ const Products = {
         document.getElementById('prodStatus').value       = p.status;
         document.getElementById('prodContentQty').value   = p.contentQty || '';
         document.getElementById('prodUsageUom').value     = p.usageUom || '';
+        recordOrgId = p.orgId || recordOrgId;
       }
     }
+    const orgSel = document.getElementById('prodOrgId');
+    if (orgSel) orgSel.value = recordOrgId;
 
     this._toggleProfessionalFields();
 
@@ -282,12 +317,10 @@ const Products = {
       contentQty:   parseFloat(document.getElementById('prodContentQty').value) || 0,
       usageUom:     document.getElementById('prodUsageUom').value
     };
-    // Only send targetOrgId when the admin explicitly picked a different
-    // org — an empty/untouched picker must never reach the backend as ''
-    // (that would look like "unassign from every org" and make the product
-    // visible/editable across all outlets). See Products.update in Products.js.
-    const orgPick = document.getElementById('prodOrgId')?.value;
-    if (orgPick) data.targetOrgId = orgPick;
+    // The Org field always holds a real org now (own org, or a descendant
+    // explicitly picked) — always send it. Products.add/update validates
+    // it's within the caller's own org + descendants before writing it.
+    data.targetOrgId = document.getElementById('prodOrgId')?.value || '';
     if (this._editingId) data.id = this._editingId;
 
     const btn = document.getElementById('prodSaveBtn');
@@ -301,11 +334,14 @@ const Products = {
         : await API.addProduct(data);
 
       if (res.status === 'success') {
+        // data carries the picked org as targetOrgId, not orgId — map it
+        // back so the grid's Org column reflects it without a full reload.
+        const merged = { ...data, orgId: data.targetOrgId };
         if (this._editingId) {
           const idx = this._products.findIndex(x => x.id === this._editingId);
-          if (idx >= 0) this._products[idx] = { ...this._products[idx], ...data };
+          if (idx >= 0) this._products[idx] = { ...this._products[idx], ...merged };
         } else {
-          this._products.push({ ...data, id: res.id || ('PRD' + Date.now()) });
+          this._products.push({ ...merged, id: res.id || ('PRD' + Date.now()) });
         }
         this._closeProdForm();
         this._renderProducts();

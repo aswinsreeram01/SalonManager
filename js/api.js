@@ -115,8 +115,8 @@ const API = {
 	},
 
 	// Products
-	getProducts() {
-		return this.call('get_products');
+	getProducts(params) {
+		return this.call('get_products', params || {});
 	},
 
 	addProduct(data) {
