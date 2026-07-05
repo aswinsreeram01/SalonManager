@@ -1,7 +1,19 @@
 // ProductGroups sheet columns (0-based):
 // id(0), name(1), gstPct(2), hsnCode(3), unitIncentive(4), sortOrder(5), status(6), orgId(7), pointsEligible(8)
+//
+// unitIncentive ("Unit Incentive Override") is stored BLANK when the admin
+// hasn't set one — distinct from an explicit 0 (no incentive for this
+// group). Blank means "fall back to the staff's Comp Plan default product
+// incentive" at payroll time (see Payroll.js); explicit 0 is a real value
+// and must not fall back.
 
 const ProductGroups = {
+  // '', null, undefined -> blank (no override, fall back to Comp Plan default).
+  // Anything else, including 0, is a real explicit value.
+  _normalizeUnitIncentive(v) {
+    return v === '' || v === null || v === undefined ? '' : (Number(v) || 0);
+  },
+
   getAll(data) {
     const orgId = (data && data.orgId) || '';
     const includeChildren = !!(data && data.includeChildren);
@@ -27,7 +39,7 @@ const ProductGroups = {
         name:           rows[i][1],
         gstPct:         Number(rows[i][2]) || 0,
         hsnCode:        rows[i][3] || '',
-        unitIncentive:  Number(rows[i][4]) || 0,
+        unitIncentive:  rows[i][4] === '' || rows[i][4] === null || rows[i][4] === undefined ? '' : Number(rows[i][4]),
         sortOrder:      Number(rows[i][5]) || 0,
         status:         rows[i][6],
         orgId:          rowOrg,
@@ -58,7 +70,7 @@ const ProductGroups = {
       data.name,
       Number(data.gstPct)        || 0,
       data.hsnCode               || '',
-      Number(data.unitIncentive) || 0,
+      this._normalizeUnitIncentive(data.unitIncentive),
       Number(data.sortOrder)     || 0,
       data.status                || 'active',
       orgId,
@@ -83,7 +95,7 @@ const ProductGroups = {
         sheet.getRange(i + 1, 2).setValue(data.name);
         sheet.getRange(i + 1, 3).setValue(Number(data.gstPct)        || 0);
         sheet.getRange(i + 1, 4).setValue(data.hsnCode               || '');
-        sheet.getRange(i + 1, 5).setValue(Number(data.unitIncentive) || 0);
+        sheet.getRange(i + 1, 5).setValue(this._normalizeUnitIncentive(data.unitIncentive));
         sheet.getRange(i + 1, 6).setValue(Number(data.sortOrder)     || 0);
         sheet.getRange(i + 1, 7).setValue(data.status);
         sheet.getRange(i + 1, 8).setValue(newOrgId);

@@ -294,6 +294,30 @@
                 <div id="hrAttSumCalWrap">
                     <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
                 </div>
+                <div id="hrAttSumPayrollOverrides" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+                    <h4 style="color:#2d3748;margin:0 0 4px;font-size:14px;">Payroll Overrides</h4>
+                    <p class="muted" style="margin:0 0 12px;font-size:12px;">
+                        Optional — leave blank to skip. Reconciled further on the Payroll tab. Values here are not calculated automatically.
+                    </p>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="hrAttSumServiceValue">Service Value (₹)</label>
+                            <input type="number" id="hrAttSumServiceValue" min="0" step="0.01" placeholder="Leave blank">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="hrAttSumMakeupValue">Make Up Value (₹)</label>
+                            <input type="number" id="hrAttSumMakeupValue" min="0" step="0.01" placeholder="Leave blank">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="hrAttSumProductCount">Product Count</label>
+                            <input type="number" id="hrAttSumProductCount" min="0" step="1" placeholder="Leave blank">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="hrAttSumTips">Tips through Billing (₹)</label>
+                            <input type="number" id="hrAttSumTips" min="0" step="0.01" placeholder="Leave blank">
+                        </div>
+                    </div>
+                </div>
                 <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
                     <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
                 </div>
@@ -311,49 +335,30 @@
 
         <div id="sub-tab-hr-pay-generate" class="sub-tab-panel active">
         <div class="card">
-            <h3 style="color:#2d3748;margin-bottom:16px;">Generate Payroll</h3>
-            <div id="hrPayMessage" class="message"></div>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;align-items:end;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
+                <h3 style="color:#2d3748;margin:0;">Payroll</h3>
                 <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayPeriod">Month*</label>
+                    <label for="hrPayPeriod">Month</label>
                     <input type="month" id="hrPayPeriod">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayPayableDays">Payable Days</label>
-                    <input type="number" id="hrPayPayableDays" value="26" min="1" max="31">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayEligibleOffs">Eligible Offs (free)</label>
-                    <input type="number" id="hrPayEligibleOffs" value="4" min="0">
-                </div>
-                <button class="btn btn-primary" id="hrPayCalcBtn" type="button" style="align-self:flex-end;">Calculate for All Staff</button>
             </div>
-            <div id="hrPayCalcWrap" style="display:none;">
-                <div class="table-container" style="margin-bottom:16px;">
-                    <table>
-                        <thead><tr>
-                            <th>Staff</th><th>Base</th><th>Days Off</th><th>Excess</th>
-                            <th>Leave Deduct</th><th>Adj. Base</th><th>OT Pay</th>
-                            <th>Incentives</th><th>Advance Deduct</th><th>Net Pay</th>
-                        </tr></thead>
-                        <tbody id="hrPayCalcBody"></tbody>
-                    </table>
-                </div>
-                <button class="btn btn-primary" id="hrPaySaveBtn" type="button">Save Payroll</button>
-            </div>
-        </div>
-        <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Payroll History</h3>
-                <input type="month" id="hrPayHistFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
-            </div>
+            <p class="muted" style="margin:0 0 16px;font-size:12px;">
+                Rows are created automatically by Quick Entry (Attendance &amp; OT &gt; Quick Entry) when attendance is saved for a staff member's period —
+                this page doesn't create new rows, only reconciles and finalizes ones that already exist for the selected month.
+            </p>
+            <div id="hrPayMessage" class="message"></div>
             <div class="table-container">
                 <table>
                     <thead><tr>
-                        <th>Staff</th><th>Period</th><th>Net Pay</th><th>Status</th><th>Actions</th>
+                        <th>Staff</th><th>Base</th><th>Days Off</th>
+                        <th>Payable Days</th><th>Elig. Offs</th><th>Long Absence Days</th>
+                        <th>Leave Deduct</th><th>Adj. Base</th><th>OT Pay</th>
+                        <th>Service Value</th><th>Make Up Value</th><th>Product Count</th><th>Tips</th>
+                        <th>Incentives</th><th>Advance Deduct</th><th>Net Pay</th>
+                        <th>Status</th><th>Actions</th>
                     </tr></thead>
-                    <tbody id="hrPayHistBody">
-                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">No payroll records</td></tr>
+                    <tbody id="hrPayTableBody">
+                        <tr><td colspan="18" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -410,6 +415,16 @@
                             <label for="hrProfOtThreshold">OT Threshold (hours/day)</label>
                             <input type="number" id="hrProfOtThreshold" min="1" step="0.5" value="9">
                             <p class="muted" style="margin:4px 0 0;font-size:12px;">Hours worked beyond this in a day count as overtime for staff on this profile.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfEligibleOffs">Eligible Offs (days/month)</label>
+                            <input type="number" id="hrProfEligibleOffs" min="0" step="1" value="4">
+                            <p class="muted" style="margin:4px 0 0;font-size:12px;">Monthly baseline — payroll scales this by payable days when calculating.</p>
+                        </div>
+                        <div class="form-group">
+                            <label for="hrProfDefaultProductIncentive">Default Product Incentive (₹/unit)</label>
+                            <input type="number" id="hrProfDefaultProductIncentive" min="0" step="0.01" value="0">
+                            <p class="muted" style="margin:4px 0 0;font-size:12px;">Fallback rate used when a Product Group has no override set.</p>
                         </div>
                         <div class="form-group">
                             <label for="hrProfL1Type">Target1 Type</label>
@@ -477,11 +492,12 @@
                     <table>
                         <thead><tr>
                             <th>Name</th><th>Type</th><th>Revenue Base</th>
-                            <th>OT Rate</th><th>OT Threshold</th><th>Target1</th><th>Target2</th>
+                            <th>OT Rate</th><th>OT Threshold</th><th>Elig. Offs</th><th>Def. Prod. Incentive</th>
+                            <th>Target1</th><th>Target2</th>
                             <th>X%/Y%/Z%</th><th>Status</th><th>Org</th><th>Actions</th>
                         </tr></thead>
                         <tbody id="hrProfTableBody">
-                            <tr><td colspan="11" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                            <tr><td colspan="13" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>

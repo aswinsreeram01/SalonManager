@@ -5,6 +5,11 @@
 // Was previously a single company-wide OrgSettings value; moved here so it
 // can vary by profile (and therefore by person, since staff are assigned
 // to a profile). Blank/0 falls back to 9 — see buildOTThresholdMap.
+// eligibleOffs(15) — monthly baseline eligible-offs allowance for staff on
+// this profile. Payroll scales it by payableDays/daysInMonth for the actual
+// period. Blank/0 falls back to 4 — see Payroll.js.
+// defaultProductIncentive(16) — ₹/unit fallback used when a Product Group's
+// own unitIncentive override is blank. Blank/0 means no fallback (₹0).
 
 const IncentiveProfiles = {
   getAll(data) {
@@ -42,7 +47,9 @@ const IncentiveProfiles = {
         zPct:          Number(rows[i][11]) || 0,
         status:        rows[i][12],
         orgId:         rowOrg,
-        otThresholdHours: Number(rows[i][14]) || 9
+        otThresholdHours: Number(rows[i][14]) || 9,
+        eligibleOffs:  Number(rows[i][15]) || 4,
+        defaultProductIncentive: Number(rows[i][16]) || 0
       });
     }
 
@@ -74,7 +81,9 @@ const IncentiveProfiles = {
       Number(data.zPct)  || 0,
       data.status        || 'active',
       orgId,
-      Number(data.otThresholdHours) || 9
+      Number(data.otThresholdHours) || 9,
+      Number(data.eligibleOffs) || 4,
+      Number(data.defaultProductIncentive) || 0
     ]);
     Utils.clearCached('incentive_profiles_' + orgId);
     return Utils.createResponse('success', 'Incentive profile added successfully', { profileId });
@@ -106,6 +115,8 @@ const IncentiveProfiles = {
         sheet.getRange(i + 1, 13).setValue(data.status);
         sheet.getRange(i + 1, 14).setValue(newOrgId);
         sheet.getRange(i + 1, 15).setValue(Number(data.otThresholdHours) || 9);
+        sheet.getRange(i + 1, 16).setValue(Number(data.eligibleOffs) || 4);
+        sheet.getRange(i + 1, 17).setValue(Number(data.defaultProductIncentive) || 0);
         Utils.clearCached('incentive_profiles_' + oldOrgId);
         if (newOrgId !== oldOrgId) Utils.clearCached('incentive_profiles_' + newOrgId);
         return Utils.createResponse('success', 'Incentive profile updated successfully');
@@ -139,11 +150,11 @@ const IncentiveProfiles = {
 
     const seeds = [
       ['PROF_SP_STD', 'Service Provider — Standard', 'service_provider', 'individual',
-        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', '', 9],
+        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', '', 9, 4, 0],
       ['PROF_MGR_STD', 'Manager — Standard', 'manager', 'org',
-        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', '', 9],
+        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', '', 9, 4, 0],
       ['PROF_HK_STD', 'Housekeeping — Standard', 'housekeeping', 'individual',
-        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '', 9]
+        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '', 9, 4, 0]
     ];
 
     seeds.forEach(row => sheet.appendRow(row));

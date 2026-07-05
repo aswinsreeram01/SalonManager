@@ -366,10 +366,10 @@ const API = {
     getWeeklyIncentives(params) { return this.call('get_weekly_incentives', params || {}); },
 
     // Payroll
-    calculatePayroll(data) { return this.call('calculate_payroll', data); },
-    savePayroll(data) { return this.call('save_payroll', data); },
     getPayroll(params) { return this.call('get_payroll', params || {}); },
     updatePayrollStatus(data) { return this.call('update_payroll_status', data); },
+    upsertPayrollFromAttendance(data) { return this.call('upsert_payroll_from_attendance', data); },
+    updatePayrollRow(data) { return this.call('update_payroll_row', data); },
 
     // Setup / Sheet Scaffolding
     getSetupStatus() { return this.call('get_setup_status'); },

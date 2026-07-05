@@ -74,7 +74,7 @@ const ProductGroups = {
                 <td style="font-weight:500;">${this._esc(g.name)}</td>
                 <td>${g.gstPct != null ? this._esc(g.gstPct) + '%' : '-'}</td>
                 <td>${g.hsnCode ? this._esc(g.hsnCode) : '-'}</td>
-                <td>${g.unitIncentive != null ? '&#8377;' + this._esc(g.unitIncentive) : '-'}</td>
+                <td>${g.unitIncentive !== '' && g.unitIncentive != null ? '&#8377;' + this._esc(g.unitIncentive) : '<span style="color:#a0aec0;">Default</span>'}</td>
                 <td>${g.sortOrder != null ? this._esc(g.sortOrder) : '-'}</td>
                 <td style="text-align:center;">${g.pointsEligible ? '<span style="color:#38a169;font-weight:700;">&#10003;</span>' : '<span style="color:#a0aec0;">&mdash;</span>'}</td>
                 <td><span class="status-badge status-${this._esc(g.status)}">${this._esc(g.status)}</span></td>
@@ -139,11 +139,12 @@ const ProductGroups = {
         e.preventDefault();
         const saveBtn = document.getElementById('pgSaveBtn');
 
+        const unitIncentiveRaw = document.getElementById('pgUnitIncentive').value.trim();
         const data = {
             name: document.getElementById('pgName').value.trim(),
             gstPct: parseFloat(document.getElementById('pgGstPct').value) || 0,
             hsnCode: document.getElementById('pgHsnCode').value.trim(),
-            unitIncentive: parseFloat(document.getElementById('pgUnitIncentive').value) || 0,
+            unitIncentive: unitIncentiveRaw === '' ? '' : (parseFloat(unitIncentiveRaw) || 0),
             sortOrder: parseInt(document.getElementById('pgSortOrder').value, 10) || 0,
             status: document.getElementById('pgStatus').value,
             pointsEligible: !!(document.getElementById('pgPointsEligible') || {}).checked,

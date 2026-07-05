@@ -1,6 +1,14 @@
 // ServiceGroups sheet columns (0-based):
-// id(0), name(1), description(2), gstPct(3), sacCode(4), countForTarget(5),
-// directIncentivePct(6), sortOrder(7), status(8), orgId(9), pointsEligible(10)
+// id(0), name(1), description(2), gstPct(3), sacCode(4), countForTarget(5) — DEPRECATED, see below,
+// directIncentivePct(6), sortOrder(7), status(8), orgId(9), pointsEligible(10),
+// excludeFromTarget(11)
+//
+// excludeFromTarget replaces countForTarget: target-revenue eligibility is
+// now opt-OUT (every service group counts toward target unless explicitly
+// excluded) instead of opt-IN. countForTarget(5) is kept in the sheet for
+// history but no longer read/written — see migrateExcludeFromTarget below
+// for the one-time backfill that preserved existing behavior when this
+// switched over.
 
 const ServiceGroups = {
   getAll(data) {
@@ -29,12 +37,12 @@ const ServiceGroups = {
         description:        rows[i][2],
         gstPct:             rows[i][3],
         sacCode:            rows[i][4] || '',
-        countForTarget:     rows[i][5] === true || rows[i][5] === 'TRUE',
         directIncentivePct: Number(rows[i][6]) || 0,
         sortOrder:          Number(rows[i][7]) || 0,
         status:             rows[i][8],
         orgId:              rowOrg,
-        pointsEligible:     rows[i][10] === true || rows[i][10] === 'TRUE'
+        pointsEligible:     rows[i][10] === true || rows[i][10] === 'TRUE',
+        excludeFromTarget:  rows[i][11] === true || rows[i][11] === 'TRUE'
       });
     }
 
@@ -62,12 +70,13 @@ const ServiceGroups = {
       data.description         || '',
       Number(data.gstPct)      || 0,
       data.sacCode             || '',
-      data.countForTarget      === true || data.countForTarget === 'TRUE' ? true : false,
+      '', // countForTarget — deprecated, no longer written
       Number(data.directIncentivePct) || 0,
       Number(data.sortOrder)   || 0,
       data.status              || 'active',
       orgId,
-      data.pointsEligible      === true || data.pointsEligible === 'TRUE' ? true : false
+      data.pointsEligible      === true || data.pointsEligible === 'TRUE' ? true : false,
+      data.excludeFromTarget   === true || data.excludeFromTarget === 'TRUE' ? true : false
     ]);
     Utils.clearCached('service_groups_' + orgId);
     return Utils.createResponse('success', 'Service group added successfully', { id });
@@ -89,18 +98,43 @@ const ServiceGroups = {
         sheet.getRange(i + 1, 3).setValue(data.description         || '');
         sheet.getRange(i + 1, 4).setValue(Number(data.gstPct)      || 0);
         sheet.getRange(i + 1, 5).setValue(data.sacCode             || '');
-        sheet.getRange(i + 1, 6).setValue(data.countForTarget === true || data.countForTarget === 'TRUE' ? true : false);
+        // Column 6 (countForTarget) deliberately left untouched — deprecated, historical only.
         sheet.getRange(i + 1, 7).setValue(Number(data.directIncentivePct) || 0);
         sheet.getRange(i + 1, 8).setValue(Number(data.sortOrder)   || 0);
         sheet.getRange(i + 1, 9).setValue(data.status);
         sheet.getRange(i + 1, 10).setValue(newOrgId);
         sheet.getRange(i + 1, 11).setValue(data.pointsEligible === true || data.pointsEligible === 'TRUE' ? true : false);
+        sheet.getRange(i + 1, 12).setValue(data.excludeFromTarget === true || data.excludeFromTarget === 'TRUE' ? true : false);
         Utils.clearCached('service_groups_' + oldOrgId);
         if (newOrgId !== oldOrgId) Utils.clearCached('service_groups_' + newOrgId);
         return Utils.createResponse('success', 'Service group updated successfully');
       }
     }
     return Utils.createResponse('error', 'Service group not found');
+  },
+
+  // ── One-time migration: countForTarget -> excludeFromTarget ──────────────
+  // Run manually from the Apps Script editor (select migrateExcludeFromTarget,
+  // click Run) ONCE after deploying the opt-out target model. Sets
+  // excludeFromTarget = !countForTarget on every existing row, which
+  // preserves today's behavior exactly — nothing changes for existing
+  // groups until an admin explicitly re-checks the (renamed) box. Safe to
+  // re-run: skips any row that already has excludeFromTarget set.
+  migrateExcludeFromTarget() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('ServiceGroups');
+    if (!sheet) { Logger.log('ServiceGroups sheet not found'); return; }
+
+    const rows = sheet.getDataRange().getValues();
+    let migrated = 0;
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      if (rows[i][11] === true || rows[i][11] === 'TRUE') continue; // already migrated
+      const countedForTarget = rows[i][5] === true || rows[i][5] === 'TRUE';
+      sheet.getRange(i + 1, 12).setValue(!countedForTarget);
+      migrated++;
+    }
+    Utils.clearCached('service_groups_');
+    Logger.log('Migrated ' + migrated + ' service group(s) to excludeFromTarget');
   },
 
   remove(data) {

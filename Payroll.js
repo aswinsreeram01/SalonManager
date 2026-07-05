@@ -2,34 +2,161 @@
 // payrollId(0), staffId(1), staffName(2), period(3), baseSalary(4), payableDays(5),
 // eligibleOffs(6), totalDaysOff(7), excessLeaves(8), leaveDeduction(9),
 // adjustedBaseSalary(10), allowances(11), otHours(12), otPay(13),
-// serviceIncentive(14), productIncentive(15), makeupIncentive(16), targetIncentive(17),
+// serviceIncentive(14) — actually holds REVENUE (manual serviceValue or bill-scanned),
+// productIncentive(15) — always 0, product incentive dollar computation was dropped,
+// makeupIncentive(16) — final $ (manual makeupValue or bill-scanned),
+// targetIncentive(17) — $ computed from serviceIncentive/revenue via the L1/L2/X/Y/Z slabs,
 // totalIncentive(18), advanceDeducted(19), netPay(20), status(21), notes(22), createdAt(23),
-// orgId(24)
+// orgId(24),
+// weekdayAbsentDates(25) — comma-separated ISO dates, Mon-Thu absences,
+// weekendAbsentDates(26) — comma-separated ISO dates, Fri/Sat/Sun absences,
+// longAbsenceExcludedDays(27) — auto-detected run of >=8 consecutive absent/no-record
+//   calendar days touching the start or end of the month; excluded from both
+//   totalDaysOff and payableDays. Editable on the Payroll page.
+// serviceValue(28) — manual revenue override (Quick Entry), blank by default,
+// productCount(29) — manual count, record-keeping only, no $ effect, blank by default,
+// tipsOverride(30) — manual flat $ addition to net pay, blank by default,
+// makeupValue(31) — manual final-$ override for makeup incentive, blank by default.
+//
+// Attendance-derived columns (5,7,8,9,10,12,13,25,26,27) are fully recomputed
+// every time Quick Entry saves attendance for that staff+period via
+// upsertFromAttendance — they always reflect the latest attendance data.
+// Everything else (serviceValue, productCount, tipsOverride, makeupValue,
+// advanceDeducted, status, notes, and the derived incentive/net-pay figures)
+// is owned by the Payroll page's reconcile screen and is preserved across
+// Quick Entry saves.
 
 const Payroll = {
 
-  calculate(data) {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+  // ── Attendance-derived numbers ────────────────────────────────────────────
 
-    // ── 1. Load staff row ─────────────────────────────────────────────────
+  // Builds weekday/weekend absence date lists, total days off (weekend
+  // absence still weighted 2x, matching pre-existing behavior), OT hours,
+  // and auto-detects a long-absence block. A day counts toward the
+  // long-absence block if it's explicitly 'absent' OR has no attendance
+  // record at all — covers the new-joiner / mid-month-exit case, where
+  // there's usually no row at all for days outside employment, not an
+  // explicit 'absent' entry for each one.
+  _computeAttendanceDerived(staffId, period) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const [yr, mo] = period.split('-').map(Number);
+    const daysInMonth = new Date(yr, mo, 0).getDate();
+    const fromStr = period + '-01';
+    const toStr   = period + '-' + String(daysInMonth).padStart(2, '0');
+
+    const attSheet = ss.getSheetByName('StaffAttendance');
+    const byDate = {}; // dateStr -> dayStatus ('present'|'absent'|'half-day')
+    let otHours = 0;
+
+    if (attSheet) {
+      const attRows = attSheet.getDataRange().getValues();
+      for (let i = 1; i < attRows.length; i++) {
+        if (!attRows[i][0]) continue;
+        if (attRows[i][1] !== staffId) continue;
+        const d = attRows[i][2];
+        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
+        if (dateStr < fromStr || dateStr > toStr) continue;
+
+        const dayStatus = String(attRows[i][8] || '').toLowerCase();
+        byDate[dateStr] = dayStatus;
+        if (dayStatus === 'present' || dayStatus === 'half-day') {
+          otHours += Number(attRows[i][7]) || 0;
+        }
+      }
+    }
+
+    const peakDays = new Set([5, 6, 0]); // Fri, Sat, Sun (JS getDay())
+    const weekdayAbsentDates = [];
+    const weekendAbsentDates = [];
+    let totalDaysOff = 0;
+    const dayOffAmountByDate = {}; // for long-absence-block subtraction below
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = fromStr.slice(0, 8) + String(day).padStart(2, '0');
+      const dayStatus = byDate[dateStr];
+      const dow = new Date(dateStr + 'T00:00:00').getDay();
+      const isPeak = peakDays.has(dow);
+
+      let amount = 0;
+      if (dayStatus === 'absent') {
+        amount = isPeak ? 2 : 1;
+        (isPeak ? weekendAbsentDates : weekdayAbsentDates).push(dateStr);
+      } else if (dayStatus === 'half-day') {
+        amount = isPeak ? 1 : 0.5;
+      }
+      dayOffAmountByDate[dateStr] = amount;
+      totalDaysOff += amount;
+    }
+
+    // Long-absence block: a run of >=8 consecutive calendar days, each
+    // either 'absent' or with no attendance record at all, touching day 1
+    // or the last day of the month.
+    const isBlockDay = day => {
+      const dateStr = fromStr.slice(0, 8) + String(day).padStart(2, '0');
+      const status = byDate[dateStr];
+      return status === 'absent' || status === undefined;
+    };
+
+    let leadingRun = 0;
+    for (let day = 1; day <= daysInMonth && isBlockDay(day); day++) leadingRun++;
+    let trailingRun = 0;
+    for (let day = daysInMonth; day >= 1 && isBlockDay(day); day--) trailingRun++;
+    // A short month could have the same days counted in both runs — cap at daysInMonth.
+    if (leadingRun + trailingRun > daysInMonth) trailingRun = daysInMonth - leadingRun;
+
+    let longAbsenceExcludedDays = 0;
+    if (leadingRun >= 8) longAbsenceExcludedDays += leadingRun;
+    if (trailingRun >= 8) longAbsenceExcludedDays += trailingRun;
+
+    // Exclude the block's days from totalDaysOff (they're "not employed that
+    // stretch", not excess leave) — only subtract the portion of totalDaysOff
+    // that block actually contributed.
+    if (leadingRun >= 8) {
+      for (let day = 1; day <= leadingRun; day++) {
+        const dateStr = fromStr.slice(0, 8) + String(day).padStart(2, '0');
+        totalDaysOff -= dayOffAmountByDate[dateStr] || 0;
+      }
+    }
+    if (trailingRun >= 8) {
+      for (let day = daysInMonth - trailingRun + 1; day <= daysInMonth; day++) {
+        const dateStr = fromStr.slice(0, 8) + String(day).padStart(2, '0');
+        totalDaysOff -= dayOffAmountByDate[dateStr] || 0;
+      }
+    }
+
+    return {
+      daysInMonth,
+      totalDaysOff: Math.max(0, totalDaysOff),
+      otHours,
+      weekdayAbsentDates,
+      weekendAbsentDates,
+      longAbsenceExcludedDays
+    };
+  },
+
+  _getStaffAndProfile(staffId) {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
     const staffSheet = ss.getSheetByName('Staff');
-    if (!staffSheet) return Utils.createResponse('error', 'Staff sheet not found');
+    if (!staffSheet) return null;
 
     const staffRows = staffSheet.getDataRange().getValues();
     let staffRow = null;
     for (let i = 1; i < staffRows.length; i++) {
-      if (staffRows[i][0] === data.staffId) { staffRow = staffRows[i]; break; }
+      if (staffRows[i][0] === staffId) { staffRow = staffRows[i]; break; }
     }
-    if (!staffRow) return Utils.createResponse('error', 'Staff member not found');
+    if (!staffRow) return null;
 
-    const staffName   = staffRow[2];
-    const salary      = Number(staffRow[9])  || 0;
-    const allowances  = Number(staffRow[10]) || 0;
-    const profileId   = staffRow[15] || '';
+    const staffName    = staffRow[2];
+    const salary       = Number(staffRow[9])  || 0;
+    const allowances   = Number(staffRow[10]) || 0;
+    const profileId    = staffRow[15] || '';
     const targetPeriod = staffRow[16] || 'monthly';
+    const orgId        = staffRow[17] || '';
 
-    // ── 2. Load incentive profile ─────────────────────────────────────────
-    let profile = { otHourlyRate: 0, l1Type: 'fixed', l1Value: 0, l2Type: 'fixed', l2Value: 0, xPct: 0, yPct: 0, zPct: 0, revenueBase: 'individual' };
+    let profile = {
+      otHourlyRate: 0, l1Type: 'fixed', l1Value: 0, l2Type: 'fixed', l2Value: 0,
+      xPct: 0, yPct: 0, zPct: 0, revenueBase: 'individual', eligibleOffs: 4
+    };
     if (profileId) {
       const profSheet = ss.getSheetByName('IncentiveProfiles');
       if (profSheet) {
@@ -45,7 +172,8 @@ const Payroll = {
               l2Value:      Number(profRows[i][8])  || 0,
               xPct:         Number(profRows[i][9])  || 0,
               yPct:         Number(profRows[i][10]) || 0,
-              zPct:         Number(profRows[i][11]) || 0
+              zPct:         Number(profRows[i][11]) || 0,
+              eligibleOffs: Number(profRows[i][15]) || 4
             };
             break;
           }
@@ -53,291 +181,343 @@ const Payroll = {
       }
     }
 
-    // ── 3. Compute L1, L2 ─────────────────────────────────────────────────
-    const L1 = profile.l1Type === 'salary_pct' ? salary * profile.l1Value / 100 : profile.l1Value;
-    const L2 = profile.l2Type === 'salary_pct' ? salary * profile.l2Value / 100 : profile.l2Value;
+    return { staffName, salary, allowances, profileId, targetPeriod, orgId, profile };
+  },
 
-    // ── 4. Period date range ──────────────────────────────────────────────
-    const period  = data.period; // 'YYYY-MM'
-    const [yr, mo] = period.split('-').map(Number);
-    const fromStr = period + '-01';
-    const lastDay = new Date(yr, mo, 0).getDate(); // day 0 of next month = last day of this month
-    const toStr   = period + '-' + String(lastDay).padStart(2, '0');
+  // Revenue for the target-incentive slabs and the makeup incentive $ amount.
+  // Each falls back to the existing bill-scan calculation only when its
+  // manual override is blank. Product incentive is no longer computed here
+  // at all (dropped) — see the schema note at the top of this file.
+  _computeRevenueAndMakeup(staffId, period, profile, serviceValueOverride, makeupValueOverride) {
+    const needsBillScan = (serviceValueOverride === '' || serviceValueOverride === null || serviceValueOverride === undefined)
+      || (makeupValueOverride === '' || makeupValueOverride === null || makeupValueOverride === undefined);
 
-    // ── 5. Read attendance ────────────────────────────────────────────────
-    const attSheet = ss.getSheetByName('StaffAttendance');
-    let totalDaysOff = 0;
-    let otHours      = 0;
-    const peakDays   = new Set([5, 6, 0]); // Fri, Sat, Sun (JS getDay())
+    let billScannedRevenue = 0;
+    let billScannedMakeup  = 0;
 
-    if (attSheet) {
-      const attRows = attSheet.getDataRange().getValues();
-      for (let i = 1; i < attRows.length; i++) {
-        if (!attRows[i][0]) continue;
-        if (attRows[i][1] !== data.staffId) continue;
-        const d = attRows[i][2];
-        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
-        if (dateStr < fromStr || dateStr > toStr) continue;
+    if (needsBillScan) {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const [yr, mo] = period.split('-').map(Number);
+      const fromStr  = period + '-01';
+      const lastDay  = new Date(yr, mo, 0).getDate();
+      const toStr    = period + '-' + String(lastDay).padStart(2, '0');
 
-        const dayStatus = String(attRows[i][8] || '').toLowerCase();
-        const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
-        const isPeak    = peakDays.has(dayOfWeek);
-
-        if (dayStatus === 'absent') {
-          totalDaysOff += isPeak ? 2 : 1;
-        } else if (dayStatus === 'half-day') {
-          totalDaysOff += isPeak ? 1 : 0.5;
-        }
-
-        if (dayStatus === 'present' || dayStatus === 'half-day') {
-          otHours += Number(attRows[i][7]) || 0;
+      const billsSheet = ss.getSheetByName('Bills');
+      const periodBillIds = new Set();
+      if (billsSheet) {
+        const billRows = billsSheet.getDataRange().getValues();
+        for (let i = 1; i < billRows.length; i++) {
+          if (!billRows[i][0]) continue;
+          if (String(billRows[i][16] || '').toLowerCase() === 'void') continue;
+          const d = billRows[i][4];
+          const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
+          if (dateStr >= fromStr && dateStr <= toStr) periodBillIds.add(billRows[i][0]);
         }
       }
+
+      const sgSheet = ss.getSheetByName('ServiceGroups');
+      const sgMap = {};
+      if (sgSheet) {
+        const sgRows = sgSheet.getDataRange().getValues();
+        for (let i = 1; i < sgRows.length; i++) {
+          if (!sgRows[i][0]) continue;
+          sgMap[sgRows[i][0]] = {
+            excludeFromTarget:  sgRows[i][11] === true || sgRows[i][11] === 'TRUE',
+            directIncentivePct: Number(sgRows[i][6]) || 0
+          };
+        }
+      }
+
+      const svcSheet = ss.getSheetByName('Services');
+      const svcMap = {};
+      if (svcSheet) {
+        const svcRows = svcSheet.getDataRange().getValues();
+        for (let i = 1; i < svcRows.length; i++) {
+          if (!svcRows[i][0]) continue;
+          svcMap[svcRows[i][0]] = svcRows[i][4]; // serviceGroupId at col 4
+        }
+      }
+
+      const biSheet = ss.getSheetByName('BillItems');
+      let serviceRevenue = 0;
+      let orgServiceRevenue = 0;
+
+      if (biSheet) {
+        const biRows = biSheet.getDataRange().getValues();
+        for (let i = 1; i < biRows.length; i++) {
+          if (!biRows[i][0]) continue;
+          const billId = biRows[i][1];
+          if (!periodBillIds.has(billId)) continue;
+
+          const type         = String(biRows[i][2] || '').toLowerCase();
+          const refId        = biRows[i][3];
+          const rowStaffId   = biRows[i][5];
+          const lineSubtotal = Number(biRows[i][10]) || 0;
+          if (type !== 'service') continue;
+
+          const groupId = svcMap[refId];
+          const sg = sgMap[groupId];
+          if (!sg) continue;
+          if (!sg.excludeFromTarget) {
+            orgServiceRevenue += lineSubtotal; // always accumulate for org total
+            if (rowStaffId === staffId) serviceRevenue += lineSubtotal;
+          }
+          if (rowStaffId === staffId && sg.directIncentivePct > 0) {
+            billScannedMakeup += lineSubtotal * sg.directIncentivePct / 100;
+          }
+        }
+      }
+
+      billScannedRevenue = profile.revenueBase === 'org' ? orgServiceRevenue : serviceRevenue;
     }
 
-    // ── 6. Deductions & adjustments ───────────────────────────────────────
-    const eligibleOffs       = Number(data.eligibleOffs) || 4;
-    const payableDays        = Number(data.payableDays)  || 26;
+    const revenue = (serviceValueOverride === '' || serviceValueOverride === null || serviceValueOverride === undefined)
+      ? billScannedRevenue : Number(serviceValueOverride) || 0;
+    const makeupIncentive = (makeupValueOverride === '' || makeupValueOverride === null || makeupValueOverride === undefined)
+      ? billScannedMakeup : Number(makeupValueOverride) || 0;
+
+    return { revenue, makeupIncentive };
+  },
+
+  // 3-tier target-incentive slab against the Comp Plan's L1/L2/X/Y/Z.
+  _computeTargetIncentive(revenue, profile, baseSalary) {
+    const L1 = profile.l1Type === 'salary_pct' ? baseSalary * profile.l1Value / 100 : profile.l1Value;
+    const L2 = profile.l2Type === 'salary_pct' ? baseSalary * profile.l2Value / 100 : profile.l2Value;
+    if (revenue < L1) return 0;
+    if (revenue < L2) return L1 * profile.xPct / 100 + (revenue - L1) * profile.yPct / 100;
+    return L1 * profile.xPct / 100 + (L2 - L1) * profile.yPct / 100 + (revenue - L2) * profile.zPct / 100;
+  },
+
+  // ── Full breakdown, from attendance-derived numbers + current override fields ──
+
+  _buildBreakdown(inputs) {
+    const {
+      staffId, staffName, period, orgId, salary, allowances, profile, targetPeriod,
+      payableDays, eligibleOffsInput, totalDaysOff, otHours,
+      weekdayAbsentDates, weekendAbsentDates, longAbsenceExcludedDays,
+      serviceValue, productCount, tipsOverride, makeupValue, advanceDeducted,
+      status, notes, payrollId, createdAt
+    } = inputs;
+
+    const daysInMonthForRatio = inputs.daysInMonth || payableDays || 30;
+    const eligibleOffs = eligibleOffsInput !== '' && eligibleOffsInput !== null && eligibleOffsInput !== undefined
+      ? Number(eligibleOffsInput) || 0
+      : Math.floor((profile.eligibleOffs || 4) * payableDays / daysInMonthForRatio);
+
     const excessLeaves       = Math.max(0, totalDaysOff - eligibleOffs);
-    const leaveDeduction     = excessLeaves * (salary / payableDays);
+    const leaveDeduction     = payableDays > 0 ? excessLeaves * (salary / payableDays) : 0;
     const adjustedBaseSalary = salary - leaveDeduction;
     const otPay              = otHours * profile.otHourlyRate;
-    const advanceDeducted    = Number(data.advanceDeducted) || 0;
 
-    // ── 7. Incentives ─────────────────────────────────────────────────────
-    let targetIncentive  = 0;
-    let directIncentive  = 0;
-    let productIncentive = 0;
-    let serviceIncentive = 0;
-    let makeupIncentive  = 0;
+    let targetIncentive = 0;
+    let serviceRevenue  = 0;
+    let makeupIncentive = 0;
 
     if (targetPeriod === 'weekly') {
-      // Sum approved WeeklyIncentive rows for this staff within the period
+      // Unaffected — sums pre-approved WeeklyIncentive snapshot rows.
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const [yr, mo] = period.split('-').map(Number);
+      const fromStr = period + '-01';
+      const lastDay = new Date(yr, mo, 0).getDate();
+      const toStr   = period + '-' + String(lastDay).padStart(2, '0');
       const wkiSheet = ss.getSheetByName('WeeklyIncentive');
+      let directIncentive = 0;
       if (wkiSheet) {
         const wkiRows = wkiSheet.getDataRange().getValues();
         for (let i = 1; i < wkiRows.length; i++) {
           if (!wkiRows[i][0]) continue;
-          if (wkiRows[i][1] !== data.staffId) continue;
+          if (wkiRows[i][1] !== staffId) continue;
           const ws = wkiRows[i][2] instanceof Date ? Utils.businessDate(wkiRows[i][2]) : String(wkiRows[i][2]).slice(0, 10);
           if (ws < fromStr || ws > toStr) continue;
           targetIncentive  += Number(wkiRows[i][5]) || 0;
           directIncentive  += Number(wkiRows[i][6]) || 0;
-          productIncentive += Number(wkiRows[i][7]) || 0;
         }
       }
+      makeupIncentive = directIncentive;
     } else {
-      const result = this._computeMonthlyIncentives(data.staffId, period, profile, L1, L2, salary);
-      serviceIncentive = result.serviceIncentive;
-      productIncentive = result.productIncentive;
-      makeupIncentive  = result.makeupIncentive;
-      targetIncentive  = result.targetIncentive;
-      directIncentive  = makeupIncentive; // alias for summary
+      const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue);
+      serviceRevenue  = rev.revenue;
+      makeupIncentive = rev.makeupIncentive;
+      targetIncentive = Payroll._computeTargetIncentive(serviceRevenue, profile, salary);
     }
 
-    const totalIncentive = targetIncentive + directIncentive + productIncentive;
-    const netPay         = adjustedBaseSalary + allowances + otPay + totalIncentive - advanceDeducted;
-
-    const breakdown = {
-      staffId:           data.staffId,
-      staffName,
-      period,
-      baseSalary:        salary,
-      payableDays,
-      eligibleOffs,
-      totalDaysOff,
-      excessLeaves,
-      leaveDeduction,
-      adjustedBaseSalary,
-      allowances,
-      otHours,
-      otPay,
-      serviceIncentive,
-      productIncentive,
-      makeupIncentive,
-      targetIncentive,
-      totalIncentive,
-      advanceDeducted,
-      netPay,
-      status:  'draft',
-      notes:   data.notes || '',
-      createdAt: new Date().toISOString()
-    };
-
-    return Utils.createResponse('success', 'Payroll calculated', breakdown);
-  },
-
-  _computeMonthlyIncentives(staffId, period, profile, L1, L2, baseSalary) {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const [yr, mo] = period.split('-').map(Number);
-    const fromStr  = period + '-01';
-    const lastDay  = new Date(yr, mo, 0).getDate();
-    const toStr    = period + '-' + String(lastDay).padStart(2, '0');
-
-    // ── Build periodBillIds ───────────────────────────────────────────────
-    const billsSheet = ss.getSheetByName('Bills');
-    const periodBillIds = new Set();
-    if (billsSheet) {
-      const billRows = billsSheet.getDataRange().getValues();
-      for (let i = 1; i < billRows.length; i++) {
-        if (!billRows[i][0]) continue;
-        // Bills columns: billId(0), customerId(1), customerName(2), priceBookId(3),
-        // createdAt(4), ..., status(16). Two indices were wrong here (5 and 1)
-        // and always missed — voided bills were never excluded, and the date
-        // filter was comparing against customerId, not createdAt.
-        if (String(billRows[i][16] || '').toLowerCase() === 'void') continue;
-        const d = billRows[i][4];
-        const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
-        if (dateStr >= fromStr && dateStr <= toStr) periodBillIds.add(billRows[i][0]);
-      }
-    }
-
-    // ── Load ServiceGroups map ────────────────────────────────────────────
-    const sgSheet = ss.getSheetByName('ServiceGroups');
-    const sgMap = {};
-    if (sgSheet) {
-      const sgRows = sgSheet.getDataRange().getValues();
-      for (let i = 1; i < sgRows.length; i++) {
-        if (!sgRows[i][0]) continue;
-        sgMap[sgRows[i][0]] = {
-          countForTarget:     sgRows[i][5] === true || sgRows[i][5] === 'TRUE',
-          directIncentivePct: Number(sgRows[i][6]) || 0
-        };
-      }
-    }
-
-    // ── Load ProductGroups map ────────────────────────────────────────────
-    const pgSheet = ss.getSheetByName('ProductGroups');
-    const pgMap = {};
-    if (pgSheet) {
-      const pgRows = pgSheet.getDataRange().getValues();
-      for (let i = 1; i < pgRows.length; i++) {
-        if (!pgRows[i][0]) continue;
-        pgMap[pgRows[i][0]] = { unitIncentive: Number(pgRows[i][4]) || 0 };
-      }
-    }
-
-    // ── Load Services: serviceId → groupId (col 4) ────────────────────────
-    const svcSheet = ss.getSheetByName('Services');
-    const svcMap = {};
-    if (svcSheet) {
-      const svcRows = svcSheet.getDataRange().getValues();
-      for (let i = 1; i < svcRows.length; i++) {
-        if (!svcRows[i][0]) continue;
-        svcMap[svcRows[i][0]] = svcRows[i][4]; // serviceGroupId at col 4
-      }
-    }
-
-    // ── Load Products: productId → groupId (col 14) ───────────────────────
-    const prodSheet = ss.getSheetByName('Products');
-    const prodMap = {};
-    if (prodSheet) {
-      const prodRows = prodSheet.getDataRange().getValues();
-      for (let i = 1; i < prodRows.length; i++) {
-        if (!prodRows[i][0]) continue;
-        prodMap[prodRows[i][0]] = prodRows[i][14]; // groupId at col 14
-      }
-    }
-
-    // ── Read BillItems ────────────────────────────────────────────────────
-    // BillItems expected cols: itemId(0), billId(1), type(2), refId(3),
-    //   staffId(4? or 5?), name(5?), ...
-    // Per spec: type='service' staffId at col 5, type='product' staffId at col 5,
-    // lineSubtotal at col 10, qty at col 7, refId at col 3
-    const biSheet = ss.getSheetByName('BillItems');
-    let serviceRevenue = 0;
-    let orgServiceRevenue = 0;
-    let makeupIncentive  = 0;
-    let productIncentive = 0;
-
-    if (biSheet) {
-      const biRows = biSheet.getDataRange().getValues();
-      for (let i = 1; i < biRows.length; i++) {
-        if (!biRows[i][0]) continue;
-        const billId = biRows[i][1];
-        if (!periodBillIds.has(billId)) continue;
-
-        const type          = String(biRows[i][2] || '').toLowerCase();
-        const refId         = biRows[i][3];
-        const rowStaffId    = biRows[i][5];
-        const qty           = Number(biRows[i][7])  || 0;
-        const lineSubtotal  = Number(biRows[i][10]) || 0;
-
-        if (type === 'service') {
-          const groupId = svcMap[refId];
-          const sg = sgMap[groupId];
-          if (sg) {
-            if (sg.countForTarget) {
-              orgServiceRevenue += lineSubtotal; // always accumulate for org total
-              if (rowStaffId === staffId) serviceRevenue += lineSubtotal;
-            }
-            if (rowStaffId === staffId && sg.directIncentivePct > 0) {
-              makeupIncentive += lineSubtotal * sg.directIncentivePct / 100;
-            }
-          }
-        } else if (type === 'product' && rowStaffId === staffId) {
-          const groupId = prodMap[refId];
-          const pg = pgMap[groupId];
-          productIncentive += (pg ? pg.unitIncentive : 0) * qty;
-        }
-      }
-    }
-
-    // ── Compute target incentive ──────────────────────────────────────────
-    const revenue = profile.revenueBase === 'org' ? orgServiceRevenue : serviceRevenue;
-    let targetIncentive = 0;
-    if (revenue >= L1) {
-      if (revenue < L2) {
-        targetIncentive = L1 * profile.xPct / 100 + (revenue - L1) * profile.yPct / 100;
-      } else {
-        targetIncentive = L1 * profile.xPct / 100 + (L2 - L1) * profile.yPct / 100 + (revenue - L2) * profile.zPct / 100;
-      }
-    }
+    const productIncentive = 0; // dropped — productCount is record-only, no $ effect
+    const totalIncentive   = targetIncentive + makeupIncentive + productIncentive;
+    const tips              = (tipsOverride === '' || tipsOverride === null || tipsOverride === undefined) ? 0 : Number(tipsOverride) || 0;
+    const advDeducted       = Number(advanceDeducted) || 0;
+    const netPay            = adjustedBaseSalary + allowances + otPay + totalIncentive + tips - advDeducted;
 
     return {
-      serviceIncentive: serviceRevenue,
-      productIncentive,
-      makeupIncentive,
-      targetIncentive
+      payrollId: payrollId || '', staffId, staffName, period, orgId,
+      baseSalary: salary, payableDays, eligibleOffs,
+      totalDaysOff, excessLeaves, leaveDeduction, adjustedBaseSalary, allowances,
+      otHours, otPay,
+      serviceIncentive: serviceRevenue, productIncentive, makeupIncentive, targetIncentive,
+      totalIncentive, advanceDeducted: advDeducted, netPay,
+      status: status || 'draft', notes: notes || '', createdAt: createdAt || new Date().toISOString(),
+      weekdayAbsentDates: (weekdayAbsentDates || []).join(','),
+      weekendAbsentDates: (weekendAbsentDates || []).join(','),
+      longAbsenceExcludedDays,
+      serviceValue: serviceValue === '' || serviceValue === null || serviceValue === undefined ? '' : Number(serviceValue),
+      productCount: productCount === '' || productCount === null || productCount === undefined ? '' : Number(productCount),
+      tipsOverride: tipsOverride === '' || tipsOverride === null || tipsOverride === undefined ? '' : Number(tipsOverride),
+      makeupValue:  makeupValue  === '' || makeupValue  === null || makeupValue  === undefined ? '' : Number(makeupValue)
     };
   },
 
-  save(data) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+  _rowToBreakdown(row) {
+    return {
+      payrollId: row[0], staffId: row[1], staffName: row[2], period: row[3],
+      baseSalary: Number(row[4]) || 0, payableDays: Number(row[5]) || 0,
+      eligibleOffs: Number(row[6]) || 0, totalDaysOff: Number(row[7]) || 0,
+      excessLeaves: Number(row[8]) || 0, leaveDeduction: Number(row[9]) || 0,
+      adjustedBaseSalary: Number(row[10]) || 0, allowances: Number(row[11]) || 0,
+      otHours: Number(row[12]) || 0, otPay: Number(row[13]) || 0,
+      serviceIncentive: Number(row[14]) || 0, productIncentive: Number(row[15]) || 0,
+      makeupIncentive: Number(row[16]) || 0, targetIncentive: Number(row[17]) || 0,
+      totalIncentive: Number(row[18]) || 0, advanceDeducted: Number(row[19]) || 0,
+      netPay: Number(row[20]) || 0, status: row[21], notes: row[22],
+      createdAt: row[23] instanceof Date ? row[23].toISOString() : String(row[23] || ''),
+      orgId: row[24] || '',
+      weekdayAbsentDates: row[25] || '', weekendAbsentDates: row[26] || '',
+      longAbsenceExcludedDays: Number(row[27]) || 0,
+      serviceValue: row[28] === '' || row[28] == null ? '' : Number(row[28]),
+      productCount: row[29] === '' || row[29] == null ? '' : Number(row[29]),
+      tipsOverride: row[30] === '' || row[30] == null ? '' : Number(row[30]),
+      makeupValue:  row[31] === '' || row[31] == null ? '' : Number(row[31])
+    };
+  },
+
+  _breakdownToRowValues(b) {
+    return [
+      b.payrollId, b.staffId, b.staffName, b.period, b.baseSalary, b.payableDays,
+      b.eligibleOffs, b.totalDaysOff, b.excessLeaves, b.leaveDeduction,
+      b.adjustedBaseSalary, b.allowances, b.otHours, b.otPay,
+      b.serviceIncentive, b.productIncentive, b.makeupIncentive, b.targetIncentive,
+      b.totalIncentive, b.advanceDeducted, b.netPay, b.status, b.notes, b.createdAt,
+      b.orgId, b.weekdayAbsentDates, b.weekendAbsentDates, b.longAbsenceExcludedDays,
+      b.serviceValue, b.productCount, b.tipsOverride, b.makeupValue
+    ];
+  },
+
+  _findRow(sheet, payrollId) {
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][0] === payrollId) return { index: i, row: rows[i] };
+    }
+    return null;
+  },
+
+  _findRowByStaffPeriod(sheet, staffId, period) {
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === staffId && rows[i][3] === period) return { index: i, row: rows[i] };
+    }
+    return null;
+  },
+
+  // ── Quick Entry integration ───────────────────────────────────────────────
+  // Called after Attendance.saveAttendance succeeds for a staff+period.
+  // Recomputes the attendance-derived fields fresh from current attendance
+  // data. The four override fields (serviceValue, productCount,
+  // tipsOverride, makeupValue) are also editable directly on the Quick
+  // Entry screen — when present in data (even blank, to clear one), they
+  // win; when omitted entirely, the existing row's value is preserved (or
+  // blank on a brand-new row). advanceDeducted/status/notes are always
+  // preserved here — those are Payroll-page-only fields.
+  upsertFromAttendance(data) {
+    const staffId = data.staffId;
+    const period  = data.period; // 'YYYY-MM'
+    if (!staffId || !period) return Utils.createResponse('error', 'staffId and period are required');
+
+    const info = this._getStaffAndProfile(staffId);
+    if (!info) return Utils.createResponse('error', 'Staff member not found');
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName('Payroll');
     if (!sheet) return Utils.createResponse('error', 'Payroll sheet not found');
 
-    const payrollId = 'PAY' + Date.now();
-    const now = new Date().toISOString();
+    const attDerived = this._computeAttendanceDerived(staffId, period);
+    const existing = this._findRowByStaffPeriod(sheet, staffId, period);
+    const existingBreakdown = existing ? this._rowToBreakdown(existing.row) : null;
 
-    sheet.appendRow([
-      payrollId,
-      data.staffId,
-      data.staffName           || '',
-      data.period              || '',
-      Number(data.baseSalary)        || 0,
-      Number(data.payableDays)       || 0,
-      Number(data.eligibleOffs)      || 0,
-      Number(data.totalDaysOff)      || 0,
-      Number(data.excessLeaves)      || 0,
-      Number(data.leaveDeduction)    || 0,
-      Number(data.adjustedBaseSalary)|| 0,
-      Number(data.allowances)        || 0,
-      Number(data.otHours)           || 0,
-      Number(data.otPay)             || 0,
-      Number(data.serviceIncentive)  || 0,
-      Number(data.productIncentive)  || 0,
-      Number(data.makeupIncentive)   || 0,
-      Number(data.targetIncentive)   || 0,
-      Number(data.totalIncentive)    || 0,
-      Number(data.advanceDeducted)   || 0,
-      Number(data.netPay)            || 0,
-      data.status                    || 'draft',
-      data.notes                     || '',
-      data.createdAt                 || now,
-      data.orgId                     || ''
-    ]);
+    const payableDays = existingBreakdown && existingBreakdown.payableDays
+      ? existingBreakdown.payableDays
+      : (attDerived.daysInMonth - attDerived.longAbsenceExcludedDays);
 
-    return Utils.createResponse('success', 'Payroll saved successfully', { payrollId });
+    const breakdown = this._buildBreakdown({
+      staffId, staffName: info.staffName, period, orgId: info.orgId,
+      salary: info.salary, allowances: info.allowances, profile: info.profile,
+      targetPeriod: info.targetPeriod,
+      payableDays,
+      eligibleOffsInput: existingBreakdown ? existingBreakdown.eligibleOffs : '',
+      totalDaysOff: attDerived.totalDaysOff, otHours: attDerived.otHours,
+      daysInMonth: attDerived.daysInMonth,
+      weekdayAbsentDates: attDerived.weekdayAbsentDates,
+      weekendAbsentDates: attDerived.weekendAbsentDates,
+      longAbsenceExcludedDays: attDerived.longAbsenceExcludedDays,
+      serviceValue: data.serviceValue !== undefined ? data.serviceValue : (existingBreakdown ? existingBreakdown.serviceValue : ''),
+      productCount: data.productCount !== undefined ? data.productCount : (existingBreakdown ? existingBreakdown.productCount : ''),
+      tipsOverride: data.tipsOverride !== undefined ? data.tipsOverride : (existingBreakdown ? existingBreakdown.tipsOverride : ''),
+      makeupValue:  data.makeupValue  !== undefined ? data.makeupValue  : (existingBreakdown ? existingBreakdown.makeupValue  : ''),
+      advanceDeducted: existingBreakdown ? existingBreakdown.advanceDeducted : 0,
+      status: existingBreakdown ? existingBreakdown.status : 'draft',
+      notes:  existingBreakdown ? existingBreakdown.notes  : '',
+      payrollId: existingBreakdown ? existingBreakdown.payrollId : ('PAY' + Date.now()),
+      createdAt: existingBreakdown ? existingBreakdown.createdAt : new Date().toISOString()
+    });
+
+    if (existing) {
+      sheet.getRange(existing.index + 1, 1, 1, 32).setValues([this._breakdownToRowValues(breakdown)]);
+    } else {
+      sheet.appendRow(this._breakdownToRowValues(breakdown));
+    }
+
+    return Utils.createResponse('success', 'Payroll updated from attendance', breakdown);
+  },
+
+  // ── Payroll page reconcile ────────────────────────────────────────────────
+  // Updates an EXISTING row's editable fields (never creates a new row —
+  // the Payroll page only works on rows Quick Entry already created).
+  updateRow(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return Utils.createResponse('error', 'Payroll sheet not found');
+    if (!data.payrollId) return Utils.createResponse('error', 'payrollId is required');
+
+    const existing = this._findRow(sheet, data.payrollId);
+    if (!existing) return Utils.createResponse('error', 'Payroll record not found');
+
+    const current = this._rowToBreakdown(existing.row);
+    const info = this._getStaffAndProfile(current.staffId);
+    if (!info) return Utils.createResponse('error', 'Staff member not found');
+
+    const payableDays = data.payableDays !== undefined ? Number(data.payableDays) || 0 : current.payableDays;
+    const longAbsenceExcludedDays = data.longAbsenceExcludedDays !== undefined
+      ? Number(data.longAbsenceExcludedDays) || 0 : current.longAbsenceExcludedDays;
+
+    const breakdown = this._buildBreakdown({
+      staffId: current.staffId, staffName: current.staffName, period: current.period, orgId: current.orgId,
+      salary: current.baseSalary, allowances: current.allowances, profile: info.profile,
+      targetPeriod: info.targetPeriod,
+      payableDays,
+      eligibleOffsInput: data.eligibleOffs !== undefined ? data.eligibleOffs : current.eligibleOffs,
+      totalDaysOff: current.totalDaysOff, otHours: current.otHours,
+      daysInMonth: payableDays + longAbsenceExcludedDays,
+      weekdayAbsentDates: (current.weekdayAbsentDates || '').split(',').filter(Boolean),
+      weekendAbsentDates: (current.weekendAbsentDates || '').split(',').filter(Boolean),
+      longAbsenceExcludedDays,
+      serviceValue: data.serviceValue !== undefined ? data.serviceValue : current.serviceValue,
+      productCount: data.productCount !== undefined ? data.productCount : current.productCount,
+      tipsOverride: data.tipsOverride !== undefined ? data.tipsOverride : current.tipsOverride,
+      makeupValue:  data.makeupValue  !== undefined ? data.makeupValue  : current.makeupValue,
+      advanceDeducted: data.advanceDeducted !== undefined ? data.advanceDeducted : current.advanceDeducted,
+      status: data.status !== undefined ? data.status : current.status,
+      notes:  data.notes  !== undefined ? data.notes  : current.notes,
+      payrollId: current.payrollId, createdAt: current.createdAt
+    });
+
+    sheet.getRange(existing.index + 1, 1, 1, 32).setValues([this._breakdownToRowValues(breakdown)]);
+    return Utils.createResponse('success', 'Payroll record updated successfully', breakdown);
   },
 
   getAll(data) {
@@ -348,6 +528,8 @@ const Payroll = {
     const filterPeriod  = (data && data.period)  ? data.period  : null;
     const filterStaffId = (data && data.staffId) ? data.staffId : null;
     const orgId         = (data && data.orgId)   ? data.orgId   : '';
+    const includeChildren = !!(data && data.includeChildren);
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
     const payroll = [];
 
     for (let i = 1; i < rows.length; i++) {
@@ -355,36 +537,9 @@ const Payroll = {
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
       if (filterPeriod  && rows[i][3] !== filterPeriod)  continue;
       const rowOrg = rows[i][24] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
 
-      const createdAt = rows[i][23];
-      payroll.push({
-        payrollId:           rows[i][0],
-        staffId:             rows[i][1],
-        staffName:           rows[i][2],
-        period:              rows[i][3],
-        baseSalary:          Number(rows[i][4])  || 0,
-        payableDays:         Number(rows[i][5])  || 0,
-        eligibleOffs:        Number(rows[i][6])  || 0,
-        totalDaysOff:        Number(rows[i][7])  || 0,
-        excessLeaves:        Number(rows[i][8])  || 0,
-        leaveDeduction:      Number(rows[i][9])  || 0,
-        adjustedBaseSalary:  Number(rows[i][10]) || 0,
-        allowances:          Number(rows[i][11]) || 0,
-        otHours:             Number(rows[i][12]) || 0,
-        otPay:               Number(rows[i][13]) || 0,
-        serviceIncentive:    Number(rows[i][14]) || 0,
-        productIncentive:    Number(rows[i][15]) || 0,
-        makeupIncentive:     Number(rows[i][16]) || 0,
-        targetIncentive:     Number(rows[i][17]) || 0,
-        totalIncentive:      Number(rows[i][18]) || 0,
-        advanceDeducted:     Number(rows[i][19]) || 0,
-        netPay:              Number(rows[i][20]) || 0,
-        status:              rows[i][21],
-        notes:               rows[i][22],
-        createdAt:           createdAt instanceof Date ? createdAt.toISOString() : String(createdAt),
-        orgId:               rowOrg
-      });
+      payroll.push(this._rowToBreakdown(rows[i]));
     }
 
     return Utils.createResponse('success', 'Payroll retrieved', { payroll });

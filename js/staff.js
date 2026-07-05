@@ -15,7 +15,7 @@ const Staff = {
   _profEditingId:    null,
   _shiftEditingId:   null,
   _attData:          null,
-  _payCalcResults:   [],
+  _payrollRows:      [],
   _attSumStaffId:    null,
   _attSumPeriod:     null,
   _attSumOriginal:   {},
@@ -58,9 +58,7 @@ const Staff = {
     document.getElementById('hrAttNextWeek').addEventListener('click', () => this._nextWeek());
 
     // ── Payroll tab ──
-    document.getElementById('hrPayCalcBtn').addEventListener('click', () => this.calculatePayroll());
-    document.getElementById('hrPaySaveBtn').addEventListener('click', () => this.savePayroll());
-    document.getElementById('hrPayHistFilter').addEventListener('change', () => this.loadPayrollHistory());
+    document.getElementById('hrPayPeriod').addEventListener('change', () => this.loadPayrollForMonth());
 
     // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
@@ -88,8 +86,6 @@ const Staff = {
     if (attMonthEl) attMonthEl.value = ym;
     const payPeriodEl = document.getElementById('hrPayPeriod');
     if (payPeriodEl) payPeriodEl.value = ym;
-    const payHistEl = document.getElementById('hrPayHistFilter');
-    if (payHistEl) payHistEl.value = ym;
     const attSumMonthEl = document.getElementById('hrAttSumMonth');
     if (attSumMonthEl) attSumMonthEl.value = ym;
   },
@@ -104,7 +100,7 @@ const Staff = {
       p.classList.toggle('active', p.id === 'prod-tab-' + tab)
     );
     if (tab === 'hr-attendance') this.loadAttendance();
-    if (tab === 'hr-payroll')    this.loadPayrollHistory();
+    if (tab === 'hr-payroll')    this.loadPayrollForMonth();
     if (tab === 'hr-advances')   this._populateAdvStaffDropdown();
   },
 
@@ -542,7 +538,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -556,6 +552,8 @@ const Staff = {
         <td>${this._esc(p.revenueBase || '—')}</td>
         <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate)}/hr</td>
         <td style="text-align:right;white-space:nowrap;">${p.otThresholdHours ?? 9}h/day</td>
+        <td style="text-align:right;white-space:nowrap;">${p.eligibleOffs ?? 4}/mo</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(p.defaultProductIncentive ?? 0)}</td>
         <td>${this._esc(l1)}</td>
         <td>${this._esc(l2)}</td>
         <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
@@ -584,6 +582,8 @@ const Staff = {
         document.getElementById('hrProfRevenueBase').value = p.revenueBase     || '';
         document.getElementById('hrProfOtRate').value      = p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate ?? '';
         document.getElementById('hrProfOtThreshold').value = p.otThresholdHours ?? 9;
+        document.getElementById('hrProfEligibleOffs').value = p.eligibleOffs ?? 4;
+        document.getElementById('hrProfDefaultProductIncentive').value = p.defaultProductIncentive ?? 0;
         document.getElementById('hrProfL1Type').value      = p.l1Type || p.hrProfL1Type || '';
         document.getElementById('hrProfL1Value').value     = p.l1Value || p.hrProfL1Value || '';
         document.getElementById('hrProfL2Type').value      = p.l2Type || p.hrProfL2Type || '';
@@ -618,6 +618,8 @@ const Staff = {
       revenueBase:   document.getElementById('hrProfRevenueBase').value,
       otHourlyRate:  parseFloat(document.getElementById('hrProfOtRate').value) || 0,
       otThresholdHours: parseFloat(document.getElementById('hrProfOtThreshold').value) || 9,
+      eligibleOffs:  parseInt(document.getElementById('hrProfEligibleOffs').value, 10) || 4,
+      defaultProductIncentive: parseFloat(document.getElementById('hrProfDefaultProductIncentive').value) || 0,
       l1Type:        document.getElementById('hrProfL1Type').value,
       l1Value:       parseFloat(document.getElementById('hrProfL1Value').value) || 0,
       l2Type:        document.getElementById('hrProfL2Type').value,
@@ -1204,234 +1206,114 @@ const Staff = {
   },
 
   // ─── TAB 5: PAYROLL ──────────────────────────────────────────────────────────
+  // This page never creates Payroll rows — Quick Entry (Attendance & OT >
+  // Quick Entry) does that when attendance is saved for a staff+period. This
+  // page only lists whatever rows already exist for the selected month and
+  // lets a reviewer edit/reconcile the editable fields, one row at a time.
 
-  async calculatePayroll() {
-    const period       = document.getElementById('hrPayPeriod').value;
-    const payableDays  = parseInt(document.getElementById('hrPayPayableDays').value, 10) || 26;
-    const eligibleOffs = parseInt(document.getElementById('hrPayEligibleOffs').value, 10) || 4;
-    const msgEl        = document.getElementById('hrPayMessage');
-    const btn          = document.getElementById('hrPayCalcBtn');
+  async loadPayrollForMonth() {
+    const period = document.getElementById('hrPayPeriod').value;
+    const tbody  = document.getElementById('hrPayTableBody');
+    const msgEl  = document.getElementById('hrPayMessage');
+    if (!period) { tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;">Select a month to load payroll records.</td></tr>'; return; }
 
-    if (!period) { this._showInlineMsg(msgEl, 'Please select a payroll period.', 'error'); return; }
-
-    const activeStaff = this._staff.filter(s => s.status === 'active');
-    if (!activeStaff.length) { this._showInlineMsg(msgEl, 'No active staff found.', 'error'); return; }
-
-    btn.disabled = true;
-    btn.textContent = 'Calculating…';
-    document.getElementById('hrPayCalcWrap').style.display = 'none';
-    this._payCalcResults = [];
-
-    try {
-      const results = await Promise.all(
-        activeStaff.map(s =>
-          API.calculatePayroll({
-            staffId:        s.id,
-            period,
-            payableDays,
-            eligibleOffs,
-            advanceDeducted: 0
-          }).then(res => {
-            if (res.status === 'success') {
-              return { ...res, staffId: s.id, staffName: s.name };
-            }
-            return {
-              staffId:        s.id,
-              staffName:      s.name,
-              baseSalary:     s.salary || 0,
-              daysOff:        0,
-              excessLeaves:   0,
-              leaveDeduction: 0,
-              adjustedBase:   s.salary || 0,
-              otPay:          0,
-              totalIncentive: 0,
-              advanceDeducted: 0,
-              netPay:         s.salary || 0,
-              period,
-              error:          res.message || 'Calculation failed'
-            };
-          }).catch(() => ({
-            staffId:        s.id,
-            staffName:      s.name,
-            baseSalary:     s.salary || 0,
-            daysOff:        0,
-            excessLeaves:   0,
-            leaveDeduction: 0,
-            adjustedBase:   s.salary || 0,
-            otPay:          0,
-            totalIncentive: 0,
-            advanceDeducted: 0,
-            netPay:         s.salary || 0,
-            period,
-            error:          'Network error'
-          }))
-        )
-      );
-
-      this._payCalcResults = results;
-      this._renderPayCalcTable();
-      document.getElementById('hrPayCalcWrap').style.display = 'block';
-      this._showInlineMsg(msgEl, `Payroll calculated for ${results.length} staff member(s).`, 'success');
-    } catch(err) {
-      this._showInlineMsg(msgEl, 'Error calculating payroll', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Calculate for All Staff';
-    }
-  },
-
-  _renderPayCalcTable() {
-    const tbody = document.getElementById('hrPayCalcBody');
-    if (!this._payCalcResults.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:24px;">No results</td></tr>';
-      return;
-    }
-    tbody.innerHTML = this._payCalcResults.map((r, idx) => {
-      const errorNote = r.error ? `<div style="font-size:11px;color:#e53e3e;">${this._esc(r.error)}</div>` : '';
-      return `<tr>
-        <td>
-          <div style="font-weight:500;">${this._esc(r.staffName || r.staffId)}</div>
-          ${errorNote}
-        </td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.baseSalary)}</td>
-        <td style="text-align:center;">${r.daysOff || 0}</td>
-        <td style="text-align:center;">${r.excessLeaves || 0}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.leaveDeduction)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.adjustedBase)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.otPay)}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.totalIncentive)}</td>
-        <td style="text-align:center;">
-          <input type="number" class="pay-adv-input" data-idx="${idx}"
-            value="${r.advanceDeducted || 0}" min="0" step="1"
-            style="width:80px;text-align:right;"
-            oninput="Staff._onAdvInputChange(this)">
-        </td>
-        <td style="text-align:right;white-space:nowrap;font-weight:600;" id="hrPayNet_${idx}">${this._fmt(r.netPay)}</td>
-      </tr>`;
-    }).join('');
-  },
-
-  _onAdvInputChange(input) {
-    const idx    = parseInt(input.dataset.idx, 10);
-    const result = this._payCalcResults[idx];
-    if (!result) return;
-    const newAdv    = parseFloat(input.value) || 0;
-    const oldAdv    = result.advanceDeducted || 0;
-    const newNetPay = (result.netPay || 0) - (newAdv - oldAdv);
-    const netCell   = document.getElementById(`hrPayNet_${idx}`);
-    if (netCell) netCell.textContent = this._fmt(newNetPay);
-  },
-
-  async savePayroll() {
-    const btn   = document.getElementById('hrPaySaveBtn');
-    const msgEl = document.getElementById('hrPayMessage');
-
-    if (!this._payCalcResults.length) {
-      this._showInlineMsg(msgEl, 'No payroll data to save. Please calculate first.', 'error');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-
-    try {
-      await Promise.all(
-        this._payCalcResults.map((result, idx) => {
-          const advInput = document.querySelector(`.pay-adv-input[data-idx="${idx}"]`);
-          const newAdv   = advInput ? (parseFloat(advInput.value) || 0) : (result.advanceDeducted || 0);
-          const oldAdv   = result.advanceDeducted || 0;
-          const updatedResult = {
-            ...result,
-            advanceDeducted: newAdv,
-            netPay:          (result.netPay || 0) - (newAdv - oldAdv)
-          };
-          return API.savePayroll(updatedResult);
-        })
-      );
-
-      this._showInlineMsg(msgEl, 'Payroll saved successfully.', 'success');
-      document.getElementById('hrPayCalcWrap').style.display = 'none';
-      this._payCalcResults = [];
-      await this.loadPayrollHistory();
-    } catch(err) {
-      this._showInlineMsg(msgEl, 'Error saving payroll', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Save Payroll';
-    }
-  },
-
-  async loadPayrollHistory() {
-    const period = (document.getElementById('hrPayHistFilter').value || '').trim();
-    const tbody  = document.getElementById('hrPayHistBody');
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
     try {
       const res = await API.getPayroll({ period });
       if (res.status === 'success') {
-        this._renderPayrollHistory(res.payroll || res.records || []);
+        this._payrollRows = res.payroll || [];
+        this._renderPayrollTable();
       } else {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#fc8181;">Failed to load payroll history</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#fc8181;">Failed to load payroll records</td></tr>';
       }
     } catch(err) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#fc8181;">Error loading payroll history</td></tr>';
+      this._showInlineMsg(msgEl, 'Error loading payroll records', 'error');
+      tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#fc8181;">Error loading payroll records</td></tr>';
     }
   },
 
-  _renderPayrollHistory(records) {
-    const tbody = document.getElementById('hrPayHistBody');
-    if (!records.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:24px;">No payroll records found</td></tr>';
+  _renderPayrollTable() {
+    const tbody = document.getElementById('hrPayTableBody');
+    const rows  = this._payrollRows || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="18" style="text-align:center;color:#a0aec0;padding:24px;">No payroll records for this month yet — run Quick Entry for a staff member first.</td></tr>';
       return;
     }
-    const sorted = [...records].sort((a, b) => String(b.period || '').localeCompare(String(a.period || '')) || String(a.staffName || '').localeCompare(String(b.staffName || '')));
+    const sorted = [...rows].sort((a, b) => String(a.staffName || '').localeCompare(String(b.staffName || '')));
+    const numInput = (id, value, width) =>
+      `<input type="number" id="${id}" value="${value ?? ''}" step="0.01" style="width:${width || 90}px;text-align:right;">`;
+
     tbody.innerHTML = sorted.map(r => {
-      const pid = r.payrollId || r.id;
-      const statusBadge = this._payrollStatusBadge(r.status);
-      const approveBtn = r.status === 'draft'
-        ? `<button class="action-btn" style="background:#bee3f8;color:#2c5282;" onclick="Staff.approvePayroll('${pid}','approved')">Approve</button>`
-        : '';
-      const paidBtn = r.status === 'approved'
-        ? `<button class="action-btn" style="background:#c6f6d5;color:#22543d;" onclick="Staff.approvePayroll('${pid}','paid')">Mark Paid</button>`
-        : '';
-      return `<tr>
-        <td style="font-weight:500;">${this._esc(r.staffName || r.staffId || '—')}</td>
-        <td style="white-space:nowrap;">${this._esc(r.period || '—')}</td>
+      const pid = r.payrollId;
+      const incentives = (r.targetIncentive || 0) + (r.makeupIncentive || 0);
+      return `<tr data-payroll-id="${pid}">
+        <td style="font-weight:500;white-space:nowrap;">${this._esc(r.staffName || r.staffId)}</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.baseSalary)}</td>
+        <td style="text-align:center;">${r.totalDaysOff ?? 0}</td>
+        <td>${numInput(`hrPayPayableDays_${pid}`, r.payableDays, 70)}</td>
+        <td>${numInput(`hrPayEligOffs_${pid}`, r.eligibleOffs, 60)}</td>
+        <td>${numInput(`hrPayLongAbsence_${pid}`, r.longAbsenceExcludedDays, 60)}</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.leaveDeduction)}</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.adjustedBaseSalary)}</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(r.otPay)}</td>
+        <td>${numInput(`hrPaySvcValue_${pid}`, r.serviceValue, 90)}</td>
+        <td>${numInput(`hrPayMakeupValue_${pid}`, r.makeupValue, 90)}</td>
+        <td>${numInput(`hrPayProdCount_${pid}`, r.productCount, 70)}</td>
+        <td>${numInput(`hrPayTips_${pid}`, r.tipsOverride, 80)}</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(incentives)}</td>
+        <td>${numInput(`hrPayAdvDeduct_${pid}`, r.advanceDeducted, 80)}</td>
         <td style="text-align:right;white-space:nowrap;font-weight:600;">${this._fmt(r.netPay)}</td>
-        <td>${statusBadge}</td>
         <td>
-          ${approveBtn}
-          ${paidBtn}
+          <select id="hrPayStatus_${pid}" style="padding:4px 6px;font-size:12px;">
+            ${['draft', 'approved', 'paid', 'voided'].map(s => `<option value="${s}" ${r.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <button class="action-btn action-btn-edit" onclick="Staff.savePayrollRow('${pid}')">Save</button>
         </td>
       </tr>`;
     }).join('');
   },
 
-  _payrollStatusBadge(status) {
-    const map = {
-      draft:    'background:#edf2f7;color:#4a5568;',
-      approved: 'background:#bee3f8;color:#2c5282;',
-      paid:     'background:#c6f6d5;color:#22543d;',
-      voided:   'background:#fed7d7;color:#c53030;'
+  async savePayrollRow(payrollId) {
+    const msgEl = document.getElementById('hrPayMessage');
+    const val = id => {
+      const el = document.getElementById(id);
+      if (!el) return undefined;
+      const raw = el.value.trim();
+      return raw === '' ? '' : (parseFloat(raw) || 0);
     };
-    return `<span class="status-badge" style="${map[status] || ''}">${status || '—'}</span>`;
-  },
 
-  async approvePayroll(payrollId, status) {
-    const label = status === 'paid' ? 'Mark this payroll as Paid?' : 'Approve this payroll?';
-    if (!confirm(label)) return;
-    UI.showLoading();
+    const data = {
+      payrollId,
+      payableDays:             val(`hrPayPayableDays_${payrollId}`),
+      eligibleOffs:            val(`hrPayEligOffs_${payrollId}`),
+      longAbsenceExcludedDays: val(`hrPayLongAbsence_${payrollId}`),
+      serviceValue:            val(`hrPaySvcValue_${payrollId}`),
+      makeupValue:             val(`hrPayMakeupValue_${payrollId}`),
+      productCount:            val(`hrPayProdCount_${payrollId}`),
+      tipsOverride:            val(`hrPayTips_${payrollId}`),
+      advanceDeducted:         val(`hrPayAdvDeduct_${payrollId}`),
+      status: (document.getElementById(`hrPayStatus_${payrollId}`) || {}).value
+    };
+
+    const btn = document.querySelector(`tr[data-payroll-id="${payrollId}"] .action-btn-edit`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
     try {
-      const res = await API.updatePayrollStatus({ payrollId, status });
+      const res = await API.updatePayrollRow(data);
       if (res.status === 'success') {
-        UI.showMessage('staffMessage', `Payroll ${status === 'paid' ? 'marked as paid' : 'approved'}.`, 'success');
-        await this.loadPayrollHistory();
+        const idx = (this._payrollRows || []).findIndex(r => r.payrollId === payrollId);
+        if (idx >= 0) this._payrollRows[idx] = res;
+        this._renderPayrollTable();
+        this._showInlineMsg(msgEl, 'Payroll record updated.', 'success');
       } else {
-        UI.showMessage('staffMessage', res.message || 'Error updating payroll status', 'error');
+        this._showInlineMsg(msgEl, res.message || 'Error updating payroll record', 'error');
       }
     } catch(err) {
-      UI.showMessage('staffMessage', 'Error updating payroll status', 'error');
+      this._showInlineMsg(msgEl, 'Network error updating payroll record', 'error');
     } finally {
-      UI.hideLoading();
+      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
     }
   },
 
@@ -1581,6 +1463,17 @@ const Staff = {
     `;
 
     saveWrap.style.display = 'block';
+    // Payroll override fields always render blank — no calculation, no
+    // pre-population, per design. Left blank + saved just leaves whatever
+    // is already on that staff's payroll row for the period untouched.
+    const overridesWrap = document.getElementById('hrAttSumPayrollOverrides');
+    if (overridesWrap) {
+      overridesWrap.style.display = 'block';
+      ['hrAttSumServiceValue', 'hrAttSumMakeupValue', 'hrAttSumProductCount', 'hrAttSumTips'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+    }
     this._recalcAttSumStats();
   },
 
@@ -1641,10 +1534,22 @@ const Staff = {
     this._recalcAttSumStats();
   },
 
+  // Reads a Payroll override input and returns its parsed value, or
+  // undefined if left blank — undefined (not '') means "field omitted from
+  // the request", which upsert_payroll_from_attendance treats as "leave
+  // whatever's already on the payroll row untouched" rather than clearing it.
+  _readOverrideField(id) {
+    const el = document.getElementById(id);
+    if (!el) return undefined;
+    const raw = el.value.trim();
+    return raw === '' ? undefined : (parseFloat(raw) || 0);
+  },
+
   async _saveAttSummary() {
     const staffId = this._attSumStaffId;
+    const period  = this._attSumPeriod;
     const msgEl    = document.getElementById('hrAttSumMessage');
-    if (!staffId) return;
+    if (!staffId || !period) return;
 
     const records = [];
     document.querySelectorAll('#hrAttSumCalWrap .att-cal-day.editable').forEach(cell => {
@@ -1657,23 +1562,42 @@ const Staff = {
       }
     });
 
-    if (!records.length) { this._showInlineMsg(msgEl, 'No changes to save.', 'info'); return; }
+    const overrides = {
+      serviceValue: this._readOverrideField('hrAttSumServiceValue'),
+      makeupValue:  this._readOverrideField('hrAttSumMakeupValue'),
+      productCount: this._readOverrideField('hrAttSumProductCount'),
+      tipsOverride: this._readOverrideField('hrAttSumTips')
+    };
+    const hasOverrides = Object.values(overrides).some(v => v !== undefined);
+
+    if (!records.length && !hasOverrides) { this._showInlineMsg(msgEl, 'No changes to save.', 'info'); return; }
 
     const btn = document.getElementById('hrAttSumSaveBtn');
     btn.disabled = true;
     btn.textContent = 'Saving…';
 
     try {
-      const res = await API.saveAttendance(records);
-      if (res.status === 'success') {
+      if (records.length) {
+        const res = await API.saveAttendance(records);
+        if (res.status !== 'success') {
+          this._showInlineMsg(msgEl, res.message || 'Error saving changes', 'error');
+          return;
+        }
         const errors = res.errors || [];
-        this._showInlineMsg(msgEl, errors.length
-          ? `Saved ${res.saved} day(s). ${errors.length} skipped — already have clock-in/out data.`
-          : `Saved ${res.saved} day(s).`, errors.length ? 'warning' : 'success');
-        await this._loadAttSummary();
-      } else {
-        this._showInlineMsg(msgEl, res.message || 'Error saving changes', 'error');
+        if (errors.length) {
+          this._showInlineMsg(msgEl, `Saved ${res.saved} day(s). ${errors.length} skipped — already have clock-in/out data.`, 'warning');
+        }
       }
+
+      // Attendance-derived payroll fields always recompute here; the four
+      // override fields only go along for the ride when actually filled in.
+      const payRes = await API.upsertPayrollFromAttendance({ staffId, period, ...overrides });
+      if (payRes.status === 'success') {
+        this._showInlineMsg(msgEl, 'Saved.', 'success');
+      } else {
+        this._showInlineMsg(msgEl, payRes.message || 'Attendance saved, but payroll could not be updated.', 'warning');
+      }
+      await this._loadAttSummary();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error saving changes', 'error');
     } finally {

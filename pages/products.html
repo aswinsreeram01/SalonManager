@@ -36,8 +36,8 @@
                     <input type="text" id="pgHsnCode" placeholder="e.g. 33059090">
                 </div>
                 <div class="form-group">
-                    <label for="pgUnitIncentive">Unit Incentive (₹/unit)</label>
-                    <input type="number" id="pgUnitIncentive" min="0" step="0.01" value="0">
+                    <label for="pgUnitIncentive">Unit Incentive Override (₹/unit)</label>
+                    <input type="number" id="pgUnitIncentive" min="0" step="0.01" placeholder="Leave blank to use Comp Plan default">
                 </div>
                 <div class="form-group">
                     <label for="pgSortOrder">Sort Order</label>
@@ -82,7 +82,7 @@
             <table>
                 <thead><tr>
                     <th>Name</th><th>GST%</th><th>HSN Code</th>
-                    <th>Unit Incentive</th><th>Sort</th>
+                    <th>Unit Incentive Override</th><th>Sort</th>
                     <th style="text-align:center;">Points?</th>
                     <th>Status</th><th>Org</th><th>Actions</th>
                 </tr></thead>

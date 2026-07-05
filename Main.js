@@ -108,8 +108,8 @@ const ACTION_PERMISSIONS = {
   save_week_schedule: ['staff:hr-attendance', 'update'],
   save_weekly_incentive: ['staff:hr-payroll', 'update'],
   get_weekly_incentives: ['staff:hr-payroll', 'read'],
-  calculate_payroll: ['staff:hr-payroll', 'read'],
-  save_payroll: ['staff:hr-payroll', 'update'],
+  upsert_payroll_from_attendance: ['staff:hr-attendance', 'update'],
+  update_payroll_row: ['staff:hr-payroll', 'update'],
   get_payroll: ['staff:hr-payroll', 'read'],
   update_payroll_status: ['staff:hr-payroll', 'update'],
 
@@ -475,8 +475,8 @@ function doPost(e) {
       case 'reject_advance':         return HRApprovals.rejectAdvance(data);
 
       // Payroll
-      case 'calculate_payroll': return Payroll.calculate(data);
-      case 'save_payroll': return Payroll.save(data);
+      case 'upsert_payroll_from_attendance': return Payroll.upsertFromAttendance(data);
+      case 'update_payroll_row': return Payroll.updateRow(data);
       case 'get_payroll': return Payroll.getAll(data);
       case 'update_payroll_status': return Payroll.updateStatus(data);
 
