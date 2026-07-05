@@ -7,6 +7,7 @@ const Users = {
         document.getElementById('userForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
         document.getElementById('toggleUserForm')?.addEventListener('click', () => this.toggleForm());
         document.getElementById('cancelUserBtn')?.addEventListener('click', () => this.hideForm());
+        document.getElementById('userIncludeChildren')?.addEventListener('change', () => this.loadUsers());
     },
 
     toggleForm() {
@@ -32,6 +33,8 @@ const Users = {
         document.getElementById('selfEditWarning').style.display = 'none';
         document.getElementById('userRole').disabled = false;
         document.getElementById('userStatus').disabled = false;
+        const orgSel = document.getElementById('userOrg');
+        if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
     },
 
     async load() {
@@ -78,7 +81,8 @@ const Users = {
         const tbody = document.getElementById('usersTableBody');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
         try {
-            const result = await API.getUsers(Auth.currentUser?.orgId);
+            const includeChildren = !!document.getElementById('userIncludeChildren')?.checked;
+            const result = await API.getUsers({ includeChildren });
             if (result.status === 'success' && result.users.length > 0) {
                 tbody.innerHTML = result.users.map(user => `
                     <tr>
@@ -120,7 +124,7 @@ const Users = {
             email: document.getElementById('userEmail').value,
             phone: document.getElementById('userPhone').value,
             whatsapp: document.getElementById('userWhatsapp').value,
-            orgId: document.getElementById('userOrg').value,
+            targetOrgId: document.getElementById('userOrg').value,
             roleId: document.getElementById('userRole').value,
             status: document.getElementById('userStatus').value
         };
@@ -150,7 +154,7 @@ const Users = {
     async edit(id) {
         UI.showLoading();
         try {
-            const result = await API.getUsers(Auth.currentUser?.orgId);
+            const result = await API.getUsers();
             const user = result.users.find(u => u.id === id);
             if (user) {
                 this.editingId = id;

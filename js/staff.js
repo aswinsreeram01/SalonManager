@@ -34,6 +34,7 @@ const Staff = {
     document.getElementById('hrStaffCancelBtn').addEventListener('click', () => this.closeStaffForm());
     document.getElementById('hrStaffForm').addEventListener('submit', e => this.handleStaffSubmit(e));
     document.getElementById('hrStaffSearch').addEventListener('input', () => this._renderStaff());
+    document.getElementById('hrStaffIncludeChildren').addEventListener('change', () => this._loadStaff());
 
     // ── Advances tab ──
     document.getElementById('hrAdvStaff').addEventListener('change', () => this._onAdvStaffChange());
@@ -43,11 +44,13 @@ const Staff = {
     document.getElementById('hrProfAddBtn').addEventListener('click', () => this.openProfForm());
     document.getElementById('hrProfCancelBtn').addEventListener('click', () => this.closeProfForm());
     document.getElementById('hrProfForm').addEventListener('submit', e => this.handleProfSubmit(e));
+    document.getElementById('hrProfIncludeChildren')?.addEventListener('change', () => this._loadProfiles());
 
     // ── Shifts tab ──
     document.getElementById('hrShiftAddBtn').addEventListener('click', () => this.openShiftForm());
     document.getElementById('hrShiftCancelBtn').addEventListener('click', () => this.closeShiftForm());
     document.getElementById('hrShiftForm').addEventListener('submit', e => this.handleShiftSubmit(e));
+    document.getElementById('hrShiftIncludeChildren')?.addEventListener('change', () => this._loadShifts());
 
     // ── Attendance tab ──
     document.getElementById('hrAttLoadBtn').addEventListener('click', () => this.loadAttendance());
@@ -124,10 +127,11 @@ const Staff = {
   },
 
   // Org picker is optional — a role with Staff access but no Organizations
-  // access simply won't see it (form still works fine).
+  // access simply won't see it (form still works fine). Scoped to the
+  // caller's own org + descendants, not every org in the system.
   async _loadOrgs() {
     try {
-      const res = await API.getOrganizations();
+      const res = await API.getOrganizations(Auth.currentUser?.orgId);
       this._orgs = res.status === 'success' ? (res.organizations || []) : [];
     } catch (e) {
       this._orgs = [];
@@ -136,18 +140,27 @@ const Staff = {
   },
 
   _populateOrgDropdown() {
-    const group = document.getElementById('hrStaffOrgGroup');
-    const sel   = document.getElementById('hrStaffOrgId');
-    if (!sel || !group) return;
-    if ((this._orgs || []).length < 2) { group.style.display = 'none'; return; }
-    sel.innerHTML = '<option value="">Keep current</option>' +
-      this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
-    group.style.display = '';
+    const opts = (this._orgs || []).map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+    const disabled = (this._orgs || []).length < 2;
+    // A leaf org (no descendants) has nothing to pick between — grey it out
+    // rather than hide it, so the form still shows which org the record is in.
+    ['hrStaffOrgId', 'hrProfOrgId', 'hrShiftOrgId'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = opts;
+      sel.disabled = disabled;
+    });
+  },
+
+  _orgName(orgId) {
+    const org = (this._orgs || []).find(o => o.id === orgId);
+    return org ? org.name : (orgId || '—');
   },
 
   async _loadStaff() {
     try {
-      const res = await API.getStaff();
+      const includeChildren = document.getElementById('hrStaffIncludeChildren')?.checked || false;
+      const res = await API.getStaff({ includeChildren });
       if (res.status === 'success') {
         this._staff = res.staff || [];
         this._renderStaff();
@@ -159,7 +172,8 @@ const Staff = {
 
   async _loadProfiles() {
     try {
-      const res = await API.getIncentiveProfiles();
+      const includeChildren = document.getElementById('hrProfIncludeChildren')?.checked || false;
+      const res = await API.getIncentiveProfiles({ includeChildren });
       if (res.status === 'success') {
         this._profiles = res.incentiveProfiles || [];
         this._renderProfiles();
@@ -171,7 +185,8 @@ const Staff = {
 
   async _loadShifts() {
     try {
-      const res = await API.getShifts();
+      const includeChildren = document.getElementById('hrShiftIncludeChildren')?.checked || false;
+      const res = await API.getShifts({ includeChildren });
       if (res.status === 'success') {
         this._shifts = res.shifts || [];
         this._renderShifts();
@@ -195,7 +210,7 @@ const Staff = {
     }
     const tbody = document.getElementById('hrStaffTableBody');
     if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#a0aec0;padding:24px;">No staff found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:24px;">No staff found</td></tr>';
       return;
     }
     tbody.innerHTML = list.map(s => {
@@ -208,6 +223,7 @@ const Staff = {
         <td>${this._esc(s.role || '—')}</td>
         <td>${typeBadge}</td>
         <td><span class="status-badge status-${s.status}">${s.status}</span></td>
+        <td>${this._esc(this._orgName(s.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit"   onclick="Staff.openStaffForm('${s.id}')">Edit</button>
           <button class="action-btn action-btn-delete" onclick="Staff.deleteStaff('${s.id}')">Delete</button>
@@ -233,6 +249,10 @@ const Staff = {
     document.getElementById('hrStaffSaveBtn').textContent   = id ? 'Update Staff Member' : 'Save Staff Member';
     document.getElementById('hrStaffForm').reset();
 
+    // Org field defaults to the record's current org when editing, or the
+    // current user's own org for a brand-new staff member — never blank.
+    let recordOrgId = Auth.currentUser?.orgId || '';
+
     if (id) {
       const s = this._staff.find(x => x.id === id);
       if (s) {
@@ -247,8 +267,11 @@ const Staff = {
         document.getElementById('hrStaffSpecialization').value = s.specialization || '';
         document.getElementById('hrStaffStatus').value         = s.status         || 'active';
         document.getElementById('hrStaffTargetPeriod').value   = s.targetPeriod   || '';
+        recordOrgId = s.orgId || recordOrgId;
       }
     }
+    const orgSel = document.getElementById('hrStaffOrgId');
+    if (orgSel) orgSel.value = recordOrgId;
 
     const card = document.getElementById('hrStaffFormCard');
     card.style.display = 'block';
@@ -288,10 +311,10 @@ const Staff = {
       incentiveStructure: ''
     };
     if (this._editingId) data.id = this._editingId;
-    // Only send targetOrgId when explicitly picked — see Staff.update in
-    // Staff.js for why an untouched/empty picker must never be sent as ''.
-    const orgPick = document.getElementById('hrStaffOrgId')?.value;
-    if (orgPick) data.targetOrgId = orgPick;
+    // The Org field always holds a real org now (own org, or a descendant
+    // explicitly picked) — always send it. Staff.add/update validates it's
+    // within the caller's own org + descendants before writing it.
+    data.targetOrgId = document.getElementById('hrStaffOrgId')?.value || '';
 
     btn.disabled = true;
     const origText = btn.textContent;
@@ -519,7 +542,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -537,6 +560,7 @@ const Staff = {
         <td>${this._esc(l2)}</td>
         <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
         <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+        <td>${this._esc(this._orgName(p.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit"   onclick="Staff.openProfForm('${pid}')">Edit</button>
           <button class="action-btn action-btn-delete" onclick="Staff.deleteProfile('${pid}')">Delete</button>
@@ -550,6 +574,7 @@ const Staff = {
     document.getElementById('hrProfFormTitle').textContent = id ? 'Edit Comp Plan' : 'Add Comp Plan';
     document.getElementById('hrProfSaveBtn').textContent   = id ? 'Update Comp Plan' : 'Save Comp Plan';
     document.getElementById('hrProfForm').reset();
+    let recordOrgId = Auth.currentUser?.orgId || '';
 
     if (id) {
       const p = this._profiles.find(x => (x.id || x.profileId) === id);
@@ -567,8 +592,11 @@ const Staff = {
         document.getElementById('hrProfYPct').value        = p.yPct || p.hrProfYPct || '';
         document.getElementById('hrProfZPct').value        = p.zPct || p.hrProfZPct || '';
         document.getElementById('hrProfStatus').value      = p.status || 'active';
+        recordOrgId = p.orgId || recordOrgId;
       }
     }
+    const profOrgSel = document.getElementById('hrProfOrgId');
+    if (profOrgSel) profOrgSel.value = recordOrgId;
 
     const card = document.getElementById('hrProfFormCard');
     card.style.display = 'block';
@@ -597,7 +625,8 @@ const Staff = {
       xPct:          parseFloat(document.getElementById('hrProfXPct').value) || 0,
       yPct:          parseFloat(document.getElementById('hrProfYPct').value) || 0,
       zPct:          parseFloat(document.getElementById('hrProfZPct').value) || 0,
-      status:        document.getElementById('hrProfStatus').value
+      status:        document.getElementById('hrProfStatus').value,
+      targetOrgId:   document.getElementById('hrProfOrgId')?.value || ''
     };
     if (this._profEditingId) data.profileId = this._profEditingId;
 
@@ -658,6 +687,7 @@ const Staff = {
         <td style="white-space:nowrap;">${this._esc(s.startTime || s.hrShiftStart || '—')}</td>
         <td style="white-space:nowrap;">${this._esc(s.endTime   || s.hrShiftEnd   || '—')}</td>
         <td><span class="status-badge status-${s.status}">${s.status}</span></td>
+        <td>${this._esc(this._orgName(s.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit" onclick="Staff.openShiftForm('${sid}')">Edit</button>
         </td>
@@ -670,6 +700,7 @@ const Staff = {
     document.getElementById('hrShiftFormTitle').textContent = id ? 'Edit Shift' : 'Add Shift';
     document.getElementById('hrShiftSaveBtn').textContent   = id ? 'Update Shift' : 'Save Shift';
     document.getElementById('hrShiftForm').reset();
+    let recordOrgId = Auth.currentUser?.orgId || '';
 
     if (id) {
       const s = this._shifts.find(x => (x.id || x.shiftId) === id);
@@ -678,8 +709,11 @@ const Staff = {
         document.getElementById('hrShiftStart').value  = s.startTime  || s.hrShiftStart  || '';
         document.getElementById('hrShiftEnd').value    = s.endTime    || s.hrShiftEnd    || '';
         document.getElementById('hrShiftStatus').value = s.status     || 'active';
+        recordOrgId = s.orgId || recordOrgId;
       }
     }
+    const shiftOrgSel = document.getElementById('hrShiftOrgId');
+    if (shiftOrgSel) shiftOrgSel.value = recordOrgId;
 
     const card = document.getElementById('hrShiftFormCard');
     card.style.display = 'block';
@@ -699,7 +733,8 @@ const Staff = {
       name:      document.getElementById('hrShiftName').value.trim(),
       startTime: document.getElementById('hrShiftStart').value,
       endTime:   document.getElementById('hrShiftEnd').value,
-      status:    document.getElementById('hrShiftStatus').value
+      status:    document.getElementById('hrShiftStatus').value,
+      targetOrgId: document.getElementById('hrShiftOrgId')?.value || ''
     };
     if (this._shiftEditingId) data.shiftId = this._shiftEditingId;
 

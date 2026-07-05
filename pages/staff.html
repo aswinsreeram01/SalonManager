@@ -81,11 +81,9 @@
                             <option value="inactive">Inactive</option>
                         </select>
                     </div>
-                    <div class="form-group" id="hrStaffOrgGroup" style="display:none;">
+                    <div class="form-group" id="hrStaffOrgGroup">
                         <label for="hrStaffOrgId">Organization</label>
-                        <select id="hrStaffOrgId">
-                            <option value="">Keep current</option>
-                        </select>
+                        <select id="hrStaffOrgId"></select>
                     </div>
                 </div>
                 <div class="btn-group" style="margin-top:20px;">
@@ -97,7 +95,11 @@
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                 <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
-                <div style="display:flex;gap:10px;">
+                <div style="display:flex;gap:10px;align-items:center;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;">
+                        <input type="checkbox" id="hrStaffIncludeChildren">
+                        Include sub-orgs
+                    </label>
                     <input type="search" id="hrStaffSearch" placeholder="Search staff…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
                     <button class="btn btn-primary" id="hrStaffAddBtn">+ Add Staff</button>
                 </div>
@@ -106,10 +108,10 @@
                 <table>
                     <thead><tr>
                         <th>Name</th><th>Role</th><th>Type</th>
-                        <th>Status</th><th>Actions</th>
+                        <th>Status</th><th>Org</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrStaffTableBody">
-                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -202,6 +204,10 @@
                             <option value="inactive">Inactive</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="hrShiftOrgId">Organization</label>
+                        <select id="hrShiftOrgId"></select>
+                    </div>
                 </div>
                 <div class="btn-group" style="margin-top:20px;">
                     <button type="submit" class="btn btn-primary" id="hrShiftSaveBtn">Save Shift</button>
@@ -210,17 +216,22 @@
             </form>
         </div>
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                 <h3 style="color:#2d3748;margin:0;">Shift Definitions</h3>
-                <button class="btn btn-primary" id="hrShiftAddBtn">+ Add Shift</button>
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                        <input type="checkbox" id="hrShiftIncludeChildren"> Include sub-orgs
+                    </label>
+                    <button class="btn btn-primary" id="hrShiftAddBtn">+ Add Shift</button>
+                </div>
             </div>
             <div class="table-container">
                 <table>
                     <thead><tr>
-                        <th>Name</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th>
+                        <th>Name</th><th>Start</th><th>End</th><th>Status</th><th>Org</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="hrShiftTableBody">
-                        <tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -441,6 +452,10 @@
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="hrProfOrgId">Organization</label>
+                            <select id="hrProfOrgId"></select>
+                        </div>
                     </div>
                     <div class="btn-group" style="margin-top:20px;">
                         <button type="submit" class="btn btn-primary" id="hrProfSaveBtn">Save Comp Plan</button>
@@ -449,19 +464,24 @@
                 </form>
             </div>
             <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                     <h3 style="color:#2d3748;margin:0;">Comp Plans</h3>
-                    <button class="btn btn-primary" id="hrProfAddBtn">+ Add Comp Plan</button>
+                    <div style="display:flex;gap:12px;align-items:center;">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                            <input type="checkbox" id="hrProfIncludeChildren"> Include sub-orgs
+                        </label>
+                        <button class="btn btn-primary" id="hrProfAddBtn">+ Add Comp Plan</button>
+                    </div>
                 </div>
                 <div class="table-container">
                     <table>
                         <thead><tr>
                             <th>Name</th><th>Type</th><th>Revenue Base</th>
                             <th>OT Rate</th><th>OT Threshold</th><th>Target1</th><th>Target2</th>
-                            <th>X%/Y%/Z%</th><th>Status</th><th>Actions</th>
+                            <th>X%/Y%/Z%</th><th>Status</th><th>Org</th><th>Actions</th>
                         </tr></thead>
                         <tbody id="hrProfTableBody">
-                            <tr><td colspan="10" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                            <tr><td colspan="11" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>

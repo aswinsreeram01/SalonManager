@@ -19,6 +19,7 @@ const Billing = {
     customerLoyalty: null,
     sgEligible: {},    // serviceGroupId → true/false
     pgEligible: {},    // productGroupId → true/false
+    _orgs: [],
 
     init() {
         document.getElementById('billingPhone').addEventListener('input', e => {
@@ -74,6 +75,19 @@ const Billing = {
             const pbSelect = document.getElementById('billingPriceBook');
             pbSelect.innerHTML = '<option value="">No Price Book (use defaults)</option>' +
                 this.priceBooks.map(pb => `<option value="${pb.id}">${pb.name}</option>`).join('');
+
+            try {
+                const orgRes = await API.getOrganizations(Auth.currentUser?.orgId);
+                this._orgs = orgRes.status === 'success' ? (orgRes.organizations || []) : [];
+            } catch (e) {
+                this._orgs = [];
+            }
+            const orgSel = document.getElementById('billingOrgId');
+            if (orgSel) {
+                orgSel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+                orgSel.disabled = this._orgs.length < 2;
+            }
+
             this.resetBill();
             if (this._apptPrefill) {
                 this.prefillFromAppointment(this._apptPrefill);
@@ -132,6 +146,8 @@ const Billing = {
         if (nameEl) nameEl.textContent = '';
         const pbEl = document.getElementById('billingPriceBook');
         if (pbEl) pbEl.value = '';
+        const orgEl = document.getElementById('billingOrgId');
+        if (orgEl) orgEl.value = Auth.currentUser?.orgId || '';
         const dtEl = document.getElementById('discountType');
         if (dtEl) dtEl.value = 'value';
         const discEl = document.getElementById('billingDiscount');
@@ -842,7 +858,8 @@ const Billing = {
             upiAmt:  mode === 'UPI'  ? grand : (mode === 'Split' ? (Number((document.getElementById('splitUpi') ||{}).value)||0) : 0),
             items: filledRows,
             pointsToEarn,
-            redeemPoints: redeemPts
+            redeemPoints: redeemPts,
+            targetOrgId: document.getElementById('billingOrgId')?.value || ''
         };
         const btn = document.getElementById('saveBillBtn');
         if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…'; }

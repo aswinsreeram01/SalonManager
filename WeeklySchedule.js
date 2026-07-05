@@ -9,17 +9,18 @@
 const WeeklySchedule = {
 
   get(data) {
-    const { orgId, weekStart } = data;
+    const { orgId, weekStart, includeChildren } = data;
     const ss    = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName('WeeklySchedule');
     if (!sheet) return Utils.createResponse('success', 'ok', { schedules: [] });
 
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, !!includeChildren) : null;
     const rows      = sheet.getDataRange().getValues();
     const schedules = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       const rowOrg = String(rows[i][5] || '');
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       const ws = rows[i][2] instanceof Date
         ? Utils.businessDate(rows[i][2])
         : String(rows[i][2] || '').slice(0, 10);

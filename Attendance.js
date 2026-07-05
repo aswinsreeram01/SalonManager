@@ -33,19 +33,24 @@ const Attendance = {
 
   getShifts(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'shifts_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Shifts retrieved', { shifts: cached });
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      cached = Utils.getCached('shifts_' + orgId);
+      if (cached) return Utils.createResponse('success', 'Shifts retrieved', { shifts: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shifts');
     if (!sheet) return Utils.createResponse('success', 'Shifts retrieved', { shifts: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const rows = sheet.getDataRange().getValues();
     const shifts = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       const rowOrg = rows[i][6] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       shifts.push({
         shiftId:   rows[i][0],
         name:      rows[i][1],
@@ -56,30 +61,38 @@ const Attendance = {
       });
     }
 
-    Utils.setCached(cacheKey, shifts);
+    if (!includeChildren) Utils.setCached('shifts_' + orgId, shifts);
     return Utils.createResponse('success', 'Shifts retrieved', { shifts });
   },
 
   saveShift(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Shifts');
     if (!sheet) return Utils.createResponse('error', 'Shifts sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     if (data.shiftId) {
       const sheetData = sheet.getDataRange().getValues();
       for (let i = 1; i < sheetData.length; i++) {
         if (sheetData[i][0] === data.shiftId) {
+          const oldOrgId = sheetData[i][6] || '';
+          const newOrgId = data.targetOrgId !== undefined ? (data.targetOrgId || '') : oldOrgId;
           sheet.getRange(i + 1, 2).setValue(data.name);
           sheet.getRange(i + 1, 3).setValue(data.startTime);
           sheet.getRange(i + 1, 4).setValue(data.endTime);
           sheet.getRange(i + 1, 5).setValue(Number(data.breakMins) || 0);
           sheet.getRange(i + 1, 6).setValue(data.status || 'active');
-          Utils.clearCached('shifts_' + (data.orgId || ''));
+          sheet.getRange(i + 1, 7).setValue(newOrgId);
+          Utils.clearCached('shifts_' + oldOrgId);
+          if (newOrgId !== oldOrgId) Utils.clearCached('shifts_' + newOrgId);
           return Utils.createResponse('success', 'Shift updated successfully', { shiftId: data.shiftId });
         }
       }
       return Utils.createResponse('error', 'Shift not found');
     }
 
+    const orgId = data.targetOrgId || data.orgId || '';
     const shiftId = 'SHF' + Date.now();
     sheet.appendRow([
       shiftId,
@@ -88,9 +101,9 @@ const Attendance = {
       data.endTime,
       Number(data.breakMins) || 0,
       data.status || 'active',
-      data.orgId || ''
+      orgId
     ]);
-    Utils.clearCached('shifts_' + (data.orgId || ''));
+    Utils.clearCached('shifts_' + orgId);
     return Utils.createResponse('success', 'Shift saved successfully', { shiftId });
   },
 
@@ -160,11 +173,19 @@ const Attendance = {
     const filterStaffId = (data && data.staffId) ? data.staffId : null;
     const fromDate      = (data && data.fromDate) ? data.fromDate : null;
     const toDate        = (data && data.toDate)   ? data.toDate   : null;
+    // Org is implied by the staff member's own org (no independent field on
+    // attendance rows) — default to the caller's own org, opt into
+    // descendants via includeChildren, same as every other entity's read.
+    const orgId = (data && data.orgId) || '';
+    const includeChildren = !!(data && data.includeChildren);
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
     const attendance    = [];
 
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       if (filterStaffId && rows[i][1] !== filterStaffId) continue;
+      const rowOrg = String(rows[i][11] || '');
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
 
       const d = rows[i][2];
       const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);

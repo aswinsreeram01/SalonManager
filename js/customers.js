@@ -4,9 +4,11 @@
 const Customers = {
     _activeTab: 'cust-list',
     _loyaltyCfg: null,
+    _orgs: [],
 
     init() {
         document.getElementById('customerForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
+        document.getElementById('customerIncludeChildren')?.addEventListener('change', () => this.loadCustomers());
 
         document.querySelectorAll('#customers .prod-tab').forEach(btn => {
             btn.addEventListener('click', () => this._switchTab(btn.dataset.tab));
@@ -18,6 +20,33 @@ const Customers = {
         document.getElementById('loyaltyHHAddRow')?.addEventListener('click', () => this._addHHRow());
     },
 
+    // Org picker is optional — a role with Customers access but no
+    // Organizations access simply won't see it (form still works fine).
+    // Scoped to the caller's own org + descendants, not every org.
+    async _loadOrgs() {
+        try {
+            const res = await API.getOrganizations(Auth.currentUser?.orgId);
+            this._orgs = res.status === 'success' ? (res.organizations || []) : [];
+        } catch (e) {
+            this._orgs = [];
+        }
+        this._populateOrgDropdown();
+    },
+
+    _populateOrgDropdown() {
+        const sel = document.getElementById('customerOrgId');
+        if (!sel) return;
+        sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+        sel.value = Auth.currentUser?.orgId || '';
+        // A leaf org (no descendants) has nothing to pick between — grey it out.
+        sel.disabled = this._orgs.length < 2;
+    },
+
+    _orgName(orgId) {
+        const org = this._orgs.find(o => o.id === orgId);
+        return org ? org.name : (orgId || '—');
+    },
+
     _switchTab(tab) {
         this._activeTab = tab;
         document.querySelectorAll('#customers .prod-tab').forEach(b =>
@@ -27,7 +56,7 @@ const Customers = {
     },
 
     async load() {
-        await Promise.all([this.loadCustomers(), this.loadLoyalty()]);
+        await Promise.all([this._loadOrgs(), this.loadCustomers(), this.loadLoyalty()]);
     },
 
     async handleSubmit(e) {
@@ -36,16 +65,21 @@ const Customers = {
 
         const name = document.getElementById('customerName').value;
         const phone = document.getElementById('customerPhone').value;
+        // The Org field always holds a real org now (own org, or a
+        // descendant explicitly picked) — always send it. Customers.add
+        // validates it's within the caller's own org + descendants.
+        const targetOrgId = document.getElementById('customerOrgId')?.value || '';
 
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner"></span>Saving...';
 
         try {
-            const result = await API.addCustomer({ name, phone, submittedBy: Auth.currentUser?.fullName || 'Unknown' });
+            const result = await API.addCustomer({ name, phone, targetOrgId, submittedBy: Auth.currentUser?.fullName || 'Unknown' });
 
             if (result.status === 'success') {
                 UI.showMessage('customerMessage', result.message, 'success');
                 document.getElementById('customerForm').reset();
+                this._populateOrgDropdown();
                 this.loadCustomers();
             } else {
                 UI.showMessage('customerMessage', result.message, 'error');
@@ -60,10 +94,11 @@ const Customers = {
 
     async loadCustomers() {
         const tbody = document.getElementById('customersTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a0aec0;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Loading...</td></tr>';
 
         try {
-            const result = await API.getCustomers();
+            const includeChildren = document.getElementById('customerIncludeChildren')?.checked || false;
+            const result = await API.getCustomers({ includeChildren });
 
             if (result.status === 'success' && result.customers.length > 0) {
                 tbody.innerHTML = result.customers.map(customer => {
@@ -75,14 +110,15 @@ const Customers = {
                             <td>${customer.name}</td>
                             <td>${customer.phone}</td>
                             <td>${customer.addedBy}</td>
+                            <td>${this._esc(this._orgName(customer.orgId))}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a0aec0;">No customers found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">No customers found</td></tr>';
             }
         } catch (error) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #fc8181;">Error loading customers</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #fc8181;">Error loading customers</td></tr>';
         }
     },
 

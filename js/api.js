@@ -68,8 +68,8 @@ const API = {
 	},
 
 	// Users
-	getUsers(userOrgId) {
-		return this.call('get_users', { userOrgId });
+	getUsers(params) {
+		return this.call('get_users', params || {});
 	},
 	
 	addUser(data) {
@@ -136,8 +136,8 @@ const API = {
 	},
 
 	// Service Groups
-	getServiceGroups() {
-		return this.call('get_service_groups');
+	getServiceGroups(params) {
+		return this.call('get_service_groups', params || {});
 	},
 
 	addServiceGroup(data) {
@@ -153,8 +153,8 @@ const API = {
 	},
 
 	// Customers
-	getCustomers() {
-		return this.call('get_customers');
+	getCustomers(params) {
+		return this.call('get_customers', params || {});
 	},
 
 	addCustomer(data) {
@@ -162,8 +162,8 @@ const API = {
 	},
     
     // Services
-    getServices() {
-        return this.call('get_services');
+    getServices(params) {
+        return this.call('get_services', params || {});
     },
     
     addService(data) {
@@ -179,8 +179,8 @@ const API = {
     },
     
     // Staff
-    getStaff() {
-        return this.call('get_staff');
+    getStaff(params) {
+        return this.call('get_staff', params || {});
     },
     
     addStaff(data) {
@@ -196,8 +196,8 @@ const API = {
     },
     
     // Price Books
-    getPriceBooks() {
-        return this.call('get_pricebooks');
+    getPriceBooks(params) {
+        return this.call('get_pricebooks', params || {});
     },
     
     addPriceBook(data) {
@@ -240,10 +240,11 @@ const API = {
 
     // GAP 6 fix: pass optional date range so GAS can filter the sheet instead of reading everything.
     // fromDate / toDate: 'YYYY-MM-DD' strings. GAS defaults to last 90 days when omitted.
-    getBills(fromDate, toDate) {
+    getBills(fromDate, toDate, includeChildren) {
         const params = {};
         if (fromDate) params.fromDate = fromDate;
         if (toDate)   params.toDate   = toDate;
+        if (includeChildren) params.includeChildren = true;
         return this.call('get_bills', params);
     },
 
@@ -252,8 +253,8 @@ const API = {
     },
 
     // Appointments
-    getAppointments(date) {
-        return this.call('get_appointments', { date });
+    getAppointments(date, includeChildren) {
+        return this.call('get_appointments', { date, includeChildren: !!includeChildren });
     },
 
     saveAppointment(data) {
@@ -265,8 +266,8 @@ const API = {
     },
 
     // Expenses
-    getExpenses() {
-        return this.call('get_expenses');
+    getExpenses(params) {
+        return this.call('get_expenses', params || {});
     },
 
     saveExpense(data) {
@@ -282,8 +283,8 @@ const API = {
     },
 
     // Vendors
-    getVendors() {
-        return this.call('get_vendors');
+    getVendors(params) {
+        return this.call('get_vendors', params || {});
     },
 
     addVendor(data) {
@@ -299,8 +300,8 @@ const API = {
     },
 
     // Purchase Orders
-    getPurchaseOrders() {
-        return this.call('get_purchase_orders');
+    getPurchaseOrders(params) {
+        return this.call('get_purchase_orders', params || {});
     },
 
     createPurchaseOrder(data) {
@@ -329,13 +330,13 @@ const API = {
     },
 
     // Product Groups
-    getProductGroups() { return this.call('get_product_groups'); },
+    getProductGroups(params) { return this.call('get_product_groups', params || {}); },
     addProductGroup(data) { return this.call('add_product_group', data); },
     updateProductGroup(data) { return this.call('update_product_group', data); },
     deleteProductGroup(id) { return this.call('delete_product_group', { id }); },
 
     // Incentive Profiles
-    getIncentiveProfiles() { return this.call('get_incentive_profiles'); },
+    getIncentiveProfiles(params) { return this.call('get_incentive_profiles', params || {}); },
     addIncentiveProfile(data) { return this.call('add_incentive_profile', data); },
     updateIncentiveProfile(data) { return this.call('update_incentive_profile', data); },
     deleteIncentiveProfile(id) { return this.call('delete_incentive_profile', { profileId: id }); },
@@ -345,7 +346,7 @@ const API = {
     updateOrgSettings(data) { return this.call('update_org_settings', data); },
 
     // Shifts
-    getShifts() { return this.call('get_shifts'); },
+    getShifts(params) { return this.call('get_shifts', params || {}); },
     saveShift(data) { return this.call('save_shift', data); },
 
     // Allocations

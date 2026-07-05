@@ -13,11 +13,16 @@
     <div id="prod-tab-svc-groups" class="prod-tab-panel active">
         <div id="serviceGroupMessage" class="message"></div>
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-                <h3 style="color:#2d3748;">Service Groups</h3>
-                <button class="btn btn-secondary" id="toggleServiceGroupForm">
-                    <span id="serviceGroupFormToggleText">Add Group</span>
-                </button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+                <h3 style="color:#2d3748;margin:0;">Service Groups</h3>
+                <div style="display:flex;gap:12px;align-items:center;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                        <input type="checkbox" id="serviceGroupIncludeChildren"> Include sub-orgs
+                    </label>
+                    <button class="btn btn-secondary" id="toggleServiceGroupForm">
+                        <span id="serviceGroupFormToggleText">Add Group</span>
+                    </button>
+                </div>
             </div>
             <form id="serviceGroupForm" style="display:none;">
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
@@ -47,6 +52,10 @@
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupOrgId">Organization</label>
+                        <select id="serviceGroupOrgId"></select>
                     </div>
                 </div>
                 <div class="form-group">
@@ -78,10 +87,10 @@
                         <th>Name</th><th>SAC Code</th><th>GST%</th>
                         <th>Target?</th><th>Direct%</th><th>Sort</th>
                         <th style="text-align:center;">Points?</th>
-                        <th>Status</th><th>Actions</th>
+                        <th>Status</th><th>Org</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="serviceGroupsTableBody">
-                        <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                        <tr><td colspan="10" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -125,6 +134,10 @@
                             <option value="inactive">Inactive</option>
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label for="serviceOrgId">Organization</label>
+                        <select id="serviceOrgId"></select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="serviceDescription">Description</label>
@@ -137,16 +150,21 @@
             </form>
         </div>
         <div class="card">
-            <h3 style="margin-bottom:16px;color:#2d3748;">Services List</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                <h3 style="color:#2d3748;margin:0;">Services List</h3>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                    <input type="checkbox" id="serviceIncludeChildren"> Include sub-orgs
+                </label>
+            </div>
             <div class="table-container">
                 <table>
                     <thead><tr>
                         <th>Service Name</th><th>Service Group</th>
                         <th>Duration</th><th>Default Price</th>
-                        <th>Status</th><th>Actions</th>
+                        <th>Status</th><th>Org</th><th>Actions</th>
                     </tr></thead>
                     <tbody id="servicesTableBody">
-                        <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading services...</td></tr>
+                        <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading services...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -177,6 +195,10 @@
                                 <option value="inactive">Inactive</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="priceBookOrgId">Organization</label>
+                            <select id="priceBookOrgId"></select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="priceBookDescription">Description</label>
@@ -189,14 +211,19 @@
                 </form>
             </div>
             <div class="card">
-                <h3 style="margin-bottom:16px;color:#2d3748;">Price Books List</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+                    <h3 style="color:#2d3748;margin:0;">Price Books List</h3>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                        <input type="checkbox" id="priceBookIncludeChildren"> Include sub-orgs
+                    </label>
+                </div>
                 <div class="table-container">
                     <table>
                         <thead><tr>
-                            <th>Name</th><th>Description</th><th>Status</th><th>Actions</th>
+                            <th>Name</th><th>Description</th><th>Status</th><th>Org</th><th>Actions</th>
                         </tr></thead>
                         <tbody id="priceBooksTableBody">
-                            <tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading price books...</td></tr>
+                            <tr><td colspan="5" style="text-align:center;color:#a0aec0;">Loading price books...</td></tr>
                         </tbody>
                     </table>
                 </div>

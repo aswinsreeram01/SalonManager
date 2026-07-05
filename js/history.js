@@ -1,15 +1,28 @@
 const History = {
-    init() {},
+    _orgs: [],
+
+    init() {
+        document.getElementById('historyIncludeChildren')?.addEventListener('change', () => this.load());
+    },
+
+    _orgName(orgId) {
+        const org = this._orgs.find(o => o.id === orgId);
+        return org ? org.name : (orgId || '—');
+    },
 
     async load() {
         const tbody = document.getElementById('historyTableBody');
         if (!tbody) return;
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
         try {
-            const result = await API.getBills();
+            const orgRes = await API.getOrganizations(Auth.currentUser?.orgId);
+            this._orgs = orgRes.status === 'success' ? (orgRes.organizations || []) : [];
+
+            const includeChildren = !!document.getElementById('historyIncludeChildren')?.checked;
+            const result = await API.getBills(undefined, undefined, includeChildren);
             const bills = (result.bills || []).sort((a, b) => new Date(b.date) - new Date(a.date));
             if (bills.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">No bills found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;">No bills found</td></tr>';
                 return;
             }
             tbody.innerHTML = bills.map(b => {
@@ -21,6 +34,7 @@ const History = {
                     <td style="text-align:right;font-weight:600;">₹${Number(b.grandTotal||0).toFixed(2)}</td>
                     <td>${b.paymentMode || '—'}</td>
                     <td><span class="status-badge status-${b.status}">${b.status}</span></td>
+                    <td>${this._orgName(b.orgId)}</td>
                     <td>
                         <div class="action-btns">
                             <button class="action-btn action-btn-edit" onclick="History.viewBill('${b.billId}')">View</button>
@@ -30,7 +44,7 @@ const History = {
                 </tr>`;
             }).join('');
         } catch(e) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#fc8181;">Error loading bills</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#fc8181;">Error loading bills</td></tr>';
         }
     },
 

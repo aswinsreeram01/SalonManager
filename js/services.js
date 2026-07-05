@@ -1,11 +1,35 @@
 const Services = {
     editingId: null,
     serviceGroups: [],
+    _orgs: [],
 
     init() {
         document.getElementById('serviceForm')?.addEventListener('submit', (e) => this.handleSubmit(e));
         document.getElementById('toggleServiceForm')?.addEventListener('click', () => this.toggleForm());
         document.getElementById('cancelServiceBtn')?.addEventListener('click', () => this.hideForm());
+        document.getElementById('serviceIncludeChildren')?.addEventListener('change', () => this.load());
+    },
+
+    async _loadOrgs() {
+        try {
+            const result = await API.getOrganizations(Auth.currentUser?.orgId);
+            this._orgs = (result.status === 'success' && result.organizations) || [];
+        } catch (e) {
+            this._orgs = [];
+        }
+        this._populateOrgDropdown();
+    },
+
+    _populateOrgDropdown() {
+        const sel = document.getElementById('serviceOrgId');
+        if (!sel) return;
+        sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+        sel.disabled = this._orgs.length < 2;
+    },
+
+    _orgName(orgId) {
+        const org = this._orgs.find(o => o.id === orgId);
+        return org ? org.name : (orgId || '—');
     },
 
     toggleForm() {
@@ -27,6 +51,8 @@ const Services = {
         this.editingId = null;
         document.getElementById('serviceForm').reset();
         document.getElementById('saveServiceBtn').textContent = 'Save Service';
+        const orgSel = document.getElementById('serviceOrgId');
+        if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
     },
 
     getGroupName(id) {
@@ -35,13 +61,15 @@ const Services = {
     },
 
     async load() {
+        await this._loadOrgs();
         const tbody = document.getElementById('servicesTableBody');
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading...</td></tr>';
+        const includeChildren = !!document.getElementById('serviceIncludeChildren')?.checked;
 
         try {
             const [sgResult, svResult] = await Promise.all([
                 API.getServiceGroups(),
-                API.getServices()
+                API.getServices({ includeChildren })
             ]);
 
             if (sgResult.status === 'success') {
@@ -57,6 +85,7 @@ const Services = {
                         <td>${service.duration} mins</td>
                         <td>₹${service.defaultPrice}</td>
                         <td><span class="status-badge status-${service.status}">${service.status}</span></td>
+                        <td>${this._orgName(service.orgId)}</td>
                         <td>
                             <div class="action-btns">
                                 <button class="action-btn action-btn-edit" onclick="Services.edit('${service.id}')">Edit</button>
@@ -66,10 +95,10 @@ const Services = {
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">No services found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">No services found</td></tr>';
             }
         } catch (error) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#fc8181;">Error loading services</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#fc8181;">Error loading services</td></tr>';
         }
     },
 
@@ -93,7 +122,8 @@ const Services = {
             duration: document.getElementById('serviceDuration').value,
             serviceGroupId: document.getElementById('serviceGroupId').value,
             defaultPrice: document.getElementById('serviceDefaultPrice').value,
-            status: document.getElementById('serviceStatus').value
+            status: document.getElementById('serviceStatus').value,
+            targetOrgId: document.getElementById('serviceOrgId')?.value || ''
         };
         if (this.editingId) data.id = this.editingId;
 
@@ -132,6 +162,8 @@ const Services = {
                 document.getElementById('serviceGroupId').value = service.serviceGroupId || '';
                 document.getElementById('serviceDefaultPrice').value = service.defaultPrice;
                 document.getElementById('serviceStatus').value = service.status;
+                const orgSel = document.getElementById('serviceOrgId');
+                if (orgSel) orgSel.value = service.orgId || Auth.currentUser?.orgId || '';
                 document.getElementById('saveServiceBtn').textContent = 'Update Service';
                 document.getElementById('serviceForm').style.display = 'block';
                 document.getElementById('serviceFormToggleText').textContent = 'Hide Form';

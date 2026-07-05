@@ -2,15 +2,39 @@
 const PriceBooks = {
     editingId: null,
     currentPriceBookId: null,
-    
+    _orgs: [],
+
     init() {
         const form = document.getElementById('priceBookForm');
         const toggleBtn = document.getElementById('togglePriceBookForm');
         const cancelBtn = document.getElementById('cancelPriceBookBtn');
-        
+
         form.addEventListener('submit', (e) => this.handleSubmit(e));
         toggleBtn.addEventListener('click', () => this.toggleForm());
         cancelBtn.addEventListener('click', () => this.hideForm());
+        document.getElementById('priceBookIncludeChildren')?.addEventListener('change', () => this.load());
+    },
+
+    async _loadOrgs() {
+        try {
+            const result = await API.getOrganizations(Auth.currentUser?.orgId);
+            this._orgs = (result.status === 'success' && result.organizations) || [];
+        } catch (e) {
+            this._orgs = [];
+        }
+        this._populateOrgDropdown();
+    },
+
+    _populateOrgDropdown() {
+        const sel = document.getElementById('priceBookOrgId');
+        if (!sel) return;
+        sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${o.name}</option>`).join('');
+        sel.disabled = this._orgs.length < 2;
+    },
+
+    _orgName(orgId) {
+        const org = this._orgs.find(o => o.id === orgId);
+        return org ? org.name : (orgId || '—');
     },
     
     toggleForm() {
@@ -36,16 +60,19 @@ const PriceBooks = {
         this.editingId = null;
         document.getElementById('priceBookForm').reset();
         document.getElementById('savePriceBookBtn').textContent = 'Save Price Book';
+        const orgSel = document.getElementById('priceBookOrgId');
+        if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
     },
-    
+
     async handleSubmit(e) {
         e.preventDefault();
         const saveBtn = document.getElementById('savePriceBookBtn');
-        
+
         const data = {
             name: document.getElementById('priceBookName').value,
             description: document.getElementById('priceBookDescription').value,
-            status: document.getElementById('priceBookStatus').value
+            status: document.getElementById('priceBookStatus').value,
+            targetOrgId: document.getElementById('priceBookOrgId')?.value || ''
         };
         
         if (this.editingId) {
@@ -76,18 +103,21 @@ const PriceBooks = {
     },
     
     async load() {
+        await this._loadOrgs();
         const tbody = document.getElementById('priceBooksTableBody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a0aec0;">Loading...</td></tr>';
-        
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">Loading...</td></tr>';
+        const includeChildren = !!document.getElementById('priceBookIncludeChildren')?.checked;
+
         try {
-            const result = await API.getPriceBooks();
-            
+            const result = await API.getPriceBooks({ includeChildren });
+
             if (result.status === 'success' && result.priceBooks.length > 0) {
                 tbody.innerHTML = result.priceBooks.map(pb => `
                     <tr>
                         <td>${pb.name}</td>
                         <td>${pb.description || '-'}</td>
                         <td><span class="status-badge status-${pb.status}">${pb.status}</span></td>
+                        <td>${this._orgName(pb.orgId)}</td>
                         <td>
                             <div class="action-btns">
                                 <button class="action-btn action-btn-edit" onclick="PriceBooks.viewItems('${pb.id}', '${pb.name}')">Manage Prices</button>
@@ -98,24 +128,26 @@ const PriceBooks = {
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #a0aec0;">No price books found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #a0aec0;">No price books found</td></tr>';
             }
         } catch (error) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #fc8181;">Error loading price books</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #fc8181;">Error loading price books</td></tr>';
         }
     },
-    
+
     async edit(id) {
         UI.showLoading();
         try {
             const result = await API.getPriceBooks();
             const priceBook = result.priceBooks.find(pb => pb.id === id);
-            
+
             if (priceBook) {
                 this.editingId = id;
                 document.getElementById('priceBookName').value = priceBook.name;
                 document.getElementById('priceBookDescription').value = priceBook.description;
                 document.getElementById('priceBookStatus').value = priceBook.status;
+                const orgSel = document.getElementById('priceBookOrgId');
+                if (orgSel) orgSel.value = priceBook.orgId || Auth.currentUser?.orgId || '';
                 document.getElementById('savePriceBookBtn').textContent = 'Update Price Book';
                 document.getElementById('priceBookForm').style.display = 'block';
                 document.getElementById('priceBookFormToggleText').textContent = 'Hide Form';

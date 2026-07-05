@@ -11,6 +11,7 @@ const Appointments = {
     _custId: null,
     _custName: '',
     _custTimer: null,
+    _orgs: [],
 
     init() {
         this.currentDate = this._todayStr();
@@ -28,6 +29,7 @@ const Appointments = {
         document.getElementById('apptBookingModal').addEventListener('click', e => {
             if (e.target === document.getElementById('apptBookingModal')) this.closeModal();
         });
+        document.getElementById('apptIncludeChildren')?.addEventListener('change', () => this._fetchAndRender());
 
         // Phone lookup
         document.getElementById('apptCustPhone').addEventListener('input', e => {
@@ -65,22 +67,29 @@ const Appointments = {
 
     async _loadReferenceData() {
         try {
-            const [staffRes, svcRes, custRes] = await Promise.all([
-                API.getStaff(), API.getServices(), API.getCustomers()
+            const [staffRes, svcRes, custRes, orgRes] = await Promise.all([
+                API.getStaff(), API.getServices(), API.getCustomers(), API.getOrganizations(Auth.currentUser?.orgId)
             ]);
             this.staff     = (staffRes.staff    || []).filter(s => s.status === 'active');
             this.services  = (svcRes.services   || []).filter(s => s.status === 'active');
             this.customers = custRes.customers  || [];
+            this._orgs     = orgRes.status === 'success' ? (orgRes.organizations || []) : [];
         } catch(e) {
             console.error('Appointments: failed to load reference data', e);
         }
+    },
+
+    _orgName(orgId) {
+        const org = this._orgs.find(o => o.id === orgId);
+        return org ? org.name : (orgId || '—');
     },
 
     async _fetchAndRender() {
         document.getElementById('apptDateDisplay').textContent = this._fmtDateDisplay(this.currentDate);
         document.getElementById('apptContent').innerHTML = '<div class="appt-loading">Loading…</div>';
         try {
-            const res = await API.getAppointments(this.currentDate);
+            const includeChildren = !!document.getElementById('apptIncludeChildren')?.checked;
+            const res = await API.getAppointments(this.currentDate, includeChildren);
             this.appointments = res.appointments || [];
             this._render();
         } catch(e) {
@@ -118,7 +127,7 @@ const Appointments = {
             </div>
             <div class="appt-info-col">
                 <div class="appt-customer-name">${this._esc(a.customerName) || '—'}</div>
-                <div class="appt-detail-line">${this._esc(a.serviceName)} · ${this._esc(a.staffName)}</div>
+                <div class="appt-detail-line">${this._esc(a.serviceName)} · ${this._esc(a.staffName)} · ${this._esc(this._orgName(a.orgId))}</div>
                 ${a.notes ? `<div class="appt-notes-line">${this._esc(a.notes)}</div>` : ''}
             </div>
             <div class="appt-right-col">
@@ -160,7 +169,7 @@ const Appointments = {
             <div class="appt-day-card-top">
                 <div>
                     <div class="appt-customer-name">${this._esc(a.customerName) || '—'}</div>
-                    <div class="appt-detail-line">${this._esc(a.serviceName)} · ${this._esc(a.staffName)} · ${a.durationMins}min</div>
+                    <div class="appt-detail-line">${this._esc(a.serviceName)} · ${this._esc(a.staffName)} · ${a.durationMins}min · ${this._esc(this._orgName(a.orgId))}</div>
                     ${a.notes ? `<div class="appt-notes-line">${this._esc(a.notes)}</div>` : ''}
                 </div>
                 ${this._badge(a.status)}
@@ -330,6 +339,14 @@ const Appointments = {
 
         this._fillDropdowns();
 
+        // Org is set once at booking time; not reassignable when editing.
+        const orgGroup = document.getElementById('apptOrgGroup');
+        const orgSel   = document.getElementById('apptOrgId');
+        if (orgSel) {
+            orgSel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+            orgSel.disabled = this._orgs.length < 2;
+        }
+
         if (appointmentId) {
             const a = this.appointments.find(x => x.appointmentId === appointmentId);
             if (a) {
@@ -350,7 +367,10 @@ const Appointments = {
                     document.getElementById('apptMinute').value = (mm || '00').substring(0, 2);
                 }
             }
+            if (orgGroup) orgGroup.style.display = 'none';
         } else {
+            if (orgGroup) orgGroup.style.display = '';
+            if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
             document.getElementById('apptDate').value = this.currentDate;
             if (prefillTime) {
                 const t = prefillTime.split('T')[1];
@@ -445,6 +465,7 @@ const Appointments = {
             notes,
             createdBy:     Auth.currentUser?.fullName || ''
         };
+        if (!this._editingId) payload.targetOrgId = document.getElementById('apptOrgId')?.value || '';
 
         try {
             const res = this._editingId

@@ -50,6 +50,10 @@
                         <option value="inactive">Inactive</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="pgOrgId">Organization</label>
+                    <select id="pgOrgId"></select>
+                </div>
             </div>
             <div class="form-group" style="margin-top:4px;">
                 <label>
@@ -66,7 +70,10 @@
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
             <h3 style="color:#2d3748;margin:0;">Product Groups</h3>
-            <div style="display:flex;gap:10px;">
+            <div style="display:flex;gap:10px;align-items:center;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                    <input type="checkbox" id="pgIncludeChildren"> Include sub-orgs
+                </label>
                 <input type="search" id="pgSearch" placeholder="Search groups…" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;min-width:160px;">
                 <button class="btn btn-primary" id="pgAddBtn">+ Add Group</button>
             </div>
@@ -77,10 +84,10 @@
                     <th>Name</th><th>GST%</th><th>HSN Code</th>
                     <th>Unit Incentive</th><th>Sort</th>
                     <th style="text-align:center;">Points?</th>
-                    <th>Status</th><th>Actions</th>
+                    <th>Status</th><th>Org</th><th>Actions</th>
                 </tr></thead>
                 <tbody id="pgTableBody">
-                    <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                    <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -275,6 +282,10 @@
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
+                                <div class="form-group">
+                                    <label for="venOrgId">Organization</label>
+                                    <select id="venOrgId"></select>
+                                </div>
                             </div>
                             <div class="btn-group" style="margin-top:20px;">
                                 <button type="submit" class="btn btn-primary" id="venSaveBtn">Save Vendor</button>
@@ -287,7 +298,11 @@
                     <div class="card">
                         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                             <h3 style="color:#2d3748;margin:0;">Vendors</h3>
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;">
+                                    <input type="checkbox" id="venIncludeChildren">
+                                    Include sub-orgs
+                                </label>
                                 <select id="venStatusFilter" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;">
                                     <option value="active">Active</option>
                                     <option value="">All</option>
@@ -306,11 +321,12 @@
                                         <th>Phone</th>
                                         <th>Email</th>
                                         <th>Status</th>
+                                        <th>Org</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="venTableBody">
-                                    <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -342,6 +358,10 @@
                                 <div class="form-group">
                                     <label for="poNotes">Notes</label>
                                     <input type="text" id="poNotes" placeholder="Optional notes">
+                                </div>
+                                <div class="form-group">
+                                    <label for="poOrgId">Organization</label>
+                                    <select id="poOrgId"></select>
                                 </div>
                             </div>
 
@@ -399,9 +419,14 @@
 
                     <!-- PO List -->
                     <div class="card">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
                             <h3 style="color:#2d3748;margin:0;">Purchase Orders</h3>
-                            <button class="btn btn-primary" id="poCreateBtn">+ Create PO</button>
+                            <div style="display:flex;gap:12px;align-items:center;">
+                                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                                    <input type="checkbox" id="poIncludeChildren"> Include sub-orgs
+                                </label>
+                                <button class="btn btn-primary" id="poCreateBtn">+ Create PO</button>
+                            </div>
                         </div>
                         <div class="table-container">
                             <table>
@@ -411,10 +436,11 @@
                                     <th>PO Date</th>
                                     <th>Expected</th>
                                     <th>Status</th>
+                                    <th>Org</th>
                                     <th>Actions</th>
                                 </tr></thead>
                                 <tbody id="poTableBody">
-                                    <tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
+                                    <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading…</td></tr>
                                 </tbody>
                             </table>
                         </div>

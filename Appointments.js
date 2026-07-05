@@ -49,13 +49,16 @@ const Appointments = {
     if (!date) return Utils.createResponse('error', 'date parameter required');
 
     const orgId = data.orgId || '';
+    const includeChildren = !!data.includeChildren;
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
+
     const rows = sheet.getDataRange().getValues();
     const appointments = [];
     for (let i = 1; i < rows.length; i++) {
       const startTime = this._toIso(rows[i][8]);
       if (!startTime.startsWith(date)) continue;
       const rowOrg = rows[i][15] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       appointments.push(this._rowToObj(rows[i]));
     }
     appointments.sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -65,6 +68,10 @@ const Appointments = {
   save(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Appointments');
     if (!sheet) return Utils.createResponse('error', 'Appointments sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
 
     const appointmentId = 'APPT' + Date.now();
     const createdAt = new Date().toISOString();
@@ -85,7 +92,7 @@ const Appointments = {
       '',
       createdAt,
       data.userId        || data.createdBy || '',
-      data.orgId         || ''
+      orgId
     ]);
 
     return Utils.createResponse('success', 'Appointment booked successfully', { appointmentId });

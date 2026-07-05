@@ -9,19 +9,24 @@
 const IncentiveProfiles = {
   getAll(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'incentive_profiles_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Incentive profiles retrieved', { incentiveProfiles: cached });
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      cached = Utils.getCached('incentive_profiles_' + orgId);
+      if (cached) return Utils.createResponse('success', 'Incentive profiles retrieved', { incentiveProfiles: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('IncentiveProfiles');
     if (!sheet) return Utils.createResponse('success', 'Incentive profiles retrieved', { incentiveProfiles: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const rows = sheet.getDataRange().getValues();
     const incentiveProfiles = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       const rowOrg = rows[i][13] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       incentiveProfiles.push({
         profileId:     rows[i][0],
         profileName:   rows[i][1],
@@ -41,13 +46,17 @@ const IncentiveProfiles = {
       });
     }
 
-    Utils.setCached(cacheKey, incentiveProfiles);
+    if (!includeChildren) Utils.setCached('incentive_profiles_' + orgId, incentiveProfiles);
     return Utils.createResponse('success', 'Incentive profiles retrieved', { incentiveProfiles });
   },
 
   add(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('IncentiveProfiles');
     if (!sheet) return Utils.createResponse('error', 'IncentiveProfiles sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
 
     const profileId = data.profileId || ('PROF' + Date.now());
     sheet.appendRow([
@@ -64,20 +73,25 @@ const IncentiveProfiles = {
       Number(data.yPct)  || 0,
       Number(data.zPct)  || 0,
       data.status        || 'active',
-      data.orgId         || '',
+      orgId,
       Number(data.otThresholdHours) || 9
     ]);
-    Utils.clearCached('incentive_profiles_' + (data.orgId || ''));
+    Utils.clearCached('incentive_profiles_' + orgId);
     return Utils.createResponse('success', 'Incentive profile added successfully', { profileId });
   },
 
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('IncentiveProfiles');
     if (!sheet) return Utils.createResponse('error', 'IncentiveProfiles sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const sheetData = sheet.getDataRange().getValues();
     for (let i = 1; i < sheetData.length; i++) {
       if (sheetData[i][0] === data.profileId) {
+        const oldOrgId = sheetData[i][13] || '';
+        const newOrgId = data.targetOrgId !== undefined ? (data.targetOrgId || '') : oldOrgId;
         sheet.getRange(i + 1, 2).setValue(data.profileName);
         sheet.getRange(i + 1, 3).setValue(data.profileType   || 'service_provider');
         sheet.getRange(i + 1, 4).setValue(data.revenueBase   || 'individual');
@@ -90,8 +104,10 @@ const IncentiveProfiles = {
         sheet.getRange(i + 1, 11).setValue(Number(data.yPct) || 0);
         sheet.getRange(i + 1, 12).setValue(Number(data.zPct) || 0);
         sheet.getRange(i + 1, 13).setValue(data.status);
+        sheet.getRange(i + 1, 14).setValue(newOrgId);
         sheet.getRange(i + 1, 15).setValue(Number(data.otThresholdHours) || 9);
-        Utils.clearCached('incentive_profiles_' + (data.orgId || ''));
+        Utils.clearCached('incentive_profiles_' + oldOrgId);
+        if (newOrgId !== oldOrgId) Utils.clearCached('incentive_profiles_' + newOrgId);
         return Utils.createResponse('success', 'Incentive profile updated successfully');
       }
     }

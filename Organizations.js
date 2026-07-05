@@ -11,8 +11,12 @@ const Organizations = {
       const orgData = sheet.getDataRange().getValues();
       allOrgs = [];
       for (let i = 1; i < orgData.length; i++) {
+        // Coerce id/parentId to String — Sheets stores a numeric-looking cell
+        // (e.g. an org id manually typed as "1001") as a Number, and a bare
+        // === comparison against a string id from session/JSON then silently
+        // fails, making getOrgAndChildren return [] for that org's own users.
         allOrgs.push({
-          id: orgData[i][0], name: orgData[i][1], parentId: orgData[i][2] || null,
+          id: String(orgData[i][0]), name: orgData[i][1], parentId: orgData[i][2] ? String(orgData[i][2]) : null,
           type: orgData[i][3], status: orgData[i][4]
         });
       }
@@ -24,13 +28,14 @@ const Organizations = {
   getAll(data) {
     const allOrgs = this._getAllRaw();
     if (data.userOrgId) {
-      const allowed = this.getOrgAndChildren(data.userOrgId, allOrgs);
+      const allowed = this.getOrgAndChildren(String(data.userOrgId), allOrgs);
       return Utils.createResponse('success', 'Organizations retrieved', { organizations: allowed });
     }
     return Utils.createResponse('success', 'Organizations retrieved', { organizations: allOrgs });
   },
 
   getOrgAndChildren(orgId, allOrgs) {
+    orgId = String(orgId);
     const result = [];
     const org = allOrgs.find(o => o.id === orgId);
     if (org) {
@@ -50,6 +55,8 @@ const Organizations = {
   // record in an org they have no relationship to.
   isWithinScope(callerOrgId, targetOrgId) {
     if (!targetOrgId) return true; // no reassignment requested
+    targetOrgId = String(targetOrgId);
+    callerOrgId = callerOrgId ? String(callerOrgId) : '';
     if (targetOrgId === callerOrgId) return true;
     if (!callerOrgId) return false;
     const allOrgs = this._getAllRaw();
@@ -64,6 +71,7 @@ const Organizations = {
   // filtering entirely, same as today.
   scopeOrgIds(callerOrgId, includeChildren) {
     if (!callerOrgId) return null;
+    callerOrgId = String(callerOrgId);
     if (!includeChildren) return new Set([callerOrgId]);
     const allOrgs = this._getAllRaw();
     return new Set(this.getOrgAndChildren(callerOrgId, allOrgs).map(o => o.id));

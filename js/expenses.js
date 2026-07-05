@@ -8,6 +8,7 @@ function _expToday() {
 const Expenses = {
   _expenses: [],
   _editingId: null,
+  _orgs: [],
 
   CATEGORIES: [
     'Rent', 'Utilities', 'Staff Salary', 'Supplies',
@@ -39,12 +40,34 @@ const Expenses = {
     document.getElementById('expCustomTo').addEventListener('change', () => this._applyAndRender());
     document.getElementById('expCategoryFilter').addEventListener('change', () => this._applyAndRender());
     document.getElementById('expPaymentFilter').addEventListener('change', () => this._applyAndRender());
+    document.getElementById('expIncludeChildren')?.addEventListener('change', () => this.load());
+  },
+
+  async _loadOrgs() {
+    try {
+      const res = await API.getOrganizations(Auth.currentUser?.orgId);
+      this._orgs = res.status === 'success' ? (res.organizations || []) : [];
+    } catch (e) {
+      this._orgs = [];
+    }
+    const sel = document.getElementById('expOrgId');
+    if (sel) {
+      sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+      sel.disabled = this._orgs.length < 2;
+    }
+  },
+
+  _orgName(orgId) {
+    const org = this._orgs.find(o => o.id === orgId);
+    return org ? org.name : (orgId || '—');
   },
 
   async load() {
     UI.showLoading();
     try {
-      const res = await API.getExpenses();
+      await this._loadOrgs();
+      const includeChildren = !!document.getElementById('expIncludeChildren')?.checked;
+      const res = await API.getExpenses({ includeChildren });
       if (res.status === 'success') {
         this._expenses = res.expenses || [];
         this._applyAndRender();
@@ -110,7 +133,7 @@ const Expenses = {
   _renderList(expenses) {
     const tbody = document.getElementById('expListBody');
     if (!expenses.length) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">No expenses found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#a0aec0;padding:24px;">No expenses found</td></tr>';
       return;
     }
     const sorted = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -123,6 +146,7 @@ const Expenses = {
         <td>${this._esc(e.description || '—')}</td>
         <td style="text-align:right;font-weight:600;white-space:nowrap;">${this._fmt(e.amount)}</td>
         <td style="white-space:nowrap;">${this._esc(e.paymentMode || '—')}</td>
+        <td>${this._esc(this._orgName(e.orgId))}</td>
         <td style="white-space:nowrap;">
           <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px;margin-right:4px;" onclick="Expenses.doEdit('${e.expenseId}')">Edit</button>
           <button class="btn" style="padding:4px 10px;font-size:12px;background:#fed7d7;color:#c53030;border:none;border-radius:6px;cursor:pointer;" onclick="Expenses.doVoid('${e.expenseId}')">Delete</button>
@@ -137,6 +161,10 @@ const Expenses = {
     document.getElementById('expSaveBtn').textContent = expenseId ? 'Update Expense' : 'Save Expense';
     document.getElementById('expenseForm').reset();
     document.getElementById('expDate').value = _expToday();
+    // Org is set once at creation — Expenses.update() never reassigns it,
+    // so the picker only makes sense (and is only shown) on a new expense.
+    const orgGroup = document.getElementById('expOrgGroup');
+    const orgSel = document.getElementById('expOrgId');
 
     if (expenseId) {
       const e = this._expenses.find(x => x.expenseId === expenseId);
@@ -150,6 +178,10 @@ const Expenses = {
         document.getElementById('expRefNo').value       = e.referenceNo;
         document.getElementById('expNotes').value       = e.notes;
       }
+      if (orgGroup) orgGroup.style.display = 'none';
+    } else {
+      if (orgGroup) orgGroup.style.display = '';
+      if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
     }
 
     const card = document.getElementById('expFormCard');
@@ -175,6 +207,7 @@ const Expenses = {
       referenceNo: document.getElementById('expRefNo').value.trim(),
       notes:       document.getElementById('expNotes').value.trim()
     };
+    if (!this._editingId) data.targetOrgId = document.getElementById('expOrgId')?.value || '';
 
     const btn = document.getElementById('expSaveBtn');
     btn.disabled = true;
@@ -194,6 +227,7 @@ const Expenses = {
         } else {
           this._expenses.push({
             ...data,
+            orgId: data.targetOrgId,
             expenseId: res.expenseId || ('EXP' + Date.now()),
             createdAt: new Date().toISOString(),
             status: 'active'

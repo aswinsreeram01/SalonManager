@@ -38,6 +38,7 @@ const Products = {
     document.getElementById('vendorForm').addEventListener('submit', e => this._handleVenSubmit(e));
     document.getElementById('venSearch').addEventListener('input', () => this._renderVendors());
     document.getElementById('venStatusFilter').addEventListener('change', () => this._renderVendors());
+    document.getElementById('venIncludeChildren').addEventListener('change', () => this._reloadVendors());
 
     // Purchase Orders tab
     document.getElementById('poCreateBtn').addEventListener('click', () => this._openPOForm());
@@ -46,6 +47,7 @@ const Products = {
     document.getElementById('poVendorSelect').addEventListener('change', () => this._onPOVendorChange());
     document.getElementById('poAddItemBtn').addEventListener('click', () => this._addPOItem());
     document.getElementById('poSmartSuggestBtn').addEventListener('click', () => this._smartSuggestPO());
+    document.getElementById('poIncludeChildren')?.addEventListener('change', () => this._reloadPOs());
 
     // Receive Stock tab  (GAP 1 fix: listener is on the radio inputs, not the wrapper div — see below)
     document.getElementById('rcvPoSelect').addEventListener('change', () => this._loadPOItems());
@@ -78,10 +80,11 @@ const Products = {
   async load() {
     UI.showLoading();
     try {
+      const poIncludeChildren = !!document.getElementById('poIncludeChildren')?.checked;
       const [prodRes, venRes, poRes, regRes] = await Promise.all([
         API.getProducts(),
         API.getVendors(),
-        API.getPurchaseOrders(),
+        API.getPurchaseOrders({ includeChildren: poIncludeChildren }),
         API.getStockRegister()
       ]);
       if (prodRes.status === 'success') this._products  = prodRes.products  || [];
@@ -129,12 +132,16 @@ const Products = {
   // ─── PRODUCTS TAB ────────────────────────────────────────────────────────────
 
   _populateOrgDropdown() {
-    const sel = document.getElementById('prodOrgId');
-    if (!sel) return;
-    sel.innerHTML = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
+    const opts = this._orgs.map(o => `<option value="${o.id}">${this._esc(o.name)}</option>`).join('');
     // A leaf org (no descendants) has nothing to pick between — grey it out
     // rather than hide it, so the form still shows which org the record is in.
-    sel.disabled = this._orgs.length < 2;
+    const disabled = this._orgs.length < 2;
+    ['prodOrgId', 'venOrgId', 'poOrgId'].forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      sel.innerHTML = opts;
+      sel.disabled = disabled;
+    });
   },
 
   // Re-fetches just the product list (not the whole page) when the
@@ -161,6 +168,25 @@ const Products = {
   _orgName(orgId) {
     const org = this._orgs.find(o => o.id === orgId);
     return org ? org.name : (orgId || '—');
+  },
+
+  // Re-fetches just the PO list when the "Include sub-orgs" toggle changes.
+  async _reloadPOs() {
+    const includeChildren = !!document.getElementById('poIncludeChildren')?.checked;
+    UI.showLoading();
+    try {
+      const res = await API.getPurchaseOrders({ includeChildren });
+      if (res.status === 'success') {
+        this._pos = res.pos || [];
+        this._renderPOs();
+      } else {
+        UI.showMessage('prodMessage', res.message || 'Failed to load purchase orders', 'error');
+      }
+    } catch (e) {
+      UI.showMessage('prodMessage', 'Failed to load purchase orders', 'error');
+    } finally {
+      UI.hideLoading();
+    }
   },
 
   _populateVendorDropdowns() {
@@ -386,7 +412,7 @@ const Products = {
 
     const tbody = document.getElementById('venTableBody');
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:24px;">${q ? 'No vendors match search' : 'No vendors yet'}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">${q ? 'No vendors match search' : 'No vendors yet'}</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(v => `<tr>
@@ -395,6 +421,7 @@ const Products = {
       <td>${this._esc(v.phone || '—')}</td>
       <td>${this._esc(v.email || '—')}</td>
       <td><span class="status-badge status-${v.status}">${v.status}</span></td>
+      <td>${this._esc(this._orgName(v.orgId))}</td>
       <td>
         <button class="action-btn action-btn-edit" onclick="Products._openVenForm('${v.vendorId}')">Edit</button>
         <button class="action-btn action-btn-delete" onclick="Products._removeVendor('${v.vendorId}')">Remove</button>
@@ -402,11 +429,29 @@ const Products = {
     </tr>`).join('');
   },
 
+  // Re-fetches just the vendor list when the Vendors tab's "Include
+  // sub-orgs" toggle changes.
+  async _reloadVendors() {
+    const includeChildren = document.getElementById('venIncludeChildren')?.checked || false;
+    try {
+      const res = await API.getVendors({ includeChildren });
+      if (res.status === 'success') {
+        this._vendors = res.vendors || [];
+        this._renderVendors();
+        this._populateVendorDropdowns();
+      }
+    } catch (e) {
+      UI.showMessage('venMessage', 'Failed to load vendors', 'error');
+    }
+  },
+
   _openVenForm(vendorId) {
     this._venEditingId = vendorId || null;
     document.getElementById('venFormTitle').textContent = vendorId ? 'Edit Vendor' : 'Add Vendor';
     document.getElementById('venSaveBtn').textContent   = vendorId ? 'Update Vendor' : 'Save Vendor';
     document.getElementById('vendorForm').reset();
+
+    let recordOrgId = Auth.currentUser?.orgId || '';
 
     if (vendorId) {
       const v = this._vendors.find(x => x.vendorId === vendorId);
@@ -418,8 +463,11 @@ const Products = {
         document.getElementById('venAddress').value       = v.address || '';
         document.getElementById('venNotes').value         = v.notes || '';
         document.getElementById('venStatus').value        = v.status || 'active';
+        recordOrgId = v.orgId || recordOrgId;
       }
     }
+    const orgSel = document.getElementById('venOrgId');
+    if (orgSel) orgSel.value = recordOrgId;
 
     const card = document.getElementById('venFormCard');
     card.style.display = 'block';
@@ -441,7 +489,10 @@ const Products = {
       email:         document.getElementById('venEmail').value.trim(),
       address:       document.getElementById('venAddress').value.trim(),
       notes:         document.getElementById('venNotes').value.trim(),
-      status:        document.getElementById('venStatus').value
+      status:        document.getElementById('venStatus').value,
+      // Always holds a real org now — Vendors.add/update validates it's
+      // within the caller's own org + descendants before writing it.
+      targetOrgId:   document.getElementById('venOrgId')?.value || ''
     };
 
     const btn = document.getElementById('venSaveBtn');
@@ -455,11 +506,12 @@ const Products = {
         : await API.addVendor(data);
 
       if (res.status === 'success') {
+        const merged = { ...data, orgId: data.targetOrgId };
         if (this._venEditingId) {
           const idx = this._vendors.findIndex(x => x.vendorId === this._venEditingId);
-          if (idx >= 0) this._vendors[idx] = { ...this._vendors[idx], ...data };
+          if (idx >= 0) this._vendors[idx] = { ...this._vendors[idx], ...merged };
         } else {
-          this._vendors.push({ ...data, vendorId: res.vendorId || ('VEN' + Date.now()) });
+          this._vendors.push({ ...merged, vendorId: res.vendorId || ('VEN' + Date.now()) });
         }
         this._closeVenForm();
         this._renderVendors();
@@ -500,7 +552,7 @@ const Products = {
   _renderPOs() {
     const tbody = document.getElementById('poTableBody');
     if (!this._pos.length) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;padding:24px;">No purchase orders yet</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;padding:24px;">No purchase orders yet</td></tr>';
       return;
     }
     const sorted = [...this._pos].sort((a, b) => String(b.poDate).localeCompare(String(a.poDate)));
@@ -512,6 +564,7 @@ const Products = {
         <td>${this._fmtDate(po.poDate)}</td>
         <td>${po.expectedDate ? this._fmtDate(po.expectedDate) : '—'}</td>
         <td>${badge}</td>
+        <td>${this._esc(this._orgName(po.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit" onclick="Products._viewPO('${po.poId}')">View</button>
           ${po.status === 'draft' ? `<button class="action-btn" style="background:#bee3f8;color:#2c5282;" onclick="Products._markPOSent('${po.poId}')">Mark Sent</button>` : ''}
@@ -538,6 +591,8 @@ const Products = {
     document.getElementById('poDate').value = _prodToday();
     document.getElementById('poItemsBody').innerHTML = '';
     this._addPOItem();
+    const orgSel = document.getElementById('poOrgId');
+    if (orgSel) orgSel.value = Auth.currentUser?.orgId || '';
     document.getElementById('poFormCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
@@ -628,14 +683,15 @@ const Products = {
     btn.disabled = true;
     btn.textContent = 'Creating…';
 
+    const targetOrgId = document.getElementById('poOrgId')?.value || '';
     try {
       const res = await API.createPurchaseOrder({
-        vendorId, vendorName: vendor ? vendor.name : '', poDate, expectedDate: expDate, notes, items
+        vendorId, vendorName: vendor ? vendor.name : '', poDate, expectedDate: expDate, notes, items, targetOrgId
       });
       if (res.status === 'success') {
         this._pos.push({
           poId: res.poId, vendorId, vendorName: vendor ? vendor.name : '',
-          poDate, expectedDate: expDate, status: 'draft', notes
+          poDate, expectedDate: expDate, status: 'draft', notes, orgId: targetOrgId
         });
         this._closePOForm();
         this._renderPOs();

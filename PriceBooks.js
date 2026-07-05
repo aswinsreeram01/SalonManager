@@ -7,47 +7,63 @@
 const PriceBooks = {
   getAll(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'pricebooks_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Price books retrieved', { priceBooks: cached });
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      cached = Utils.getCached('pricebooks_' + orgId);
+      if (cached) return Utils.createResponse('success', 'Price books retrieved', { priceBooks: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PriceBooks');
     if (!sheet) return Utils.createResponse('success', 'Price books retrieved', { priceBooks: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const pbData = sheet.getDataRange().getValues();
     const priceBooks = [];
     for (let i = 1; i < pbData.length; i++) {
       if (!pbData[i][0]) continue;
       const rowOrg = pbData[i][4] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       priceBooks.push({ id: pbData[i][0], name: pbData[i][1], description: pbData[i][2], status: pbData[i][3], orgId: rowOrg });
     }
 
-    Utils.setCached(cacheKey, priceBooks);
+    if (!includeChildren) Utils.setCached('pricebooks_' + orgId, priceBooks);
     return Utils.createResponse('success', 'Price books retrieved', { priceBooks });
   },
 
   add(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PriceBooks');
     if (!sheet) return Utils.createResponse('error', 'PriceBooks sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
 
     const priceBookId = 'PB' + Date.now();
-    sheet.appendRow([priceBookId, data.name, data.description, data.status || 'active', data.orgId || '']);
-    Utils.clearCached('pricebooks_' + (data.orgId || ''));
+    sheet.appendRow([priceBookId, data.name, data.description, data.status || 'active', orgId]);
+    Utils.clearCached('pricebooks_' + orgId);
     return Utils.createResponse('success', 'Price book added successfully', { id: priceBookId });
   },
 
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PriceBooks');
     if (!sheet) return Utils.createResponse('error', 'PriceBooks sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const dataRange = sheet.getDataRange().getValues();
     for (let i = 1; i < dataRange.length; i++) {
       if (dataRange[i][0] === data.id) {
+        const oldOrgId = dataRange[i][4] || '';
+        const newOrgId = data.targetOrgId !== undefined ? (data.targetOrgId || '') : oldOrgId;
         sheet.getRange(i + 1, 2).setValue(data.name);
         sheet.getRange(i + 1, 3).setValue(data.description);
         sheet.getRange(i + 1, 4).setValue(data.status);
-        Utils.clearCached('pricebooks_' + (data.orgId || ''));
+        sheet.getRange(i + 1, 5).setValue(newOrgId);
+        Utils.clearCached('pricebooks_' + oldOrgId);
+        if (newOrgId !== oldOrgId) Utils.clearCached('pricebooks_' + newOrgId);
         return Utils.createResponse('success', 'Price book updated successfully');
       }
     }

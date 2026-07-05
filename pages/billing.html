@@ -18,6 +18,10 @@
                                 <option value="">No Price Book (use defaults)</option>
                             </select>
                         </div>
+                        <div style="flex:1;min-width:160px;margin-bottom:0;">
+                            <label for="billingOrgId" style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#4a5568;">Organization</label>
+                            <select id="billingOrgId" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;"></select>
+                        </div>
                         <div style="flex:0 0 auto;display:flex;flex-direction:column;">
                             <label style="visibility:hidden;display:block;font-size:13px;font-weight:600;margin-bottom:6px;">x</label>
                             <button class="btn btn-secondary" onclick="Billing.resetBill()">Clear Bill</button>

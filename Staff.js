@@ -1,19 +1,24 @@
 const Staff = {
   getAll(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'staff_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Staff retrieved', { staff: cached });
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      cached = Utils.getCached('staff_' + orgId);
+      if (cached) return Utils.createResponse('success', 'Staff retrieved', { staff: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
     if (!sheet) return Utils.createResponse('success', 'Staff retrieved', { staff: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const staffData = sheet.getDataRange().getValues();
     const staff = [];
     for (let i = 1; i < staffData.length; i++) {
       if (!staffData[i][0]) continue;
       const rowOrg = staffData[i][17] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       staff.push({
         id: staffData[i][0], userId: staffData[i][1], name: staffData[i][2],
         phone: staffData[i][3], email: staffData[i][4], aadharNumber: staffData[i][5],
@@ -25,7 +30,7 @@ const Staff = {
       });
     }
 
-    Utils.setCached(cacheKey, staff);
+    if (!includeChildren) Utils.setCached('staff_' + orgId, staff);
     return Utils.createResponse('success', 'Staff retrieved', { staff });
   },
 
@@ -33,20 +38,29 @@ const Staff = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
     if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
 
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
+
     const staffId = 'STF' + Date.now();
     sheet.appendRow([staffId, data.userId || '', data.name, data.phone, data.email,
                      data.aadharNumber, data.upiId, data.startDate, data.role,
                      data.salary, data.allowance, data.incentiveStructure,
                      data.specialization, data.status || 'active',
                      data.staffType || 'service_provider', data.profileId || '',
-                     data.targetPeriod || 'monthly', data.orgId || '']);
-    Utils.clearCached('staff_' + (data.orgId || ''));
+                     data.targetPeriod || 'monthly', orgId]);
+    Utils.clearCached('staff_' + orgId);
     return Utils.createResponse('success', 'Staff member added successfully');
   },
 
   update(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
     if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
+
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const dataRange = sheet.getDataRange().getValues();
     for (let i = 1; i < dataRange.length; i++) {

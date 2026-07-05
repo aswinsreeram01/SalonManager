@@ -11,12 +11,14 @@ const PurchaseOrders = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('PurchaseOrders');
     if (!sheet) return Utils.createResponse('success', 'POs retrieved', { pos: [] });
     const orgId = (data && data.orgId) || '';
+    const includeChildren = !!(data && data.includeChildren);
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
     const rows = sheet.getDataRange().getValues();
     const pos = [];
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
       const rowOrg = rows[i][9] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       pos.push({
         poId: rows[i][0], vendorId: rows[i][1], vendorName: rows[i][2],
         poDate: rows[i][3], expectedDate: rows[i][4], status: rows[i][5],
@@ -50,10 +52,13 @@ const PurchaseOrders = {
     const itemsSheet = ss.getSheetByName('POItems');
     if (!poSheet) return Utils.createResponse('error', 'PurchaseOrders sheet not found');
     if (!itemsSheet) return Utils.createResponse('error', 'POItems sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const poId = 'PO' + Date.now();
     const now = new Date().toISOString();
-    const orgId  = data.orgId  || '';
+    const orgId  = data.targetOrgId || data.orgId || '';
     const userId = data.userId || '';
 
     poSheet.appendRow([

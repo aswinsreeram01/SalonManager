@@ -324,6 +324,11 @@
                     <label for="apptNotes">Notes</label>
                     <textarea id="apptNotes" rows="2" placeholder="Optional notes…"></textarea>
                 </div>
+                <!-- Org: set once at booking time; not reassignable when editing -->
+                <div class="form-group" id="apptOrgGroup">
+                    <label for="apptOrgId">Organization</label>
+                    <select id="apptOrgId"></select>
+                </div>
                 <div class="btn-group" style="margin-top:4px;">
                     <button type="submit" class="btn btn-primary" id="apptSaveBtn">Book Appointment</button>
                     <button type="button" class="btn btn-secondary" id="apptCancelFormBtn">Cancel</button>

@@ -31,12 +31,15 @@ const Expenses = {
     if (!sheet) return Utils.createResponse('success', 'Expenses retrieved', { expenses: [] });
 
     const orgId = (data && data.orgId) || '';
+    const includeChildren = !!(data && data.includeChildren);
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
+
     const rows = sheet.getDataRange().getValues();
     const expenses = [];
     for (let i = 1; i < rows.length; i++) {
       const obj = this._rowToObj(rows[i]);
       if (obj.status === 'void') continue;
-      if (orgId && obj.orgId && obj.orgId !== orgId) continue;
+      if (allowedOrgIds && obj.orgId && !allowedOrgIds.has(obj.orgId)) continue;
       expenses.push(obj);
     }
     return Utils.createResponse('success', 'Expenses retrieved', { expenses });
@@ -45,6 +48,10 @@ const Expenses = {
   save(data) {
     const sheet = this._sheet();
     if (!sheet) return Utils.createResponse('error', 'Expenses sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+    const orgId = data.targetOrgId || data.orgId || '';
 
     const expenseId = 'EXP' + Date.now();
     const createdAt = new Date().toISOString();
@@ -62,7 +69,7 @@ const Expenses = {
       createdAt,
       data.userId || data.createdBy || '',
       'active',
-      data.orgId || ''
+      orgId
     ]);
 
     return Utils.createResponse('success', 'Expense saved', { expenseId });

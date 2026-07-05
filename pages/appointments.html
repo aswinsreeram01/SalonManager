@@ -17,9 +17,14 @@
                             <button class="btn btn-secondary appt-arrow-btn" id="apptNextDay">&#8250;</button>
                             <span id="apptDateDisplay" class="appt-date-display"></span>
                         </div>
-                        <div class="appt-view-toggle">
-                            <button class="appt-toggle-btn active" id="apptViewList">List</button>
-                            <button class="appt-toggle-btn" id="apptViewDay">Timeline</button>
+                        <div style="display:flex;align-items:center;gap:16px;">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                                <input type="checkbox" id="apptIncludeChildren"> Include sub-orgs
+                            </label>
+                            <div class="appt-view-toggle">
+                                <button class="appt-toggle-btn active" id="apptViewList">List</button>
+                                <button class="appt-toggle-btn" id="apptViewDay">Timeline</button>
+                            </div>
                         </div>
                     </div>
                 </div>

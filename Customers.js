@@ -7,11 +7,15 @@ const Customers = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
     if (!sheet) return Utils.createResponse('error', 'Customers sheet not found. Please create it with columns: timestamp, name, phone, addedBy, orgId');
 
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+
     const phone = Utils.normalizePhone(data.phone);
     if (!phone) return Utils.createResponse('error', 'Phone number required');
 
     const existing = sheet.getDataRange().getValues();
-    const orgId = data.orgId || '';
+    const orgId = data.targetOrgId || data.orgId || '';
     for (let i = 1; i < existing.length; i++) {
       if (Utils.normalizePhone(existing[i][2]) === phone) {
         const rowOrg = existing[i][4] || '';
@@ -108,18 +112,23 @@ const Customers = {
 
   getAll(data) {
     const orgId = (data && data.orgId) || '';
-    const cacheKey = 'customers_' + orgId;
-    const cached = Utils.getCached(cacheKey);
-    if (cached) return Utils.createResponse('success', 'Customers retrieved', { customers: cached });
+    const includeChildren = !!(data && data.includeChildren);
+    let cached = null;
+    if (!includeChildren) {
+      cached = Utils.getCached('customers_' + orgId);
+      if (cached) return Utils.createResponse('success', 'Customers retrieved', { customers: cached });
+    }
 
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Customers');
     if (!sheet) return Utils.createResponse('success', 'Customers retrieved', { customers: [] });
+
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
 
     const customerData = sheet.getDataRange().getValues();
     const customers = [];
     for (let i = 1; i < customerData.length; i++) {
       const rowOrg = customerData[i][4] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
       const raw = customerData[i][0];
       customers.push({
         timestamp:     raw instanceof Date ? raw.toISOString() : String(raw),
@@ -133,7 +142,7 @@ const Customers = {
       });
     }
 
-    Utils.setCached(cacheKey, customers);
+    if (!includeChildren) Utils.setCached('customers_' + orgId, customers);
     return Utils.createResponse('success', 'Customers retrieved', { customers });
   }
 };

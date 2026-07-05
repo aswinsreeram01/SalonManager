@@ -4,6 +4,11 @@
                 </div>
                 <div id="historyMessage" class="message"></div>
                 <div class="card">
+                    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
+                            <input type="checkbox" id="historyIncludeChildren"> Include sub-orgs
+                        </label>
+                    </div>
                     <div class="table-container">
                         <table>
                             <thead>
@@ -14,11 +19,12 @@
                                     <th style="text-align:right;">Grand Total</th>
                                     <th>Payment</th>
                                     <th>Status</th>
+                                    <th>Org</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="historyTableBody">
-                                <tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                                <tr><td colspan="8" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>

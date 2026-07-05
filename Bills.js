@@ -34,13 +34,16 @@ const Bills = {
     const itemsSheet = ss.getSheetByName('BillItems');
     if (!billsSheet) return Utils.createResponse('error', 'Bills sheet not found');
     if (!itemsSheet) return Utils.createResponse('error', 'BillItems sheet not found');
+    if (!Organizations.isWithinScope(data.orgId, data.targetOrgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
 
     const rawItems = data.items || [];
     if (rawItems.length === 0) {
       return Utils.createResponse('error', 'A bill must have at least one item.');
     }
 
-    const orgId  = data.orgId  || '';
+    const orgId  = data.targetOrgId || data.orgId || '';
     const userId = data.userId || '';
     // Canonical customer identity (E.164, +91 default) — used as both the
     // Bills.customerId key and the loyalty ledger key, so bill history and
@@ -313,6 +316,8 @@ const Bills = {
       : null;
 
     const orgId = (data && data.orgId) || '';
+    const includeChildren = !!(data && data.includeChildren);
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
     const billData = sheet.getDataRange().getValues();
     const bills = [];
     for (let i = 1; i < billData.length; i++) {
@@ -326,7 +331,7 @@ const Bills = {
       if (billDate < fromDate) continue;
       if (toDate && billDate > toDate) continue;
       const rowOrg = billData[i][19] || '';
-      if (orgId && rowOrg && rowOrg !== orgId) continue;
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
 
       bills.push({
         billId: billData[i][0], customerId: billData[i][1], customerName: billData[i][2],
