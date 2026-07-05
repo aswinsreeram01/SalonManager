@@ -64,7 +64,7 @@ const Staff = {
       btn.addEventListener('click', () => this._switchPaySubTab(btn.dataset.subtab))
     );
 
-    // ── Attendance sub-tabs (Week Grid / Attendance & OT Summary) ──
+    // ── Attendance sub-tabs (Week Grid / Quick Entry) ──
     document.querySelectorAll('#prod-tab-hr-attendance .sub-tab').forEach(btn =>
       btn.addEventListener('click', () => this._switchAttSubTab(btn.dataset.subtab))
     );

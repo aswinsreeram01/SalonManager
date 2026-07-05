@@ -33,7 +33,7 @@ const Permissions = {
             { key: 'hr-staff',      label: 'Staff (also used by Billing/Appointments/Dashboard)' },
             { key: 'hr-advances',   label: 'Advances' },
             { key: 'hr-shifts',     label: 'Shifts' },
-            { key: 'hr-attendance', label: 'Attendance (also covers its Attendance & OT Summary sub-tab)' },
+            { key: 'hr-attendance', label: 'Attendance & OT (also covers its Quick Entry sub-tab)' },
             { key: 'hr-payroll',    label: 'Payroll (also covers its Staff Salary and Comp Plans sub-tabs)' },
         ]},
         { key: 'hrapprovals',   label: 'HR Approvals' },

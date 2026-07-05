@@ -220,7 +220,7 @@ const Attendance = {
       const key = rec.staffId + '|' + recDate;
       const existingRow = existingMap[key];
 
-      // manualOnly: from the Payroll > Attendance & OT Summary bulk-edit grid,
+      // manualOnly: from the Attendance & OT > Quick Entry bulk-edit grid,
       // which only ever edits days with no clock-in/out on record (that grid
       // sets a status + a direct OT-hours override instead of clock times).
       // Re-check server-side too — never let it silently blank out a day that
