@@ -234,10 +234,3 @@ const Permissions = {
     Logger.log('Migration complete: added staff:hr-quickentry to ' + toAdd.length + ' role(s).');
   }
 };
-
-// Temporary top-level wrapper — the Apps Script editor's function-to-run
-// dropdown can't see object methods. Select runQuickEntryPermissionMigration,
-// click Run, ONCE, then delete this wrapper.
-function runQuickEntryPermissionMigration() {
-  Permissions.migrateQuickEntryPermission();
-}

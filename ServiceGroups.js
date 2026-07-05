@@ -180,11 +180,3 @@ const ServiceGroups = {
     return Utils.createResponse('error', 'Service group not found');
   }
 };
-
-// Temporary top-level wrapper — the Apps Script editor's function-to-run
-// dropdown can't see object methods. Select
-// runServiceGroupsIncentiveModeMigration, click Run, ONCE, then delete this
-// wrapper.
-function runServiceGroupsIncentiveModeMigration() {
-  ServiceGroups.migrateIncentiveMode();
-}
