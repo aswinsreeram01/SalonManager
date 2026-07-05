@@ -10,6 +10,7 @@
         <button class="prod-tab" data-tab="hr-advances"><span class="ptab-icon">💵</span><span class="ptab-label">Advances</span></button>
         <button class="prod-tab" data-tab="hr-shifts"><span class="ptab-icon">⏰</span><span class="ptab-label">Shifts</span></button>
         <button class="prod-tab" data-tab="hr-attendance"><span class="ptab-icon">📊</span><span class="ptab-label">Attendance &amp; OT</span></button>
+        <button class="prod-tab" data-tab="hr-quickentry"><span class="ptab-icon">📝</span><span class="ptab-label">Quick Entry</span></button>
         <button class="prod-tab" data-tab="hr-payroll"><span class="ptab-icon">💰</span><span class="ptab-label">Payroll</span></button>
     </div>
 
@@ -240,12 +241,6 @@
 
     <!-- ═══ TAB: ATTENDANCE ═══ -->
     <div id="prod-tab-hr-attendance" class="prod-tab-panel">
-        <div class="sub-tabs">
-            <button class="sub-tab active" data-subtab="hr-att-weekgrid">Week Grid</button>
-            <button class="sub-tab" data-subtab="hr-att-summary">Quick Entry</button>
-        </div>
-
-        <div id="sub-tab-hr-att-weekgrid" class="sub-tab-panel active">
         <div class="card">
             <div id="hrAttMessage" class="message"></div>
             <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
@@ -267,60 +262,60 @@
                 <p style="color:#a0aec0;text-align:center;padding:24px;">Select a month and click Load</p>
             </div>
         </div>
-        </div>
+    </div>
 
-        <div id="sub-tab-hr-att-summary" class="sub-tab-panel">
-            <div class="card">
-                <h3 style="color:#2d3748;margin-bottom:16px;">Quick Entry</h3>
-                <div id="hrAttSumMessage" class="message"></div>
-                <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
-                    <div class="form-group" style="margin-bottom:0;min-width:200px;">
-                        <label for="hrAttSumStaff">Staff</label>
-                        <select id="hrAttSumStaff">
-                            <option value="">Select staff</option>
-                        </select>
+    <!-- ═══ TAB: QUICK ENTRY ═══ -->
+    <div id="prod-tab-hr-quickentry" class="prod-tab-panel">
+        <div class="card">
+            <h3 style="color:#2d3748;margin-bottom:16px;">Quick Entry</h3>
+            <div id="hrAttSumMessage" class="message"></div>
+            <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
+                <div class="form-group" style="margin-bottom:0;min-width:200px;">
+                    <label for="hrAttSumStaff">Staff</label>
+                    <select id="hrAttSumStaff">
+                        <option value="">Select staff</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrAttSumMonth">Month</label>
+                    <input type="month" id="hrAttSumMonth">
+                </div>
+                <button class="btn btn-primary" id="hrAttSumLoadBtn" type="button" style="align-self:flex-end;">Load</button>
+            </div>
+            <div id="hrAttSumStats" class="att-sum-stats" style="display:none;"></div>
+            <p class="muted" style="margin:0 0 12px;font-size:12px;">
+                Days with no clock-in/out on record can be marked directly here (status + OT hours).
+                Days already clocked in/out are locked — click one to view/edit it from the Attendance &amp; OT tab's full editor instead.
+            </p>
+            <div id="hrAttSumCalWrap">
+                <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
+            </div>
+            <div id="hrAttSumPayrollOverrides" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
+                <h4 style="color:#2d3748;margin:0 0 4px;font-size:14px;">Payroll Overrides</h4>
+                <p class="muted" style="margin:0 0 12px;font-size:12px;">
+                    Optional — leave blank to skip. Reconciled further on the Payroll tab. Values here are not calculated automatically.
+                </p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttSumServiceValue">Service Value (₹)</label>
+                        <input type="number" id="hrAttSumServiceValue" min="0" step="0.01" placeholder="Leave blank">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                        <label for="hrAttSumMonth">Month</label>
-                        <input type="month" id="hrAttSumMonth">
+                        <label for="hrAttSumMakeupValue">Make Up Value (₹)</label>
+                        <input type="number" id="hrAttSumMakeupValue" min="0" step="0.01" placeholder="Leave blank">
                     </div>
-                    <button class="btn btn-primary" id="hrAttSumLoadBtn" type="button" style="align-self:flex-end;">Load</button>
-                </div>
-                <div id="hrAttSumStats" class="att-sum-stats" style="display:none;"></div>
-                <p class="muted" style="margin:0 0 12px;font-size:12px;">
-                    Days with no clock-in/out on record can be marked directly here (status + OT hours).
-                    Days already clocked in/out are locked — click one to view/edit it from the Week Grid tab's full editor instead.
-                </p>
-                <div id="hrAttSumCalWrap">
-                    <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
-                </div>
-                <div id="hrAttSumPayrollOverrides" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
-                    <h4 style="color:#2d3748;margin:0 0 4px;font-size:14px;">Payroll Overrides</h4>
-                    <p class="muted" style="margin:0 0 12px;font-size:12px;">
-                        Optional — leave blank to skip. Reconciled further on the Payroll tab. Values here are not calculated automatically.
-                    </p>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="hrAttSumServiceValue">Service Value (₹)</label>
-                            <input type="number" id="hrAttSumServiceValue" min="0" step="0.01" placeholder="Leave blank">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="hrAttSumMakeupValue">Make Up Value (₹)</label>
-                            <input type="number" id="hrAttSumMakeupValue" min="0" step="0.01" placeholder="Leave blank">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="hrAttSumProductCount">Product Count</label>
-                            <input type="number" id="hrAttSumProductCount" min="0" step="1" placeholder="Leave blank">
-                        </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="hrAttSumTips">Tips through Billing (₹)</label>
-                            <input type="number" id="hrAttSumTips" min="0" step="0.01" placeholder="Leave blank">
-                        </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttSumProductCount">Product Count</label>
+                        <input type="number" id="hrAttSumProductCount" min="0" step="1" placeholder="Leave blank">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttSumTips">Tips through Billing (₹)</label>
+                        <input type="number" id="hrAttSumTips" min="0" step="0.01" placeholder="Leave blank">
                     </div>
                 </div>
-                <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
-                    <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
-                </div>
+            </div>
+            <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
+                <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
             </div>
         </div>
     </div>
@@ -461,6 +456,11 @@
                             <input type="number" id="hrProfZPct" min="0" max="100" step="0.01" value="2">
                         </div>
                         <div class="form-group">
+                            <label for="hrProfFlatIncentivePct">Flat Incentive % (Service Groups)</label>
+                            <input type="number" id="hrProfFlatIncentivePct" min="0" max="100" step="0.01" value="0">
+                            <p class="muted" style="margin:4px 0 0;font-size:12px;">Default rate for Service Groups set to Flat incentive mode, unless that group has its own override.</p>
+                        </div>
+                        <div class="form-group">
                             <label for="hrProfStatus">Status</label>
                             <select id="hrProfStatus">
                                 <option value="active">Active</option>
@@ -492,12 +492,12 @@
                     <table>
                         <thead><tr>
                             <th>Name</th><th>Type</th><th>Revenue Base</th>
-                            <th>OT Rate</th><th>OT Threshold</th><th>Elig. Offs</th><th>Def. Prod. Incentive</th>
+                            <th>OT Rate</th><th>OT Threshold</th><th>Elig. Offs</th><th>Def. Prod. Incentive</th><th>Flat Incentive %</th>
                             <th>Target1</th><th>Target2</th>
                             <th>X%/Y%/Z%</th><th>Status</th><th>Org</th><th>Actions</th>
                         </tr></thead>
                         <tbody id="hrProfTableBody">
-                            <tr><td colspan="13" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                            <tr><td colspan="14" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>

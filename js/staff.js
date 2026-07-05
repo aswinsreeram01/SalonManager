@@ -65,10 +65,7 @@ const Staff = {
       btn.addEventListener('click', () => this._switchPaySubTab(btn.dataset.subtab))
     );
 
-    // ── Attendance sub-tabs (Week Grid / Quick Entry) ──
-    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab').forEach(btn =>
-      btn.addEventListener('click', () => this._switchAttSubTab(btn.dataset.subtab))
-    );
+    // ── Quick Entry tab ──
     document.getElementById('hrAttSumLoadBtn').addEventListener('click', () => this._loadAttSummary());
     document.getElementById('hrAttSumSaveBtn').addEventListener('click', () => this._saveAttSummary());
 
@@ -100,6 +97,7 @@ const Staff = {
       p.classList.toggle('active', p.id === 'prod-tab-' + tab)
     );
     if (tab === 'hr-attendance') this.loadAttendance();
+    if (tab === 'hr-quickentry') this._populateAttSumStaffDropdown();
     if (tab === 'hr-payroll')    this.loadPayrollForMonth();
     if (tab === 'hr-advances')   this._populateAdvStaffDropdown();
   },
@@ -538,7 +536,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -554,6 +552,7 @@ const Staff = {
         <td style="text-align:right;white-space:nowrap;">${p.otThresholdHours ?? 9}h/day</td>
         <td style="text-align:right;white-space:nowrap;">${p.eligibleOffs ?? 4}/mo</td>
         <td style="text-align:right;white-space:nowrap;">${this._fmt(p.defaultProductIncentive ?? 0)}</td>
+        <td style="text-align:right;white-space:nowrap;">${p.flatIncentivePct ?? 0}%</td>
         <td>${this._esc(l1)}</td>
         <td>${this._esc(l2)}</td>
         <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
@@ -584,6 +583,7 @@ const Staff = {
         document.getElementById('hrProfOtThreshold').value = p.otThresholdHours ?? 9;
         document.getElementById('hrProfEligibleOffs').value = p.eligibleOffs ?? 4;
         document.getElementById('hrProfDefaultProductIncentive').value = p.defaultProductIncentive ?? 0;
+        document.getElementById('hrProfFlatIncentivePct').value = p.flatIncentivePct ?? 0;
         document.getElementById('hrProfL1Type').value      = p.l1Type || p.hrProfL1Type || '';
         document.getElementById('hrProfL1Value').value     = p.l1Value || p.hrProfL1Value || '';
         document.getElementById('hrProfL2Type').value      = p.l2Type || p.hrProfL2Type || '';
@@ -620,6 +620,7 @@ const Staff = {
       otThresholdHours: parseFloat(document.getElementById('hrProfOtThreshold').value) || 9,
       eligibleOffs:  parseInt(document.getElementById('hrProfEligibleOffs').value, 10) || 4,
       defaultProductIncentive: parseFloat(document.getElementById('hrProfDefaultProductIncentive').value) || 0,
+      flatIncentivePct: parseFloat(document.getElementById('hrProfFlatIncentivePct').value) || 0,
       l1Type:        document.getElementById('hrProfL1Type').value,
       l1Value:       parseFloat(document.getElementById('hrProfL1Value').value) || 0,
       l2Type:        document.getElementById('hrProfL2Type').value,
@@ -1325,18 +1326,10 @@ const Staff = {
     if (subtab === 'hr-pay-salary') this._renderStaffSalaryTable();
   },
 
-  // ─── TAB 4b: ATTENDANCE & OT SUMMARY (nested under Attendance) ──────────────
+  // ─── TAB: QUICK ENTRY ────────────────────────────────────────────────────────
   // A single-staff, whole-month calendar view of the same StaffAttendance
-  // data the Week Grid sub-tab uses — reads via the same get_attendance
-  // action and edits via the same openAttModal/saveAttendanceRecord flow.
-
-  _switchAttSubTab(subtab) {
-    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab').forEach(b =>
-      b.classList.toggle('active', b.dataset.subtab === subtab));
-    document.querySelectorAll('#prod-tab-hr-attendance .sub-tab-panel').forEach(p =>
-      p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
-    if (subtab === 'hr-att-summary') this._populateAttSumStaffDropdown();
-  },
+  // data the Attendance & OT tab's Week Grid uses — reads via the same
+  // get_attendance action and edits via the same openAttModal/saveAttendanceRecord flow.
 
   _populateAttSumStaffDropdown() {
     const sel = document.getElementById('hrAttSumStaff');

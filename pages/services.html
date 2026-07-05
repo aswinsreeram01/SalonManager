@@ -39,8 +39,17 @@
                         <input type="text" id="serviceGroupSacCode" placeholder="e.g. 999721">
                     </div>
                     <div class="form-group">
-                        <label for="serviceGroupDirectIncentivePct">Direct Incentive (%)</label>
-                        <input type="number" id="serviceGroupDirectIncentivePct" min="0" max="100" step="0.01" value="0" placeholder="0">
+                        <label for="serviceGroupIncentiveMode">Incentive Mode</label>
+                        <select id="serviceGroupIncentiveMode">
+                            <option value="tiered">Tiered (counts toward Comp Plan target)</option>
+                            <option value="flat">Flat / Direct (% of revenue)</option>
+                            <option value="none">None (no incentive)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="serviceGroupDirectIncentivePct">Direct Incentive Override (%)</label>
+                        <input type="number" id="serviceGroupDirectIncentivePct" min="0" max="100" step="0.01" placeholder="Leave blank to use Comp Plan default">
+                        <p class="muted" style="margin:4px 0 0;font-size:12px;">Only used when Incentive Mode is Flat / Direct.</p>
                     </div>
                     <div class="form-group">
                         <label for="serviceGroupSortOrder">Sort Order</label>
@@ -57,12 +66,6 @@
                         <label for="serviceGroupOrgId">Organization</label>
                         <select id="serviceGroupOrgId"></select>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>
-                        <input type="checkbox" id="serviceGroupExcludeFromTarget" style="margin-right:6px;">
-                        Exclude from target revenue calculation
-                    </label>
                 </div>
                 <div class="form-group">
                     <label>
@@ -85,7 +88,7 @@
                 <table>
                     <thead><tr>
                         <th>Name</th><th>SAC Code</th><th>GST%</th>
-                        <th>Excludes Target?</th><th>Direct%</th><th>Sort</th>
+                        <th>Incentive Mode</th><th>Direct%</th><th>Sort</th>
                         <th style="text-align:center;">Points?</th>
                         <th>Status</th><th>Org</th><th>Actions</th>
                     </tr></thead>

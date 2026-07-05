@@ -10,6 +10,9 @@
 // period. Blank/0 falls back to 4 — see Payroll.js.
 // defaultProductIncentive(16) — ₹/unit fallback used when a Product Group's
 // own unitIncentive override is blank. Blank/0 means no fallback (₹0).
+// flatIncentivePct(17) — default % fallback for a Service Group set to Flat
+// incentive mode, used when that group's own directIncentivePct override is
+// blank. Blank/0 means no fallback (0%). See ServiceGroups.js/Payroll.js.
 
 const IncentiveProfiles = {
   getAll(data) {
@@ -49,7 +52,8 @@ const IncentiveProfiles = {
         orgId:         rowOrg,
         otThresholdHours: Number(rows[i][14]) || 9,
         eligibleOffs:  Number(rows[i][15]) || 4,
-        defaultProductIncentive: Number(rows[i][16]) || 0
+        defaultProductIncentive: Number(rows[i][16]) || 0,
+        flatIncentivePct: Number(rows[i][17]) || 0
       });
     }
 
@@ -83,7 +87,8 @@ const IncentiveProfiles = {
       orgId,
       Number(data.otThresholdHours) || 9,
       Number(data.eligibleOffs) || 4,
-      Number(data.defaultProductIncentive) || 0
+      Number(data.defaultProductIncentive) || 0,
+      Number(data.flatIncentivePct) || 0
     ]);
     Utils.clearCached('incentive_profiles_' + orgId);
     return Utils.createResponse('success', 'Incentive profile added successfully', { profileId });
@@ -117,6 +122,7 @@ const IncentiveProfiles = {
         sheet.getRange(i + 1, 15).setValue(Number(data.otThresholdHours) || 9);
         sheet.getRange(i + 1, 16).setValue(Number(data.eligibleOffs) || 4);
         sheet.getRange(i + 1, 17).setValue(Number(data.defaultProductIncentive) || 0);
+        sheet.getRange(i + 1, 18).setValue(Number(data.flatIncentivePct) || 0);
         Utils.clearCached('incentive_profiles_' + oldOrgId);
         if (newOrgId !== oldOrgId) Utils.clearCached('incentive_profiles_' + newOrgId);
         return Utils.createResponse('success', 'Incentive profile updated successfully');
@@ -150,11 +156,11 @@ const IncentiveProfiles = {
 
     const seeds = [
       ['PROF_SP_STD', 'Service Provider — Standard', 'service_provider', 'individual',
-        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', '', 9, 4, 0],
+        50, 'salary_pct', 150, 'salary_pct', 350, 1, 1.5, 2, 'active', '', 9, 4, 0, 0],
       ['PROF_MGR_STD', 'Manager — Standard', 'manager', 'org',
-        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', '', 9, 4, 0],
+        50, 'fixed', 75000, 'fixed', 200000, 0.5, 0.75, 1, 'active', '', 9, 4, 0, 0],
       ['PROF_HK_STD', 'Housekeeping — Standard', 'housekeeping', 'individual',
-        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '', 9, 4, 0]
+        50, 'fixed', 0, 'fixed', 0, 0, 0, 0, 'active', '', 9, 4, 0, 0]
     ];
 
     seeds.forEach(row => sheet.appendRow(row));

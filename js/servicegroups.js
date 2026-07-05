@@ -69,8 +69,8 @@ const ServiceGroups = {
                         <td style="font-weight:500;">${g.name}</td>
                         <td>${g.sacCode || '-'}</td>
                         <td>${gstVal != null ? gstVal + '%' : '-'}</td>
-                        <td style="text-align:center;">${g.excludeFromTarget ? '&#10003;' : '&mdash;'}</td>
-                        <td>${g.directIncentivePct != null ? g.directIncentivePct + '%' : '-'}</td>
+                        <td>${{ flat: 'Flat / Direct', tiered: 'Tiered', none: 'None' }[g.incentiveMode] || 'Tiered'}</td>
+                        <td>${g.directIncentivePct !== '' && g.directIncentivePct != null ? g.directIncentivePct + '%' : '<span style="color:#a0aec0;">Default</span>'}</td>
                         <td>${g.sortOrder != null ? g.sortOrder : '-'}</td>
                         <td style="text-align:center;">${g.pointsEligible ? '<span style="color:#38a169;font-weight:700;">&#10003;</span>' : '<span style="color:#a0aec0;">&mdash;</span>'}</td>
                         <td><span class="status-badge status-${g.status}">${g.status}</span></td>
@@ -95,13 +95,14 @@ const ServiceGroups = {
         e.preventDefault();
         const saveBtn = document.getElementById('saveServiceGroupBtn');
         const gstInput = document.getElementById('serviceGroupGstPct') || document.getElementById('serviceGroupGst');
+        const directPctRaw = (document.getElementById('serviceGroupDirectIncentivePct') || {}).value ?? '';
         const data = {
             name: document.getElementById('serviceGroupName').value,
             description: document.getElementById('serviceGroupDescription').value,
             gstPct: parseFloat(gstInput ? gstInput.value : 0) || 0,
             sacCode: (document.getElementById('serviceGroupSacCode') || {}).value || '',
-            excludeFromTarget: !!(document.getElementById('serviceGroupExcludeFromTarget') || {}).checked,
-            directIncentivePct: parseFloat((document.getElementById('serviceGroupDirectIncentivePct') || {}).value) || 0,
+            incentiveMode: (document.getElementById('serviceGroupIncentiveMode') || {}).value || 'tiered',
+            directIncentivePct: directPctRaw.trim() === '' ? '' : (parseFloat(directPctRaw) || 0),
             sortOrder: parseInt((document.getElementById('serviceGroupSortOrder') || {}).value, 10) || 0,
             status: document.getElementById('serviceGroupStatus').value,
             pointsEligible: !!(document.getElementById('serviceGroupPointsEligible') || {}).checked,
@@ -144,10 +145,10 @@ const ServiceGroups = {
                 if (gstInput) gstInput.value = group.gstPct ?? group.gst ?? 0;
                 const sacCodeEl = document.getElementById('serviceGroupSacCode');
                 if (sacCodeEl) sacCodeEl.value = group.sacCode || '';
-                const excludeFromTargetEl = document.getElementById('serviceGroupExcludeFromTarget');
-                if (excludeFromTargetEl) excludeFromTargetEl.checked = !!group.excludeFromTarget;
+                const incentiveModeEl = document.getElementById('serviceGroupIncentiveMode');
+                if (incentiveModeEl) incentiveModeEl.value = group.incentiveMode || 'tiered';
                 const directIncentivePctEl = document.getElementById('serviceGroupDirectIncentivePct');
-                if (directIncentivePctEl) directIncentivePctEl.value = group.directIncentivePct != null ? group.directIncentivePct : 0;
+                if (directIncentivePctEl) directIncentivePctEl.value = group.directIncentivePct !== '' && group.directIncentivePct != null ? group.directIncentivePct : '';
                 const sortOrderEl = document.getElementById('serviceGroupSortOrder');
                 if (sortOrderEl) sortOrderEl.value = group.sortOrder != null ? group.sortOrder : 0;
                 document.getElementById('serviceGroupStatus').value = group.status;

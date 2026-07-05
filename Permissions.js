@@ -189,5 +189,55 @@ const Permissions = {
     });
 
     Logger.log('Migration complete: added ' + toAdd.length + ' tab-level permission rows across ' + roleIds.size + ' roles.');
+  },
+
+  // ── One-time migration: Quick Entry split out of Attendance & OT ─────────
+  // Run manually from the Apps Script editor ONCE after deploying the
+  // Quick Entry top-level tab (select runQuickEntryPermissionMigration in
+  // the function dropdown — this method itself is invisible there, see
+  // that wrapper's comment). Copies each role's existing staff:hr-attendance
+  // canRead/canUpdate onto a new staff:hr-quickentry row, preserving
+  // today's access — admins can then narrow either tab down independently
+  // from Roles > Permissions. Safe to re-run: skips roles that already have
+  // their own staff:hr-quickentry row.
+  migrateQuickEntryPermission() {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Permissions');
+    if (!sheet) { Logger.log('Permissions sheet not found'); return; }
+
+    const rows = sheet.getDataRange().getValues();
+    const existingKeys = new Set();
+    for (let i = 1; i < rows.length; i++) existingKeys.add(rows[i][1] + '|' + rows[i][2]);
+
+    const toAdd = [];
+    for (let i = 1; i < rows.length; i++) {
+      const roleId = rows[i][1];
+      if (rows[i][2] !== 'staff:hr-attendance') continue;
+      const key = roleId + '|staff:hr-quickentry';
+      if (existingKeys.has(key)) continue;
+      existingKeys.add(key);
+      const canRead   = rows[i][3] === true || rows[i][3] === 'TRUE';
+      const canUpdate = rows[i][4] === true || rows[i][4] === 'TRUE';
+      toAdd.push(['PERM' + Date.now() + Math.random(), roleId, 'staff:hr-quickentry', canRead, canUpdate]);
+    }
+
+    if (toAdd.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, toAdd.length, 5).setValues(toAdd);
+    }
+
+    const roleIds = new Set();
+    for (let i = 1; i < rows.length; i++) roleIds.add(rows[i][1]);
+    roleIds.forEach(roleId => {
+      Utils.clearCached('perms_' + roleId);
+      Utils.clearCached('permmap_' + roleId);
+    });
+
+    Logger.log('Migration complete: added staff:hr-quickentry to ' + toAdd.length + ' role(s).');
   }
 };
+
+// Temporary top-level wrapper — the Apps Script editor's function-to-run
+// dropdown can't see object methods. Select runQuickEntryPermissionMigration,
+// click Run, ONCE, then delete this wrapper.
+function runQuickEntryPermissionMigration() {
+  Permissions.migrateQuickEntryPermission();
+}

@@ -155,7 +155,8 @@ const Payroll = {
 
     let profile = {
       otHourlyRate: 0, l1Type: 'fixed', l1Value: 0, l2Type: 'fixed', l2Value: 0,
-      xPct: 0, yPct: 0, zPct: 0, revenueBase: 'individual', eligibleOffs: 4
+      xPct: 0, yPct: 0, zPct: 0, revenueBase: 'individual', eligibleOffs: 4,
+      flatIncentivePct: 0
     };
     if (profileId) {
       const profSheet = ss.getSheetByName('IncentiveProfiles');
@@ -173,7 +174,8 @@ const Payroll = {
               xPct:         Number(profRows[i][9])  || 0,
               yPct:         Number(profRows[i][10]) || 0,
               zPct:         Number(profRows[i][11]) || 0,
-              eligibleOffs: Number(profRows[i][15]) || 4
+              eligibleOffs: Number(profRows[i][15]) || 4,
+              flatIncentivePct: Number(profRows[i][17]) || 0
             };
             break;
           }
@@ -221,9 +223,11 @@ const Payroll = {
         const sgRows = sgSheet.getDataRange().getValues();
         for (let i = 1; i < sgRows.length; i++) {
           if (!sgRows[i][0]) continue;
+          const rawPct = sgRows[i][6];
           sgMap[sgRows[i][0]] = {
-            excludeFromTarget:  sgRows[i][11] === true || sgRows[i][11] === 'TRUE',
-            directIncentivePct: Number(sgRows[i][6]) || 0
+            incentiveMode:      sgRows[i][12] || 'tiered',
+            // Blank means "fall back to the staff's Comp Plan flatIncentivePct".
+            directIncentivePct: rawPct === '' || rawPct === null || rawPct === undefined ? '' : Number(rawPct)
           };
         }
       }
@@ -258,13 +262,18 @@ const Payroll = {
           const groupId = svcMap[refId];
           const sg = sgMap[groupId];
           if (!sg) continue;
-          if (!sg.excludeFromTarget) {
+
+          // Mutually exclusive per group: a group's revenue contributes to
+          // EITHER the tiered target slabs OR a flat % bonus, never both,
+          // and 'none' contributes to neither.
+          if (sg.incentiveMode === 'tiered') {
             orgServiceRevenue += lineSubtotal; // always accumulate for org total
             if (rowStaffId === staffId) serviceRevenue += lineSubtotal;
+          } else if (sg.incentiveMode === 'flat' && rowStaffId === staffId) {
+            const pct = sg.directIncentivePct !== '' ? sg.directIncentivePct : profile.flatIncentivePct;
+            if (pct > 0) billScannedMakeup += lineSubtotal * pct / 100;
           }
-          if (rowStaffId === staffId && sg.directIncentivePct > 0) {
-            billScannedMakeup += lineSubtotal * sg.directIncentivePct / 100;
-          }
+          // 'none' — no incentive contribution at all.
         }
       }
 

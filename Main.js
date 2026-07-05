@@ -77,18 +77,26 @@ const ACTION_PERMISSIONS = {
   update_vendor: ['products:vendors', 'update'],
   remove_vendor: ['products:vendors', 'update'],
 
-  // Staff, Advances, Shifts, Attendance, Payroll (tabs under the Staff & HR
-  // page). get_staff and get_shifts back dropdowns and grids on sibling
-  // tabs, so their read is OR'd accordingly. Advances and Payroll's own
-  // actions are deliberately NOT shared with any other tab, so a role can
-  // be denied either specifically while keeping every other tab.
+  // Staff, Advances, Shifts, Attendance, Quick Entry, Payroll (tabs under
+  // the Staff & HR page). get_staff and get_shifts back dropdowns and grids
+  // on sibling tabs, so their read is OR'd accordingly. Advances and
+  // Payroll's own actions are deliberately NOT shared with any other tab,
+  // so a role can be denied either specifically while keeping every other tab.
   //
   // Comp Plans and Staff Salary are nested sub-tabs INSIDE Payroll (not
   // their own top-level Staff & HR tab), and are gated purely by
   // staff:hr-payroll — same permission as Payroll itself, no separate key.
   // update_staff is OR'd with staff:hr-payroll because the Staff Salary
   // sub-tab reuses this same action to save salary/allowance/comp plan.
-  get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-payroll'], 'read'],
+  //
+  // Quick Entry used to be a sub-tab nested inside Attendance & OT, gated
+  // purely by staff:hr-attendance; it's now its own top-level tab with its
+  // own key. get_attendance/save_attendance are shared by both (Week Grid
+  // AND Quick Entry both read/write StaffAttendance), so they're OR'd across
+  // both keys — a role with only one of the two tabs still works correctly.
+  // upsert_payroll_from_attendance is Quick-Entry-specific (Week Grid never
+  // calls it), so it's gated on staff:hr-quickentry alone.
+  get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-quickentry', 'staff:hr-payroll'], 'read'],
   add_staff: ['staff:hr-staff', 'update'],
   update_staff: [['staff:hr-staff', 'staff:hr-payroll'], 'update'],
   delete_staff: ['staff:hr-staff', 'update'],
@@ -100,15 +108,13 @@ const ACTION_PERMISSIONS = {
   delete_incentive_profile: ['staff:hr-payroll', 'update'],
   get_shifts: [['staff:hr-shifts', 'staff:hr-attendance'], 'read'],
   save_shift: ['staff:hr-shifts', 'update'],
-  // Also readable/writable from the Attendance tab's nested Attendance & OT
-  // Summary sub-tab, which reuses this same action rather than a new one.
-  get_attendance: ['staff:hr-attendance', 'read'],
-  save_attendance: ['staff:hr-attendance', 'update'],
+  get_attendance: [['staff:hr-attendance', 'staff:hr-quickentry'], 'read'],
+  save_attendance: [['staff:hr-attendance', 'staff:hr-quickentry'], 'update'],
   get_week_schedule: ['staff:hr-attendance', 'read'],
   save_week_schedule: ['staff:hr-attendance', 'update'],
   save_weekly_incentive: ['staff:hr-payroll', 'update'],
   get_weekly_incentives: ['staff:hr-payroll', 'read'],
-  upsert_payroll_from_attendance: ['staff:hr-attendance', 'update'],
+  upsert_payroll_from_attendance: ['staff:hr-quickentry', 'update'],
   update_payroll_row: ['staff:hr-payroll', 'update'],
   get_payroll: ['staff:hr-payroll', 'read'],
   update_payroll_status: ['staff:hr-payroll', 'update'],
