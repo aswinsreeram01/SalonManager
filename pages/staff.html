@@ -151,9 +151,9 @@
                 <p style="color:#718096;font-size:13px;margin-bottom:12px;">Outstanding balance: <strong id="hrAdvanceBalance">₹0.00</strong></p>
                 <div class="table-container" style="margin-bottom:20px;">
                     <table>
-                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Status</th><th>Balance</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Notes</th><th>Status</th><th>Payment Mode</th><th>Balance</th></tr></thead>
                         <tbody id="hrAdvanceTableBody">
-                            <tr><td colspan="6" style="text-align:center;color:#a0aec0;">No entries</td></tr>
+                            <tr><td colspan="7" style="text-align:center;color:#a0aec0;">No entries</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -173,6 +173,14 @@
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Amount (₹)</label>
                         <input type="number" id="hrAdvAmount" min="0" step="0.01" placeholder="0">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label>Payment Mode</label>
+                        <select id="hrAdvPaymentMode">
+                            <option value="">Select</option>
+                            <option value="Cash">Cash</option>
+                            <option value="UPI">UPI</option>
+                        </select>
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label>Notes</label>

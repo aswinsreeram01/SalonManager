@@ -375,7 +375,7 @@ const Staff = {
   async _loadAdvances(staffId) {
     const tbody  = document.getElementById('hrAdvanceTableBody');
     const balEl  = document.getElementById('hrAdvanceBalance');
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
     try {
       const res = await API.getAdvances(staffId);
       if (res.status === 'success') {
@@ -383,7 +383,7 @@ const Staff = {
         const balance  = res.outstandingBalance || 0;
         balEl.textContent = this._fmt(balance);
         if (!advances.length) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#a0aec0;">No advance entries</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#a0aec0;">No advance entries</td></tr>';
           return;
         }
         const statusMap = {
@@ -411,38 +411,42 @@ const Staff = {
             <td style="text-align:right;white-space:nowrap;">${this._fmt(amt)}</td>
             <td>${this._esc(a.notes || '—')}</td>
             <td><span class="status-badge" style="${statusMap[status] || ''}">${status}</span></td>
+            <td>${this._esc(a.paymentMode || '—')}</td>
             <td style="text-align:right;white-space:nowrap;font-weight:600;">${this._fmt(running)}</td>
           </tr>`;
         }).join('');
       } else {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#fc8181;">Failed to load advances</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#fc8181;">Failed to load advances</td></tr>';
       }
     } catch(err) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#fc8181;">Error loading advances</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#fc8181;">Error loading advances</td></tr>';
     }
   },
 
   async addAdvance() {
-    const date   = document.getElementById('hrAdvDate').value;
-    const type   = document.getElementById('hrAdvType').value;
-    const amount = parseFloat(document.getElementById('hrAdvAmount').value) || 0;
-    const notes  = document.getElementById('hrAdvNotes').value.trim();
-    const btn    = document.getElementById('hrAdvSaveBtn');
-    const msgEl  = document.getElementById('hrAdvMessage');
+    const date        = document.getElementById('hrAdvDate').value;
+    const type        = document.getElementById('hrAdvType').value;
+    const amount      = parseFloat(document.getElementById('hrAdvAmount').value) || 0;
+    const paymentMode = document.getElementById('hrAdvPaymentMode').value;
+    const notes       = document.getElementById('hrAdvNotes').value.trim();
+    const btn         = document.getElementById('hrAdvSaveBtn');
+    const msgEl       = document.getElementById('hrAdvMessage');
 
     if (!this._advStaffId) { this._showInlineMsg(msgEl, 'Please select a staff member first.', 'error'); return; }
-    if (!date)      { this._showInlineMsg(msgEl, 'Please select a date for the advance entry.', 'error'); return; }
-    if (amount <= 0){ this._showInlineMsg(msgEl, 'Amount must be greater than zero.', 'error'); return; }
+    if (!date)         { this._showInlineMsg(msgEl, 'Please select a date for the advance entry.', 'error'); return; }
+    if (amount <= 0)   { this._showInlineMsg(msgEl, 'Amount must be greater than zero.', 'error'); return; }
+    if (!paymentMode)  { this._showInlineMsg(msgEl, 'Please select a payment mode.', 'error'); return; }
 
     btn.disabled = true;
     btn.textContent = 'Saving…';
     try {
-      const res = await API.addAdvance({ staffId: this._advStaffId, date, type, amount, notes });
+      const res = await API.addAdvance({ staffId: this._advStaffId, date, type, amount, paymentMode, notes });
       if (res.status === 'success') {
         this._showInlineMsg(msgEl, 'Advance entry added.', 'success');
-        document.getElementById('hrAdvDate').value   = '';
-        document.getElementById('hrAdvAmount').value = '';
-        document.getElementById('hrAdvNotes').value  = '';
+        document.getElementById('hrAdvDate').value         = '';
+        document.getElementById('hrAdvAmount').value       = '';
+        document.getElementById('hrAdvPaymentMode').value  = '';
+        document.getElementById('hrAdvNotes').value        = '';
         await this._loadAdvances(this._advStaffId);
       } else {
         this._showInlineMsg(msgEl, res.message || 'Error adding advance entry', 'error');

@@ -334,6 +334,12 @@ const Attendance = {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAdvance');
     if (!sheet) return Utils.createResponse('error', 'StaffAdvance sheet not found');
 
+    // Required here too, same as disburseAdvance in HRApprovals.js — a manual
+    // entry is recorded as disbursed immediately, so it needs a payment mode
+    // just like the approval-queue disbursal path does.
+    const paymentMode = String(data.paymentMode || '').trim();
+    if (!paymentMode) return Utils.createResponse('error', 'Payment mode is required');
+
     // Compute running balance from existing rows for this staff
     const rows = sheet.getDataRange().getValues();
     let runningBalance = 0;
@@ -359,7 +365,7 @@ const Attendance = {
       data.orgId || '',
       'disbursed',
       amount,
-      data.paymentMode || ''
+      paymentMode
     ]);
 
     return Utils.createResponse('success', 'Advance recorded successfully', { advanceId, runningBalance: newBalance });
