@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbxtwVzaMb9eoG20I3Oi94Sppn3dS1j2Qh_KPodz8uAw8rSBY6mc1-l16yiZ9-lOkEiX7Q/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbwy7wl6t9wZcT-V_9ZMVaaxewdsdCO5PCd9lqaDtNeZCqxhMXg2Dj6WqQWlzjqzUosIGw/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
