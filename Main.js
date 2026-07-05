@@ -216,6 +216,18 @@ function doPost(e) {
       // below is kept in a local variable instead.
       const callerRoleId = session.roleId || '';
 
+      // get_organizations doubles as the lightweight "my org + descendants"
+      // picker used by every add/update form's Organization field and every
+      // grid's "Include sub-orgs" toggle (data.userOrgId set). That use case
+      // must work for every role regardless of whether they have the
+      // 'organizations' management permission — mirrors the precedent in
+      // Auth.login, which already resolves orgName directly for the same
+      // reason (a role without Organizations access still needs to see its
+      // own org's name). The unscoped full-directory read (the actual
+      // Organizations management screen, no userOrgId) still goes through
+      // the normal RBAC check below.
+      const isScopedOrgLookup = action === 'get_organizations' && !!data.userOrgId;
+
       // ── Role-based access control ────────────────────────────────────────
       // Every admin action (other than the always-allowed ones below) must be
       // tagged in ACTION_PERMISSIONS with the menu item it belongs to and
@@ -224,7 +236,7 @@ function doPost(e) {
       // Permissions matrix. Unmapped actions fail CLOSED (denied), not open,
       // so a new action added here without a matching entry below is a
       // build-time bug to fix, not a silent access hole.
-      if (!ALWAYS_ALLOWED_ACTIONS.includes(action)) {
+      if (!ALWAYS_ALLOWED_ACTIONS.includes(action) && !isScopedOrgLookup) {
         const rule = ACTION_PERMISSIONS[action];
         if (!rule) {
           return Utils.createResponse('error', 'This action is not configured for access control (' + action + ').');
