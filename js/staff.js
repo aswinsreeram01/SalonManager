@@ -63,7 +63,7 @@ const Staff = {
 
     // ── Payroll review modal ──
     document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
-    document.getElementById('hrPayReviewCloseBtn').addEventListener('click', () => this.closePayrollReview());
+    document.getElementById('hrPayRevCloseBtn').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayReviewCloseX').addEventListener('click', () => this.closePayrollReview());
 
     // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
