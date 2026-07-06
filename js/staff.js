@@ -21,6 +21,8 @@ const Staff = {
   _attSumPeriod:     null,
   _attSumOverrides:  null,
   _attSumOriginal:   {},
+  _quickEntryPeriod:  null,
+  _quickEntrySummary: {},
   _advStaffId:       null,
 
   // ─── Init ────────────────────────────────────────────────────────────────────
@@ -79,8 +81,9 @@ const Staff = {
     );
 
     // ── Quick Entry tab ──
-    document.getElementById('hrAttSumLoadBtn').addEventListener('click', () => this._loadAttSummary());
+    document.getElementById('hrQeMonth').addEventListener('change', () => this.loadQuickEntryGrid());
     document.getElementById('hrAttSumSaveBtn').addEventListener('click', () => this._saveAttSummary());
+    document.getElementById('hrQeModalCloseX').addEventListener('click', () => this.closeQuickEntryModal());
 
     // ── Attendance modal ──
     document.getElementById('hrAttModalSaveBtn').addEventListener('click',   () => this.saveAttendanceRecord());
@@ -96,8 +99,8 @@ const Staff = {
     if (attMonthEl) attMonthEl.value = ym;
     const payPeriodEl = document.getElementById('hrPayPeriod');
     if (payPeriodEl) payPeriodEl.value = ym;
-    const attSumMonthEl = document.getElementById('hrAttSumMonth');
-    if (attSumMonthEl) attSumMonthEl.value = ym;
+    const qeMonthEl = document.getElementById('hrQeMonth');
+    if (qeMonthEl) qeMonthEl.value = ym;
   },
 
   // ─── Tab switching ───────────────────────────────────────────────────────────
@@ -110,7 +113,7 @@ const Staff = {
       p.classList.toggle('active', p.id === 'prod-tab-' + tab)
     );
     if (tab === 'hr-attendance') this.loadAttendance();
-    if (tab === 'hr-quickentry') this._populateAttSumStaffDropdown();
+    if (tab === 'hr-quickentry') this.loadQuickEntryGrid();
     if (tab === 'hr-payroll')    this.loadPayrollForMonth();
     if (tab === 'hr-advances')   this._populateAdvStaffDropdown();
   },
@@ -1481,39 +1484,90 @@ const Staff = {
   },
 
   // ─── TAB: QUICK ENTRY ────────────────────────────────────────────────────────
-  // A single-staff, whole-month calendar view of the same StaffAttendance
-  // data the Attendance & OT tab's Week Grid uses — reads via the same
-  // get_attendance action and edits via the same openAttModal/saveAttendanceRecord flow.
+  // A month-first grid across every active staff member, sourced from that
+  // staff's payroll row for the month (blank where none exists yet) — even
+  // for a role with Quick Entry access but no Payroll tab access, since
+  // get_payroll_summary is gated on staff:hr-quickentry alone. Clicking
+  // Update opens the same single-staff calendar + overrides editor as
+  // before, now in a modal instead of being the tab's whole content.
 
-  _populateAttSumStaffDropdown() {
-    const sel = document.getElementById('hrAttSumStaff');
-    if (!sel) return;
-    const current = sel.value;
-    const sorted = [...this._staff].sort((a, b) => a.name.localeCompare(b.name));
-    sel.innerHTML = '<option value="">Select staff</option>' +
-      sorted.map(s => `<option value="${s.id}">${this._esc(s.name)}${s.status !== 'active' ? ' (inactive)' : ''}</option>`).join('');
-    if (current) sel.value = current;
+  async loadQuickEntryGrid() {
+    const period = document.getElementById('hrQeMonth').value;
+    const tbody  = document.getElementById('hrQeTableBody');
+    const msgEl  = document.getElementById('hrQeMessage');
+    if (!period) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a0aec0;">Select a month to load.</td></tr>'; return; }
+
+    this._quickEntryPeriod = period;
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
+
+    try {
+      const res = await API.getPayrollSummary({ period });
+      const summaryByStaffId = {};
+      (res.status === 'success' ? (res.summary || []) : []).forEach(s => { summaryByStaffId[s.staffId] = s; });
+      this._quickEntrySummary = summaryByStaffId;
+      this._renderQuickEntryGrid();
+    } catch(err) {
+      this._showInlineMsg(msgEl, 'Error loading payroll summary', 'error');
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#fc8181;">Error loading payroll summary</td></tr>';
+    }
   },
 
-  async _loadAttSummary() {
-    const staffId = document.getElementById('hrAttSumStaff').value;
-    const period  = document.getElementById('hrAttSumMonth').value;
-    const msgEl   = document.getElementById('hrAttSumMessage');
+  _renderQuickEntryGrid() {
+    const tbody = document.getElementById('hrQeTableBody');
+    const active = (this._staff || []).filter(s => s.status === 'active')
+      .sort((a, b) => a.name.localeCompare(b.name));
+    if (!active.length) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#a0aec0;padding:24px;">No active staff found.</td></tr>';
+      return;
+    }
 
-    if (!staffId) { this._showInlineMsg(msgEl, 'Please select a staff member.', 'error'); return; }
-    if (!period)  { this._showInlineMsg(msgEl, 'Please select a month.', 'error'); return; }
+    const dash = v => (v === '' || v === null || v === undefined) ? '—' : v;
+    tbody.innerHTML = active.map(s => {
+      const r = this._quickEntrySummary[s.id];
+      return `<tr>
+        <td style="font-weight:500;white-space:nowrap;">${this._esc(s.name)}</td>
+        <td style="text-align:right;">${r ? r.weekdayAbsence : '—'}</td>
+        <td style="text-align:right;">${r ? r.weekendAbsence : '—'}</td>
+        <td style="text-align:right;">${r ? r.otHours : '—'}</td>
+        <td style="text-align:right;">${r ? dash(r.serviceValue) : '—'}</td>
+        <td style="text-align:right;">${r ? dash(r.makeupValue) : '—'}</td>
+        <td style="text-align:right;">${r ? dash(r.productCount) : '—'}</td>
+        <td style="text-align:right;">${r ? dash(r.tipsOverride) : '—'}</td>
+        <td><button class="action-btn action-btn-edit" onclick="Staff.openQuickEntryUpdate('${s.id}')">Update</button></td>
+      </tr>`;
+    }).join('');
+  },
+
+  openQuickEntryUpdate(staffId) {
+    const staff = (this._staff || []).find(s => s.id === staffId);
+    const period = this._quickEntryPeriod;
+    if (!staff || !period) return;
 
     this._attSumStaffId = staffId;
     this._attSumPeriod  = period;
+    document.getElementById('hrAttSumModalTitle').textContent = `Quick Entry — ${staff.name} (${period})`;
+    document.getElementById('hrAttSumMessage').innerHTML = '';
+    document.getElementById('hrAttSumCalWrap').innerHTML = '<p class="muted" style="text-align:center;padding:24px;">Loading…</p>';
+    document.getElementById('hrQeModal').style.display = 'flex';
+    this._loadAttSummary();
+  },
+
+  closeQuickEntryModal() {
+    document.getElementById('hrQeModal').style.display = 'none';
+    this._attSumStaffId = null;
+    this._attSumPeriod  = null;
+  },
+
+  async _loadAttSummary() {
+    const staffId = this._attSumStaffId;
+    const period  = this._attSumPeriod;
+    const msgEl   = document.getElementById('hrAttSumMessage');
+    if (!staffId || !period) return;
 
     const [year, month] = period.split('-').map(Number);
     const fromDate = `${period}-01`;
     const lastDay  = new Date(year, month, 0).getDate();
     const toDate   = `${period}-${String(lastDay).padStart(2, '0')}`;
-
-    const btn = document.getElementById('hrAttSumLoadBtn');
-    btn.disabled = true;
-    btn.textContent = 'Loading…';
 
     try {
       const [attRes, ovrRes] = await Promise.all([
@@ -1527,9 +1581,6 @@ const Staff = {
       this._renderAttSummaryCalendar();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error loading attendance data', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Load';
     }
   },
 
@@ -1762,6 +1813,9 @@ const Staff = {
         this._showInlineMsg(msgEl, payRes.message || 'Attendance saved, but payroll could not be updated.', 'warning');
       }
       await this._loadAttSummary();
+      // Keep the underlying grid in sync so it shows the new numbers once
+      // this modal is closed, without needing a full page reload.
+      if (period === this._quickEntryPeriod) await this.loadQuickEntryGrid();
     } catch(err) {
       this._showInlineMsg(msgEl, 'Error saving changes', 'error');
     } finally {

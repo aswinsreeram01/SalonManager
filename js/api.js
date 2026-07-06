@@ -370,6 +370,7 @@ const API = {
     updatePayrollStatus(data) { return this.call('update_payroll_status', data); },
     upsertPayrollFromAttendance(data) { return this.call('upsert_payroll_from_attendance', data); },
     getPayrollOverrides(params) { return this.call('get_payroll_overrides', params || {}); },
+    getPayrollSummary(params) { return this.call('get_payroll_summary', params || {}); },
     updatePayrollRow(data) { return this.call('update_payroll_row', data); },
 
     // Setup / Sheet Scaffolding

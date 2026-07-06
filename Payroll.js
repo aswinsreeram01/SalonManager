@@ -614,6 +614,44 @@ const Payroll = {
     });
   },
 
+  // Bulk per-staff summary for one month, used by the Quick Entry grid.
+  // Deliberately gated on staff:hr-quickentry alone (not staff:hr-payroll)
+  // in Main.js — same rationale as getOverrides, just with the extra fields
+  // (absence tallies, OT) the grid needs. Only returns rows that exist;
+  // staff with no payroll record yet for this period simply aren't in the
+  // result, and the frontend renders those rows blank.
+  getSummaryForMonth(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return Utils.createResponse('success', 'Payroll summary retrieved', { summary: [] });
+    if (!data || !data.period) return Utils.createResponse('error', 'period is required');
+
+    const period = data.period;
+    const orgId = data.orgId || '';
+    const includeChildren = !!data.includeChildren;
+    const allowedOrgIds = orgId ? Organizations.scopeOrgIds(orgId, includeChildren) : null;
+
+    const rows = sheet.getDataRange().getValues();
+    const summary = [];
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      if (this._normalizePeriod(rows[i][3]) !== period) continue;
+      const rowOrg = rows[i][24] || '';
+      if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
+
+      const b = this._rowToBreakdown(rows[i]);
+      const weekdayAbsence = b.weekdayAbsentDates.length + b.weekdayHalfDayDates.length * 0.5;
+      const weekendAbsence = b.weekendAbsentDates.length * 2 + b.weekendHalfDayDates.length;
+      summary.push({
+        payrollId: b.payrollId, staffId: b.staffId,
+        weekdayAbsence, weekendAbsence, otHours: b.otHours,
+        serviceValue: b.serviceValue, makeupValue: b.makeupValue,
+        productCount: b.productCount, tipsOverride: b.tipsOverride
+      });
+    }
+
+    return Utils.createResponse('success', 'Payroll summary retrieved', { summary });
+  },
+
   getAll(data) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
     if (!sheet) return Utils.createResponse('success', 'Payroll retrieved', { payroll: [] });

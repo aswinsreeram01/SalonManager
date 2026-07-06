@@ -267,28 +267,54 @@
     <!-- ═══ TAB: QUICK ENTRY ═══ -->
     <div id="prod-tab-hr-quickentry" class="prod-tab-panel">
         <div class="card">
-            <h3 style="color:#2d3748;margin-bottom:16px;">Quick Entry</h3>
-            <div id="hrAttSumMessage" class="message"></div>
-            <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
-                <div class="form-group" style="margin-bottom:0;min-width:200px;">
-                    <label for="hrAttSumStaff">Staff</label>
-                    <select id="hrAttSumStaff">
-                        <option value="">Select staff</option>
-                    </select>
-                </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
+                <h3 style="color:#2d3748;margin:0;">Quick Entry</h3>
                 <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAttSumMonth">Month</label>
-                    <input type="month" id="hrAttSumMonth">
+                    <label for="hrQeMonth">Month</label>
+                    <input type="month" id="hrQeMonth">
                 </div>
-                <button class="btn btn-primary" id="hrAttSumLoadBtn" type="button" style="align-self:flex-end;">Load</button>
             </div>
+            <p class="muted" style="margin:0 0 16px;font-size:12px;">
+                Weekday/weekend absence, OT, and the manual overrides are shown from that staff member's payroll record for the
+                selected month, if one exists. Click Update to open the day-by-day calendar and edit any of it.
+            </p>
+            <div id="hrQeMessage" class="message"></div>
+            <div class="table-container">
+                <table>
+                    <thead><tr>
+                        <th>Staff</th>
+                        <th style="text-align:right;">Weekday Absence</th>
+                        <th style="text-align:right;">Weekend Absence</th>
+                        <th style="text-align:right;">OT (hrs)</th>
+                        <th style="text-align:right;">Service Value</th>
+                        <th style="text-align:right;">Make Up Value</th>
+                        <th style="text-align:right;">Product Count</th>
+                        <th style="text-align:right;">Tips</th>
+                        <th>Actions</th>
+                    </tr></thead>
+                    <tbody id="hrQeTableBody">
+                        <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Select a month to load.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Entry Update Modal -->
+    <div id="hrQeModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+        <div class="modal-box" style="max-width:760px;width:100%;max-height:88vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h3 id="hrAttSumModalTitle" style="color:#2d3748;margin:0;">Quick Entry</h3>
+                <button id="hrQeModalCloseX" type="button" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a0aec0;line-height:1;padding:2px 6px;">✕</button>
+            </div>
+            <div id="hrAttSumMessage" class="message"></div>
             <div id="hrAttSumStats" class="att-sum-stats" style="display:none;"></div>
             <p class="muted" style="margin:0 0 12px;font-size:12px;">
                 Days with no clock-in/out on record can be marked directly here (status + OT hours).
                 Days already clocked in/out are locked — click one to view/edit it from the Attendance &amp; OT tab's full editor instead.
             </p>
             <div id="hrAttSumCalWrap">
-                <p class="muted" style="text-align:center;padding:24px;">Select a staff member and month, then click Load.</p>
+                <p class="muted" style="text-align:center;padding:24px;">Loading…</p>
             </div>
             <div id="hrAttSumPayrollOverrides" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid #e2e8f0;">
                 <h4 style="color:#2d3748;margin:0 0 4px;font-size:14px;">Payroll Overrides</h4>
