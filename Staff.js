@@ -123,5 +123,25 @@ const Staff = {
       }
     }
     return Utils.createResponse('error', 'Staff member not found');
+  },
+
+  // Clears the stored portal PIN (col 19) — the staff member then signs in
+  // with the default PIN again (last 4 digits of their phone number) and can
+  // set a new one from the portal.
+  resetPin(data) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('error', 'Staff sheet not found');
+
+    const dataRange = sheet.getDataRange().getValues();
+    for (let i = 1; i < dataRange.length; i++) {
+      if (dataRange[i][0] === data.id) {
+        if (!Organizations.isWithinScope(data.orgId, dataRange[i][17] || '')) {
+          return Utils.createResponse('error', 'You do not have access to that organization.');
+        }
+        sheet.getRange(i + 1, 19).setValue('');
+        return Utils.createResponse('success', 'PIN reset — the staff member can sign in with the last 4 digits of their phone number.');
+      }
+    }
+    return Utils.createResponse('error', 'Staff member not found');
   }
 };

@@ -69,5 +69,58 @@ const OrgSettings = {
     }
 
     return Utils.createResponse('success', 'Org settings updated successfully');
+  },
+
+  // ── Portal visibility ───────────────────────────────────────────────────
+  // Which tabs/sections the staff and customer portals show. Stored as two
+  // comma-joined OrgSettings keys of ENABLED ids; a missing key means
+  // "everything enabled" (the default for fresh installs). Global, like
+  // every other OrgSettings key — not per-org.
+
+  STAFF_PORTAL_TABS:        ['records', 'pending', 'attendance', 'advance', 'payslips'],
+  CUSTOMER_PORTAL_SECTIONS: ['loyalty', 'summary', 'lastVisit', 'history'],
+
+  // Plain-object read for backend modules (StaffPortal, Customers) — arrays
+  // of enabled ids, defaulting to all when the key was never saved.
+  _portalVisibilityRaw() {
+    const s = this._getRaw();
+    const parse = (v, all) => {
+      if (v === undefined || v === null || String(v) === '') return all.slice();
+      return String(v).split(',').map(x => x.trim()).filter(x => all.includes(x));
+    };
+    return {
+      staffTabs:        parse(s.staffPortalTabs, this.STAFF_PORTAL_TABS),
+      customerSections: parse(s.customerPortalSections, this.CUSTOMER_PORTAL_SECTIONS)
+    };
+  },
+
+  getPortalVisibility() {
+    return Utils.createResponse('success', 'Portal visibility retrieved', this._portalVisibilityRaw());
+  },
+
+  updatePortalVisibility(data) {
+    const staffTabs = Array.isArray(data.staffTabs)
+      ? data.staffTabs.filter(t => this.STAFF_PORTAL_TABS.includes(t)) : null;
+    const customerSections = Array.isArray(data.customerSections)
+      ? data.customerSections.filter(s => this.CUSTOMER_PORTAL_SECTIONS.includes(s)) : null;
+
+    // At least one tab/section must stay on — an empty portal is a lockout,
+    // not a configuration.
+    if (staffTabs && !staffTabs.length) {
+      return Utils.createResponse('error', 'At least one staff portal tab must remain enabled.');
+    }
+    if (customerSections && !customerSections.length) {
+      return Utils.createResponse('error', 'At least one customer portal section must remain enabled.');
+    }
+
+    // Only the two visibility keys are written — never the raw request data,
+    // which carries middleware fields (sessionToken, orgId, userId, action).
+    const updates = {};
+    if (staffTabs)        updates.staffPortalTabs        = staffTabs.join(',');
+    if (customerSections) updates.customerPortalSections = customerSections.join(',');
+    if (!Object.keys(updates).length) {
+      return Utils.createResponse('error', 'Nothing to update');
+    }
+    return this.update(updates);
   }
 };

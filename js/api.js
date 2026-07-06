@@ -367,6 +367,9 @@ const API = {
 
     // Payroll
     getPayroll(params) { return this.call('get_payroll', params || {}); },
+    resetStaffPin(id) { return this.call('reset_staff_pin', { id }); },
+    getPortalVisibility() { return this.call('get_portal_visibility'); },
+    updatePortalVisibility(data) { return this.call('update_portal_visibility', data); },
     upsertPayrollFromAttendance(data) { return this.call('upsert_payroll_from_attendance', data); },
     getPayrollOverrides(params) { return this.call('get_payroll_overrides', params || {}); },
     getPayrollSummary(params) { return this.call('get_payroll_summary', params || {}); },

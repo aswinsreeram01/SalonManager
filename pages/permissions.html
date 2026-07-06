@@ -1,10 +1,17 @@
-﻿                <div class="page-header">
+                <div class="page-header">
                     <h1 class="page-title">Permissions</h1>
-                    <p class="page-subtitle">Manage role-based access control</p>
+                    <p class="page-subtitle">Manage role-based access control and portal visibility</p>
                 </div>
 
                 <div id="permissionMessage" class="message"></div>
 
+                <div class="sub-tabs">
+                    <button class="sub-tab active" data-subtab="perm-roles">Role Permissions</button>
+                    <button class="sub-tab" data-subtab="perm-staffportal">Staff Portal</button>
+                    <button class="sub-tab" data-subtab="perm-custportal">Customer Portal</button>
+                </div>
+
+                <div id="sub-tab-perm-roles" class="sub-tab-panel active">
                 <div class="card">
                     <div class="form-group" style="max-width: 360px;">
                         <label for="permRoleSelect">Select Role</label>
@@ -34,4 +41,35 @@
                             <button class="btn btn-primary" id="savePermissionsBtn">Save Permissions</button>
                         </div>
                     </div>
+                </div>
+                </div>
+
+                <div id="sub-tab-perm-staffportal" class="sub-tab-panel">
+                <div class="card">
+                    <div class="card-toolbar">
+                        <h3>Staff Portal Tabs</h3>
+                    </div>
+                    <p class="card-hint">Tabs enabled here are visible to every staff member in the Staff Portal. Changes apply the next time a staff member signs in or reloads. At least one tab must stay enabled.</p>
+                    <div id="permStaffTabsList" style="display:grid;gap:10px;max-width:420px;">
+                        <p class="muted">Loading…</p>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="savePortalStaffBtn">Save Staff Portal Tabs</button>
+                    </div>
+                </div>
+                </div>
+
+                <div id="sub-tab-perm-custportal" class="sub-tab-panel">
+                <div class="card">
+                    <div class="card-toolbar">
+                        <h3>Customer Portal Sections</h3>
+                    </div>
+                    <p class="card-hint">Sections enabled here are shown to customers on their portal dashboard. Changes apply the next time a customer signs in. At least one section must stay enabled.</p>
+                    <div id="permCustSectionsList" style="display:grid;gap:10px;max-width:420px;">
+                        <p class="muted">Loading…</p>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn btn-primary" id="savePortalCustBtn">Save Customer Portal Sections</button>
+                    </div>
+                </div>
                 </div>

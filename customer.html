@@ -551,7 +551,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbzrrYzPXqjzLeaDj47PdQGu2ctSKNWCq-uPPCNq31Kwfw_5wcqj5k-tL-l7XSE6gftYRA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxEkTn8BsCc6dXVQg7ROpVWsC50VYWbCVoyP0K5XnG4xiUPCQayEfX6MoIGZTwLv5HVxQ/exec';
 
 // ── State ──────────────────────────────────────────────────────────────────
 let currentPhone = '';
@@ -678,8 +678,19 @@ async function showMilestone(text) {
 }
 
 // ── Staggered Reveal ───────────────────────────────────────────────────────
+// Sections the admin has enabled for this portal (Permissions > Customer
+// Portal). Defaults to everything; replaced from the customer_login response.
+let CP_ENABLED_SECTIONS = ['loyalty', 'summary', 'lastVisit', 'history'];
+const CP_SECTION_BY_ID = {
+    loyaltyCard: 'loyalty', summaryBar: 'summary',
+    lastVisitWrap: 'lastVisit', historyWrap: 'history'
+};
+
 function revealAt(el, delayMs) {
     if (!el) return;
+    // A disabled section never reveals, regardless of which path asks.
+    const section = CP_SECTION_BY_ID[el.id];
+    if (section && !CP_ENABLED_SECTIONS.includes(section)) return;
     setTimeout(() => {
         el.style.display = '';   // remove any inline display:none
         el.classList.add('in');
@@ -715,6 +726,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             btn.innerHTML = 'View My Gems';
             btn.classList.toggle('has-input', phone.length >= 8);
             return;
+        }
+
+        if (Array.isArray(loginRes.enabledSections) && loginRes.enabledSections.length) {
+            CP_ENABLED_SECTIONS = loginRes.enabledSections;
         }
 
         const name = loginRes.name || '';

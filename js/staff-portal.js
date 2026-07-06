@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbzrrYzPXqjzLeaDj47PdQGu2ctSKNWCq-uPPCNq31Kwfw_5wcqj5k-tL-l7XSE6gftYRA/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbxEkTn8BsCc6dXVQg7ROpVWsC50VYWbCVoyP0K5XnG4xiUPCQayEfX6MoIGZTwLv5HVxQ/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ const StaffAPI = {
     getMyAdvances()                { return this.call('get_my_advances'); },
     getMyPayslips()                { return this.call('get_my_payslips'); },
     approveMyPayslip(payrollId)    { return this.call('approve_my_payslip',  { payrollId }); },
+    getPortalConfig()              { return this.call('get_portal_config'); },
 };
 
 // ── App controller ────────────────────────────────────────────────────────────
@@ -686,8 +687,27 @@ const StaffApp = {
         return new Date(yr, mo - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
     },
 
+    // The dates the staff member was absent, across weekday/weekend full and
+    // half days, in date order — e.g. "3 Jun · 9 Jun · 15 Jun (half-day)".
+    _absentDaysLabel(p) {
+        const split = s => String(s || '').split(',').filter(Boolean);
+        const days = [
+            ...split(p.weekdayAbsentDates).map(d => ({ d, half: false })),
+            ...split(p.weekendAbsentDates).map(d => ({ d, half: false })),
+            ...split(p.weekdayHalfDayDates).map(d => ({ d, half: true })),
+            ...split(p.weekendHalfDayDates).map(d => ({ d, half: true }))
+        ].sort((a, b) => a.d.localeCompare(b.d));
+        if (!days.length) return 'None';
+        return days.map(({ d, half }) => {
+            const dt = new Date(d + 'T00:00:00');
+            const label = isNaN(dt) ? d : dt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+            return half ? `${label} (half-day)` : label;
+        }).join(' · ');
+    },
+
     // Read-only payslip statement — same figures the admin's Payroll Review
-    // shows, rendered as simple label/value rows.
+    // shows, rendered as simple label/value rows. Salary is shown as one
+    // combined figure (base + allowances), not split out.
     _payslipStatement(p) {
         const fmt = this._spFmt;
         const row = (label, value, opts = {}) => `
@@ -703,9 +723,11 @@ const StaffApp = {
                 Days of Absence: <b style="color:#2d3748;">${p.totalDaysOff ?? 0}</b> ·
                 Eligible Offs: <b style="color:#2d3748;">${p.eligibleOffs ?? 0}</b>
             </div>
+            <div style="font-size:12px;color:#718096;margin-bottom:6px;">
+                Days Absent: <b style="color:#2d3748;">${_esc(this._absentDaysLabel(p))}</b>
+            </div>
             ${section('Earnings')}
-            ${row('Base Salary', fmt(p.baseSalary))}
-            ${row('Allowances', fmt(p.allowances))}
+            ${row('Salary', fmt((Number(p.baseSalary) || 0) + (Number(p.allowances) || 0)))}
             ${row(`Overtime (${p.otHours ?? 0}h)`, fmt(p.otPay))}
             ${row('Service Incentive', fmt(p.targetIncentive))}
             ${row('Make Up Incentive', fmt(p.makeupIncentive))}
@@ -746,6 +768,29 @@ const StaffApp = {
             document.getElementById('staffRoleHeader').textContent =
                 [s.role, s.specialization].filter(Boolean).join(' · ');
         }
+        this._applyPortalConfig();
+    },
+
+    // Hide tabs the admin disabled (Permissions > Staff Portal). Fetched on
+    // every dashboard show so changes apply on the next sign-in/reload. On
+    // any failure every tab stays visible — visibility is a preference, not
+    // a security boundary (each action is still authorized server-side).
+    async _applyPortalConfig() {
+        try {
+            const res = await StaffAPI.getPortalConfig();
+            const enabled = (res.status === 'success' && Array.isArray(res.enabledTabs)) ? res.enabledTabs : null;
+            if (!enabled || !enabled.length) return;
+            let firstEnabled = null;
+            document.querySelectorAll('.sp-tab').forEach(btn => {
+                const t = btn.dataset.tab;
+                const on = enabled.includes(t);
+                btn.style.display = on ? '' : 'none';
+                if (on && !firstEnabled) firstEnabled = t;
+            });
+            if (!enabled.includes(this._activeTab) && firstEnabled) {
+                this.switchTab(firstEnabled);
+            }
+        } catch (e) { /* leave all tabs visible */ }
     }
 };
 

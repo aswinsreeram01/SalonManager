@@ -99,6 +99,7 @@ const ACTION_PERMISSIONS = {
   get_staff: [['staff:hr-staff', 'staff:hr-attendance', 'staff:hr-quickentry', 'staff:hr-payroll'], 'read'],
   add_staff: ['staff:hr-staff', 'update'],
   update_staff: [['staff:hr-staff', 'staff:hr-payroll'], 'update'],
+  reset_staff_pin: ['staff:hr-staff', 'update'],
   delete_staff: ['staff:hr-staff', 'update'],
   // OR'd with staff:hr-payroll — the Payroll Review modal's Remaining
   // Balance field reads the outstanding advance balance too.
@@ -171,6 +172,10 @@ const ACTION_PERMISSIONS = {
   // Settings (Org Settings + Sheet Setup, both live on the Settings page)
   get_org_settings: ['settings', 'read'],
   update_org_settings: ['settings', 'update'],
+  // Portal visibility lives on the Permissions page, so it's governed by the
+  // permissions page permission rather than settings.
+  get_portal_visibility: ['permissions', 'read'],
+  update_portal_visibility: ['permissions', 'update'],
   get_setup_status: ['settings', 'read'],
   run_setup: ['settings', 'update'],
   refresh_summary_sheet: ['settings', 'update']
@@ -186,7 +191,7 @@ function doPost(e) {
       'staff_login', 'staff_logout',
       'get_staff_dashboard', 'get_pending_items', 'confirm_bill_items', 'change_staff_pin',
       'log_attendance', 'get_my_attendance', 'request_advance', 'get_my_advances',
-      'get_my_payslips', 'approve_my_payslip'
+      'get_my_payslips', 'approve_my_payslip', 'get_portal_config'
     ];
     if (STAFF_ACTIONS.includes(action)) {
       if (action !== 'staff_login') {
@@ -210,6 +215,7 @@ function doPost(e) {
         case 'get_my_advances':      return StaffPortal.getMyAdvances(data);
         case 'get_my_payslips':      return StaffPortal.getMyPayslips(data);
         case 'approve_my_payslip':   return StaffPortal.approveMyPayslip(data);
+        case 'get_portal_config':    return StaffPortal.getPortalConfig(data);
       }
     }
 
@@ -363,6 +369,8 @@ function doPost(e) {
         return Staff.update(data);
       case 'delete_staff':
         return Staff.remove(data);
+      case 'reset_staff_pin':
+        return Staff.resetPin(data);
 
       // Price Books
       case 'get_pricebooks':
@@ -463,6 +471,8 @@ function doPost(e) {
       // Org Settings
       case 'get_org_settings': return OrgSettings.get();
       case 'update_org_settings': return OrgSettings.update(data);
+      case 'get_portal_visibility': return OrgSettings.getPortalVisibility();
+      case 'update_portal_visibility': return OrgSettings.updatePortalVisibility(data);
 
       // Shifts & Attendance
       case 'get_shifts':          return Attendance.getShifts(data);

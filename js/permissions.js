@@ -50,13 +50,42 @@ const Permissions = {
         { key: 'settings',      label: 'Settings (Sheet Setup)' },
     ],
 
+    // Staff Portal tabs / Customer Portal sections the admin can toggle.
+    // Keys must match OrgSettings.STAFF_PORTAL_TABS / CUSTOMER_PORTAL_SECTIONS
+    // on the backend and the ids the two portals use.
+    staffPortalTabs: [
+        { key: 'records',    label: 'My Records' },
+        { key: 'pending',    label: 'Pending Confirmation' },
+        { key: 'attendance', label: 'Attendance' },
+        { key: 'advance',    label: 'Advance' },
+        { key: 'payslips',   label: 'Payslips' },
+    ],
+    customerPortalSections: [
+        { key: 'loyalty',   label: 'Loyalty Card (Gems & tier)' },
+        { key: 'summary',   label: 'Visit Summary (visits / spend / savings)' },
+        { key: 'lastVisit', label: 'Last Visit' },
+        { key: 'history',   label: 'All Visits (history)' },
+    ],
+
     init() {
         document.getElementById('permRoleSelect').addEventListener('change', () => this.loadMatrix());
         document.getElementById('savePermissionsBtn').addEventListener('click', () => this.save());
+        document.querySelectorAll('#permissions .sub-tab').forEach(btn =>
+            btn.addEventListener('click', () => this._switchSubTab(btn.dataset.subtab)));
+        document.getElementById('savePortalStaffBtn').addEventListener('click', () => this.savePortalVisibility('staff'));
+        document.getElementById('savePortalCustBtn').addEventListener('click', () => this.savePortalVisibility('customer'));
+    },
+
+    _switchSubTab(subtab) {
+        document.querySelectorAll('#permissions .sub-tab').forEach(b =>
+            b.classList.toggle('active', b.dataset.subtab === subtab));
+        document.querySelectorAll('#permissions .sub-tab-panel').forEach(p =>
+            p.classList.toggle('active', p.id === 'sub-tab-' + subtab));
     },
 
     async load() {
         document.getElementById('permMatrix').style.display = 'none';
+        this.loadPortalVisibility();
         try {
             const result = await API.getRoles();
             const select = document.getElementById('permRoleSelect');
@@ -159,6 +188,69 @@ const Permissions = {
         } finally {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Permissions';
+        }
+    },
+
+    // ── Portal visibility (Staff Portal / Customer Portal sub-tabs) ─────────
+
+    async loadPortalVisibility() {
+        try {
+            const res = await API.getPortalVisibility();
+            const staffOn = (res.status === 'success' && Array.isArray(res.staffTabs))
+                ? res.staffTabs : this.staffPortalTabs.map(t => t.key);
+            const custOn = (res.status === 'success' && Array.isArray(res.customerSections))
+                ? res.customerSections : this.customerPortalSections.map(s => s.key);
+            this._renderPortalToggles('permStaffTabsList', this.staffPortalTabs, staffOn);
+            this._renderPortalToggles('permCustSectionsList', this.customerPortalSections, custOn);
+        } catch (e) {
+            document.getElementById('permStaffTabsList').innerHTML =
+                '<p class="muted" style="color:#fc8181;">Failed to load portal settings.</p>';
+            document.getElementById('permCustSectionsList').innerHTML =
+                '<p class="muted" style="color:#fc8181;">Failed to load portal settings.</p>';
+        }
+    },
+
+    _renderPortalToggles(containerId, defs, enabledKeys) {
+        document.getElementById(containerId).innerHTML = defs.map(d => `
+            <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">
+                <span style="font-size:14px;color:#2d3748;">${d.label}</span>
+                <label class="toggle" style="margin:0;">
+                    <input type="checkbox" data-portal-key="${d.key}" ${enabledKeys.includes(d.key) ? 'checked' : ''}>
+                    <span class="toggle-slider"></span>
+                </label>
+            </label>
+        `).join('');
+    },
+
+    async savePortalVisibility(kind) {
+        const containerId = kind === 'staff' ? 'permStaffTabsList' : 'permCustSectionsList';
+        const btn = document.getElementById(kind === 'staff' ? 'savePortalStaffBtn' : 'savePortalCustBtn');
+        const enabled = [...document.querySelectorAll(`#${containerId} input[data-portal-key]:checked`)]
+            .map(cb => cb.dataset.portalKey);
+
+        if (!enabled.length) {
+            UI.showMessage('permissionMessage',
+                kind === 'staff' ? 'At least one staff portal tab must remain enabled.'
+                                 : 'At least one customer portal section must remain enabled.', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        const orig = btn.textContent;
+        btn.innerHTML = '<span class="spinner"></span>Saving...';
+        try {
+            const payload = kind === 'staff' ? { staffTabs: enabled } : { customerSections: enabled };
+            const res = await API.updatePortalVisibility(payload);
+            if (res.status === 'success') {
+                UI.showMessage('permissionMessage', 'Portal visibility saved — applies on the next portal sign-in.', 'success');
+            } else {
+                UI.showMessage('permissionMessage', res.message || 'Error saving portal visibility', 'error');
+            }
+        } catch (e) {
+            UI.showMessage('permissionMessage', 'Network error saving portal visibility', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = orig;
         }
     }
 };

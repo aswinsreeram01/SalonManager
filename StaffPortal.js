@@ -412,6 +412,15 @@ const StaffPortal = {
     return Utils.createResponse('success', 'Advances loaded', { advances, balance, hasPending });
   },
 
+  // Which portal tabs this deployment has enabled (Permissions > Staff
+  // Portal on the admin app). Fetched right after login so changes apply on
+  // the next sign-in / dashboard load without redeploying the portal.
+  getPortalConfig() {
+    return Utils.createResponse('success', 'Portal config', {
+      enabledTabs: OrgSettings._portalVisibilityRaw().staffTabs
+    });
+  },
+
   // ── Payslips: view + approve own payroll records ───────────────────────────
   // Status flow (admin side): draft → review → approved → paid. Staff see a
   // record once the admin moves it to 'review'; approving it moves it to

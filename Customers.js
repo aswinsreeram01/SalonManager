@@ -43,7 +43,10 @@ const Customers = {
         return Utils.createResponse('success', 'Welcome back!', {
           name: rows[i][1],
           phone: Utils.normalizePhone(rows[i][2]),
-          since: rows[i][0] instanceof Date ? rows[i][0].toISOString() : String(rows[i][0])
+          since: rows[i][0] instanceof Date ? rows[i][0].toISOString() : String(rows[i][0]),
+          // Which dashboard sections the portal should render — managed from
+          // Permissions > Customer Portal on the admin app.
+          enabledSections: OrgSettings._portalVisibilityRaw().customerSections
         });
       }
     }

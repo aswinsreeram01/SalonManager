@@ -249,10 +249,24 @@ const Staff = {
         <td>${this._esc(this._orgName(s.orgId))}</td>
         <td>
           <button class="action-btn action-btn-edit"   onclick="Staff.openStaffForm('${s.id}')">Edit</button>
+          <button class="action-btn" style="background:#fffbeb;color:#744210;" onclick="Staff.resetStaffPin('${s.id}')" title="Clears the portal PIN — they sign in with the last 4 digits of their phone again">Reset PIN</button>
           <button class="action-btn action-btn-delete" onclick="Staff.deleteStaff('${s.id}')">Delete</button>
         </td>
       </tr>`;
     }).join('');
+  },
+
+  async resetStaffPin(id) {
+    const s = (this._staff || []).find(x => x.id === id);
+    if (!s) return;
+    if (!confirm(`Reset the Staff Portal PIN for ${s.name}?\n\nThey will sign in with the default PIN again (last 4 digits of their phone number) and can set a new one from the portal.`)) return;
+    try {
+      const res = await API.resetStaffPin(id);
+      UI.showMessage('staffMessage', res.message || (res.status === 'success' ? 'PIN reset.' : 'Error resetting PIN'),
+        res.status === 'success' ? 'success' : 'error');
+    } catch (e) {
+      UI.showMessage('staffMessage', 'Network error resetting PIN', 'error');
+    }
   },
 
   _staffTypeBadge(type) {
