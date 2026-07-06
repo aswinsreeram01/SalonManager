@@ -1354,14 +1354,19 @@ const Staff = {
   _renderPayrollReviewReadonly(r) {
     document.getElementById('hrPayRevSalary').textContent = this._fmt((r.baseSalary || 0) + (r.allowances || 0));
 
-    const wdFull = (r.weekdayAbsentDates || '').split(',').filter(Boolean).length;
-    const wdHalf = (r.weekdayHalfDayDates || '').split(',').filter(Boolean).length;
-    const weFull = (r.weekendAbsentDates || '').split(',').filter(Boolean).length;
-    const weHalf = (r.weekendHalfDayDates || '').split(',').filter(Boolean).length;
-    document.getElementById('hrPayRevWdFull').textContent = wdFull;
-    document.getElementById('hrPayRevWdHalf').textContent = wdHalf;
-    document.getElementById('hrPayRevWeFull').textContent = weFull;
-    document.getElementById('hrPayRevWeHalf').textContent = weHalf;
+    // Show the actual absence dates (as day-of-month numbers, since the
+    // month is already in the modal title), with the count alongside.
+    const absCell = (id, dateList) => {
+      const dates = (dateList || '').split(',').filter(Boolean);
+      const el = document.getElementById(id);
+      if (!dates.length) { el.textContent = '—'; return; }
+      const days = dates.map(d => Number(d.slice(8, 10))).sort((a, b) => a - b).join(', ');
+      el.innerHTML = `${dates.length}<div style="font-weight:400;font-size:12px;color:#718096;">${days}</div>`;
+    };
+    absCell('hrPayRevWdFull', r.weekdayAbsentDates);
+    absCell('hrPayRevWdHalf', r.weekdayHalfDayDates);
+    absCell('hrPayRevWeFull', r.weekendAbsentDates);
+    absCell('hrPayRevWeHalf', r.weekendHalfDayDates);
     document.getElementById('hrPayRevDaysOff').textContent = r.totalDaysOff ?? 0;
 
     const [yr, mo] = String(r.period || '').split('-').map(Number);
