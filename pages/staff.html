@@ -620,7 +620,7 @@
                 <span class="kv-value" id="hrPayRevTipsDisplay">—</span>
             </div>
 
-            <h4 class="hr-section-title">Advance</h4>
+            <h4 class="hr-section-title">Advance <span id="hrPayRevAdvOutstanding" style="font-weight:400;text-transform:none;letter-spacing:0;color:#a0aec0;">· Outstanding: —</span></h4>
             <div class="hr-edit-block" style="margin-top:0;">
                 <div class="form-group">
                     <label for="hrPayRevAdvDeduct">Deduction (₹)</label>
@@ -653,8 +653,10 @@
                     <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Payable <button type="button" class="calc-help-btn" data-calc-field="netPay">?</button></span>
                     <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
                 </div>
-                <div class="btn-group" style="margin:0;">
+                <div class="btn-group" style="margin:0;flex-wrap:wrap;">
                     <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button">Calculate</button>
+                    <button class="btn btn-secondary" id="hrPayRevDownloadBtn" type="button">Download Payslip</button>
+                    <button class="btn btn-primary" id="hrPayRevPayBtn" type="button" style="display:none;background:#276749;" title="Opens your UPI app (mobile only)">Pay via UPI</button>
                     <button class="btn btn-secondary" id="hrPayRevCloseBtn" type="button">Close</button>
                 </div>
             </div>

@@ -68,6 +68,8 @@ const Staff = {
 
     // ── Payroll review modal ──
     document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
+    document.getElementById('hrPayRevDownloadBtn').addEventListener('click', () => this.downloadPayslip());
+    document.getElementById('hrPayRevPayBtn').addEventListener('click', () => this.payViaUpi());
     document.getElementById('hrPayRevCloseBtn').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayReviewCloseX').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayRevExplainClose').addEventListener('click', () => {
@@ -1306,7 +1308,8 @@ const Staff = {
     document.getElementById('hrPayRevAdvDeduct').value = '';
     document.getElementById('hrPayRevRemainingBalance').value = '';
 
-    this._setPayReviewLock(r.status === 'paid');
+    this._updatePayReviewActions(r);
+    document.getElementById('hrPayRevAdvOutstanding').textContent = '· Outstanding: —';
     document.getElementById('hrPayReviewModal').style.display = 'flex';
 
     // Advance model: the row's already-recorded advanceDeducted has already
@@ -1327,9 +1330,30 @@ const Staff = {
       // Calculate can't over- or under-deduct based on a number we never got.
       this._payRevAdvanceBase = rowDeducted;
     }
+    document.getElementById('hrPayRevAdvOutstanding').textContent = `· Outstanding: ${this._fmt(this._payRevAdvanceBase)}`;
     const deduct = rowDeducted > 0 ? rowDeducted : this._payRevAdvanceBase;
     document.getElementById('hrPayRevAdvDeduct').value = deduct;
     document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - deduct) * 100) / 100;
+  },
+
+  // Lock state + action-button visibility for the current record: numeric
+  // inputs disabled when paid, and Pay via UPI shown only for APPROVED
+  // records (a draft hasn't been reconciled; a paid one is already settled).
+  _updatePayReviewActions(r) {
+    this._setPayReviewLock(r.status === 'paid');
+    const payBtn = document.getElementById('hrPayRevPayBtn');
+    const staffMem = (this._staff || []).find(s => s.id === r.staffId);
+    const upiId = staffMem ? String(staffMem.upiId || '').trim() : '';
+    if (r.status === 'approved') {
+      const payable = (Number(r.netPay) || 0) > 0;
+      payBtn.style.display = '';
+      payBtn.disabled = !upiId || !payable;
+      payBtn.title = !upiId ? 'No UPI ID on file for this staff member'
+        : !payable ? 'Net Payable must be greater than zero'
+        : 'Opens your UPI app (mobile only)';
+    } else {
+      payBtn.style.display = 'none';
+    }
   },
 
   // A paid record is final — the server rejects numeric edits, so gray the
@@ -1543,6 +1567,121 @@ const Staff = {
     this._payReviewId = null;
   },
 
+  // 'YYYY-MM' → 'June 2026'
+  _periodLabel(period) {
+    const [yr, mo] = String(period || '').split('-').map(Number);
+    if (!yr || !mo) return String(period || '');
+    return new Date(yr, mo - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+  },
+
+  // Opens the phone's UPI app with payee, amount, and note pre-filled — the
+  // user reviews and completes the payment inside the UPI app; nothing is
+  // paid automatically. Only reachable for APPROVED records with a UPI ID
+  // on file (_updatePayReviewActions gates the button).
+  payViaUpi() {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    if (!r) return;
+    const staffMem = (this._staff || []).find(s => s.id === r.staffId);
+    const upiId = staffMem ? String(staffMem.upiId || '').trim() : '';
+    const netPay = Math.round((Number(r.netPay) || 0) * 100) / 100;
+    if (!upiId || netPay <= 0) return;
+
+    const caption = `${r.staffName || ''} ${this._periodLabel(r.period)} Salary`.trim();
+    window.location.href = `upi://pay?pa=${encodeURIComponent(upiId)}`
+      + `&pn=${encodeURIComponent(r.staffName || 'Staff')}`
+      + `&am=${netPay.toFixed(2)}&cu=INR`
+      + `&tn=${encodeURIComponent(caption)}`;
+  },
+
+  // Renders a clean fixed-width payslip offscreen and downloads it as a PNG.
+  // html2canvas is loaded lazily from CDN on first use — the app itself
+  // stays dependency-free for everyone who never downloads a payslip.
+  async downloadPayslip() {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    if (!r) return;
+    const btn = document.getElementById('hrPayRevDownloadBtn');
+    btn.disabled = true;
+    const orig = btn.textContent;
+    btn.textContent = 'Preparing…';
+    try {
+      if (!window.html2canvas) {
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+          s.onload = resolve;
+          s.onerror = () => reject(new Error('html2canvas failed to load'));
+          document.head.appendChild(s);
+        });
+      }
+      const node = this._buildPayslipNode(r);
+      document.body.appendChild(node);
+      try {
+        const canvas = await window.html2canvas(node, { scale: 2, backgroundColor: '#ffffff' });
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = `Payslip-${String(r.staffName || r.staffId).replace(/\s+/g, '')}-${r.period}.png`;
+        a.click();
+      } finally {
+        node.remove();
+      }
+    } catch (e) {
+      this._showInlineMsg(document.getElementById('hrPayReviewMsg'),
+        'Could not generate the payslip image — check your internet connection and try again.', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  },
+
+  _buildPayslipNode(r) {
+    const esc = s => this._esc(s);
+    const fmt = n => this._fmt(n || 0);
+    const row = (label, value, opts = {}) =>
+      `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #edf2f7;font-size:14px;">
+        <span style="color:${opts.bold ? '#2d3748;font-weight:700' : '#718096'};">${label}</span>
+        <span style="font-weight:${opts.bold ? 700 : 600};color:${opts.negative ? '#c53030' : '#2d3748'};">${opts.negative ? '− ' : ''}${value}</span>
+      </div>`;
+
+    const node = document.createElement('div');
+    node.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#ffffff;padding:36px;font-family:Segoe UI,Arial,sans-serif;color:#2d3748;';
+    node.innerHTML = `
+      <div style="border-bottom:3px solid #667eea;padding-bottom:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:baseline;">
+        <div>
+          <div style="font-size:22px;font-weight:700;">${esc(this._orgName(r.orgId) || 'Salon Manager')}</div>
+          <div style="font-size:13px;color:#718096;margin-top:2px;">Payslip — ${esc(this._periodLabel(r.period))}</div>
+        </div>
+        <div style="font-size:16px;font-weight:700;">${esc(r.staffName || r.staffId)}</div>
+      </div>
+
+      <div style="font-size:12px;color:#718096;margin-bottom:14px;">
+        Payable Days: <b style="color:#2d3748;">${r.payableDays ?? '—'}</b> ·
+        Days of Absence: <b style="color:#2d3748;">${r.totalDaysOff ?? 0}</b> ·
+        Eligible Offs: <b style="color:#2d3748;">${r.eligibleOffs ?? 0}</b>
+      </div>
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:14px 0 4px;">Earnings</div>
+      ${row('Base Salary', fmt(r.baseSalary))}
+      ${row('Allowances', fmt(r.allowances))}
+      ${row(`Overtime (${r.otHours ?? 0}h)`, fmt(r.otPay))}
+      ${row('Service Incentive', fmt(r.targetIncentive))}
+      ${row('Make Up Incentive', fmt(r.makeupIncentive))}
+      ${row('Products Incentive', fmt(r.productIncentive))}
+      ${row('Tips', fmt(r.tipsOverride))}
+
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:14px 0 4px;">Deductions</div>
+      ${row('Leave Allowance', fmt(r.leaveDeduction), { negative: true })}
+      ${row('Advance Deducted', fmt(r.advanceDeducted), { negative: true })}
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:3px solid #667eea;">
+        <span style="font-size:16px;font-weight:700;">Net Payable</span>
+        <span style="font-size:24px;font-weight:700;color:#667eea;">${fmt(r.netPay)}</span>
+      </div>
+
+      <div style="font-size:11px;color:#a0aec0;margin-top:18px;">Generated on ${new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })} · Status: ${esc(r.status || 'draft')}</div>
+    `;
+    return node;
+  },
+
   async calculatePayrollReview() {
     const payrollId = this._payReviewId;
     if (!payrollId) return;
@@ -1590,7 +1729,7 @@ const Staff = {
         if (idx >= 0) this._payrollRows[idx] = row;
         this._renderPayrollReviewReadonly(row);
         document.getElementById('hrPayRevStatus').value = row.status || 'draft';
-        this._setPayReviewLock(row.status === 'paid');
+        this._updatePayReviewActions(row);
         document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
         this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
@@ -1608,6 +1747,7 @@ const Staff = {
           if (this._payReviewId !== payrollId) return;
           this._payRevAdvanceBase = rowDeducted;
         }
+        document.getElementById('hrPayRevAdvOutstanding').textContent = `· Outstanding: ${this._fmt(this._payRevAdvanceBase)}`;
         document.getElementById('hrPayRevAdvDeduct').value = rowDeducted;
         document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - rowDeducted) * 100) / 100;
       } else {

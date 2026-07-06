@@ -762,9 +762,12 @@ form .hr-section-title:first-child { margin-top: 0; }
     }
 }
 
-/* Compact attendance Full/Half table inside the Payroll Review modal */
+/* Compact attendance Full/Half table inside the Payroll Review modal.
+   table-layout:fixed + wrapping keeps the day-number lists inside the
+   viewport on narrow screens instead of pushing the table past the edge. */
 .pay-att-table {
     width: 100%;
+    table-layout: fixed;
     font-size: 14px;
     margin-bottom: 4px;
 }
@@ -774,12 +777,15 @@ form .hr-section-title:first-child { margin-top: 0; }
     text-align: center;
     padding: 4px 6px;
 }
-.pay-att-table th:first-child { text-align: left; }
+.pay-att-table th:first-child { text-align: left; width: 76px; }
 .pay-att-table td {
     text-align: center;
     font-weight: 600;
     padding: 4px 6px;
     vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 .pay-att-table td:first-child { text-align: left; font-weight: 400; color: #718096; }
+.pay-att-table .kv-sub { white-space: normal; }
 
