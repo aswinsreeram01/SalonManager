@@ -681,8 +681,9 @@ const Payroll = {
       if (allowedOrgIds && rowOrg && !allowedOrgIds.has(rowOrg)) continue;
 
       const b = this._rowToBreakdown(rows[i]);
-      const weekdayAbsence = b.weekdayAbsentDates.length + b.weekdayHalfDayDates.length * 0.5;
-      const weekendAbsence = b.weekendAbsentDates.length * 2 + b.weekendHalfDayDates.length;
+      const splitCount = s => (s || '').split(',').filter(Boolean).length;
+      const weekdayAbsence = splitCount(b.weekdayAbsentDates) + splitCount(b.weekdayHalfDayDates) * 0.5;
+      const weekendAbsence = splitCount(b.weekendAbsentDates) * 2 + splitCount(b.weekendHalfDayDates);
       summary.push({
         payrollId: b.payrollId, staffId: b.staffId,
         weekdayAbsence, weekendAbsence, otHours: b.otHours,
