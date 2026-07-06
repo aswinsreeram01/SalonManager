@@ -284,7 +284,7 @@ const Staff = {
         document.getElementById('hrStaffStartDate').value      = s.startDate      || '';
         document.getElementById('hrStaffRole').value           = s.role           || '';
         document.getElementById('hrStaffType').value           = s.staffType      || '';
-        document.getElementById('hrStaffSpecialization').value = s.specialization || '';
+        document.getElementById('hrStaffNotes').value           = s.specialization || '';
         document.getElementById('hrStaffStatus').value         = s.status         || 'active';
         document.getElementById('hrStaffTargetPeriod').value   = s.targetPeriod   || '';
         recordOrgId = s.orgId || recordOrgId;
@@ -325,7 +325,7 @@ const Staff = {
       salary:            existing ? existing.salary    : 0,
       allowance:         existing ? existing.allowance : 0,
       profileId:         existing ? existing.profileId : '',
-      specialization:    document.getElementById('hrStaffSpecialization').value.trim(),
+      specialization:    document.getElementById('hrStaffNotes').value.trim(),
       status:            document.getElementById('hrStaffStatus').value,
       targetPeriod:      document.getElementById('hrStaffTargetPeriod').value,
       incentiveStructure: ''
@@ -1785,7 +1785,7 @@ const Staff = {
     const stats = document.getElementById('hrAttSumStats');
     if (!stats) return;
 
-    let present = 0, weekdayAbsence = 0, weekendAbsence = 0, totalOt = 0;
+    let weekdayAbsence = 0, weekendAbsence = 0, totalOt = 0;
     document.querySelectorAll('#hrAttSumCalWrap .att-cal-day:not(.empty)').forEach(cell => {
       const isWeekend = cell.classList.contains('weekend');
       let status, ot;
@@ -1797,7 +1797,6 @@ const Staff = {
         ot = parseFloat(cell.dataset.ot) || 0;
       }
 
-      if (status === 'present') present++;
       const absenceAmount = status === 'absent' ? 1 : status === 'half-day' ? 0.5 : 0;
       if (absenceAmount) {
         if (isWeekend) weekendAbsence += absenceAmount;
@@ -1809,7 +1808,6 @@ const Staff = {
     const fmtDays = n => (n % 1 === 0 ? n : n.toFixed(1));
     stats.style.display = 'flex';
     stats.innerHTML = `
-      <div class="att-sum-stat" style="color:#276749;">Present: ${present}</div>
       <div class="att-sum-stat" style="color:#9b2c2c;">Weekday Absence: ${fmtDays(weekdayAbsence)}</div>
       <div class="att-sum-stat" style="color:#9b2c2c;">Weekend Absence: ${fmtDays(weekendAbsence)}</div>
       <div class="att-sum-stat" style="color:#2b6cb0;">Total OT: ${totalOt.toFixed(1)}h</div>
