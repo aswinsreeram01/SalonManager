@@ -3,7 +3,9 @@
 // eligibleOffs(6), totalDaysOff(7), excessLeaves(8), leaveDeduction(9),
 // adjustedBaseSalary(10), allowances(11), otHours(12), otPay(13),
 // serviceIncentive(14) — actually holds REVENUE (manual serviceValue or bill-scanned),
-// productIncentive(15) — always 0, product incentive dollar computation was dropped,
+// productIncentive(15) — productCount x the staff's Comp Plan defaultProductIncentive
+//   rate (no specific Product Group to pull a per-unit override from, same reasoning
+//   as makeupIncentive using flatIncentivePct),
 // makeupIncentive(16) — final $ (manual makeupValue or bill-scanned),
 // targetIncentive(17) — $ computed from serviceIncentive/revenue via the L1/L2/X/Y/Z slabs,
 // totalIncentive(18), advanceDeducted(19), netPay(20), status(21), notes(22), createdAt(23),
@@ -400,7 +402,12 @@ const Payroll = {
       targetIncentive = Payroll._computeTargetIncentive(serviceRevenue, profile, salary);
     }
 
-    const productIncentive = 0; // dropped — productCount is record-only, no $ effect
+    // Product Count is a manual entry (Quick Entry) with no specific Product
+    // Group to pull a per-unit rate from, so — same pattern as Make Up Value
+    // using the Comp Plan's flatIncentivePct — it always uses the Comp
+    // Plan's defaultProductIncentive rate.
+    const productIncentive = (productCount === '' || productCount === null || productCount === undefined)
+      ? 0 : (Number(productCount) || 0) * (profile.defaultProductIncentive || 0);
     const totalIncentive   = targetIncentive + makeupIncentive + productIncentive;
     const tips              = (tipsOverride === '' || tipsOverride === null || tipsOverride === undefined) ? 0 : Number(tipsOverride) || 0;
     const advDeducted       = Number(advanceDeducted) || 0;
@@ -586,7 +593,42 @@ const Payroll = {
     });
 
     sheet.getRange(existing.index + 1, 1, 1, 34).setValues([this._breakdownToRowValues(breakdown)]);
+
+    // Remaining Balance is a Payroll-Review-only concept — it's never stored
+    // on the Payroll row itself, only reflected into the StaffAdvance ledger
+    // so it's the single source of truth. Deliberately re-fetches the LIVE
+    // outstanding balance right before diffing (not a client-sent snapshot),
+    // so clicking Calculate twice with the same Remaining Balance is a no-op
+    // the second time — the ledger already matches, delta is 0, nothing posted.
+    if (data.remainingBalance !== undefined && data.remainingBalance !== '') {
+      this._postAdvanceLedgerAdjustment(current.staffId, current.orgId, current.period, Number(data.remainingBalance) || 0);
+    }
+
     return Utils.createResponse('success', 'Payroll record updated successfully', breakdown);
+  },
+
+  // Adjusts the StaffAdvance ledger so its outstanding balance becomes
+  // targetRemainingBalance. Posts nothing if the ledger is already at that
+  // value. A decrease is recorded as a 'repayment' (the normal case — some
+  // or all of the outstanding advance was deducted this payroll cycle,
+  // leaving the rest in the ledger for a future deduction); an increase is
+  // recorded as an 'advance' (reversing an earlier over-repayment).
+  _postAdvanceLedgerAdjustment(staffId, orgId, period, targetRemainingBalance) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAdvance');
+    if (!sheet) return;
+
+    const currentBalance = Attendance._getOutstandingBalanceRaw(staffId);
+    const delta = currentBalance - targetRemainingBalance; // positive = repayment, negative = advance
+    if (Math.abs(delta) < 0.005) return; // already matches — idempotent no-op
+
+    const advanceId = 'ADV' + Date.now();
+    const now = new Date().toISOString();
+    const amount = Math.abs(delta);
+    sheet.appendRow([
+      advanceId, staffId, now.slice(0, 10), delta > 0 ? 'repayment' : 'advance',
+      amount, 'Payroll deduction for ' + period, targetRemainingBalance, now,
+      orgId || '', 'disbursed', amount, 'Payroll Deduction'
+    ]);
   },
 
   // Lightweight lookup for Quick Entry — returns just the four manual

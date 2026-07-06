@@ -536,16 +536,26 @@
             </div>
             <div id="hrPayReviewMsg" class="message"></div>
 
-            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Attendance-derived (read-only)</h4>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 16px;margin-bottom:12px;font-size:14px;">
-                <div><span style="color:#718096;">Base Salary</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="base">?</button><div id="hrPayRevBase" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Calculated Days of Absence</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="daysOff">?</button><div id="hrPayRevDaysOff" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Leave Deduct</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="leaveDeduct">?</button><div id="hrPayRevLeaveDeduct" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Adjusted Base</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="adjBase">?</button><div id="hrPayRevAdjBase" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">OT Hours / Pay</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="ot">?</button><div id="hrPayRevOt" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Allowances</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="allowances">?</button><div id="hrPayRevAllowances" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Incentives (Target + Make Up)</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="incentives">?</button><div id="hrPayRevIncentives" style="font-weight:600;">—</div></div>
+            <!-- Salary -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f4f8;">
+                <span style="color:#2d3748;font-weight:600;">Salary <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="base">?</button></span>
+                <span id="hrPayRevSalary" style="font-weight:700;">—</span>
             </div>
+
+            <!-- Weekday/Weekend Full/Half table -->
+            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:14px 0 8px;">Attendance</h4>
+            <table style="width:100%;font-size:14px;margin-bottom:10px;">
+                <thead><tr><th style="text-align:left;color:#718096;font-weight:500;"></th><th style="color:#718096;font-weight:500;">Full</th><th style="color:#718096;font-weight:500;">Half</th></tr></thead>
+                <tbody>
+                    <tr><td>Weekday</td><td style="text-align:center;font-weight:600;" id="hrPayRevWdFull">—</td><td style="text-align:center;font-weight:600;" id="hrPayRevWdHalf">—</td></tr>
+                    <tr><td>Weekend</td><td style="text-align:center;font-weight:600;" id="hrPayRevWeFull">—</td><td style="text-align:center;font-weight:600;" id="hrPayRevWeHalf">—</td></tr>
+                </tbody>
+            </table>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 16px;margin-bottom:14px;font-size:14px;">
+                <div><span style="color:#718096;">Calculated Days of Absence</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="daysOff">?</button><div id="hrPayRevDaysOff" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Working Days</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="workingDays">?</button><div id="hrPayRevWorkingDays" style="font-weight:600;">—</div></div>
+            </div>
+
             <div id="hrPayRevExplainWrap" style="display:none;margin:0 0 16px;padding:12px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                     <pre id="hrPayRevExplainText" style="margin:0;font-family:inherit;font-size:13px;color:#2d3748;white-space:pre-wrap;line-height:1.6;"></pre>
@@ -553,8 +563,7 @@
                 </div>
             </div>
 
-            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Editable</h4>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="hrPayRevPayableDays">Payable Days</label>
                     <input type="number" id="hrPayRevPayableDays" step="1">
@@ -563,30 +572,41 @@
                     <label for="hrPayRevEligOffs">Eligible Offs</label>
                     <input type="number" id="hrPayRevEligOffs" step="1">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevLongAbsence">Long Absence Days</label>
-                    <input type="number" id="hrPayRevLongAbsence" step="1">
+                <div>
+                    <span style="color:#718096;font-size:13px;">Leave Allowance</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="leaveDeduct">?</button>
+                    <div id="hrPayRevLeaveDeduct" style="font-weight:600;">—</div>
                 </div>
+            </div>
+
+            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:14px 0 8px;">Incentives</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 16px;margin-bottom:14px;font-size:14px;">
+                <div><span style="color:#718096;">Over Time</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="ot">?</button><div id="hrPayRevOt" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Service Value</span><div id="hrPayRevSvcValueDisplay" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Service Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="serviceIncentive">?</button><div id="hrPayRevServiceIncentive" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Make Up Value</span><div id="hrPayRevMakeupValueDisplay" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Make Up Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="makeupIncentive">?</button><div id="hrPayRevMakeupIncentive" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Product Count</span><div id="hrPayRevProdCountDisplay" style="font-weight:600;">—</div></div>
+                <div><span style="color:#718096;">Products Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="productsIncentive">?</button><div id="hrPayRevProductsIncentive" style="font-weight:600;">—</div></div>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f4f8;margin-bottom:14px;">
+                <span style="color:#718096;">Tips</span>
+                <span id="hrPayRevTipsDisplay" style="font-weight:600;">—</span>
+            </div>
+
+            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Advance</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
                 <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevSvcValue">Service Value (₹)</label>
-                    <input type="number" id="hrPayRevSvcValue" step="0.01" placeholder="Leave blank">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevMakeupValue">Make Up Value — Revenue (₹)</label>
-                    <input type="number" id="hrPayRevMakeupValue" step="0.01" placeholder="Leave blank">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevProdCount">Product Count</label>
-                    <input type="number" id="hrPayRevProdCount" step="1" placeholder="Leave blank">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevTips">Tips (₹)</label>
-                    <input type="number" id="hrPayRevTips" step="0.01" placeholder="Leave blank">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayRevAdvDeduct">Advance Deducted (₹)</label>
+                    <label for="hrPayRevAdvDeduct">Deduction (₹)</label>
                     <input type="number" id="hrPayRevAdvDeduct" step="0.01">
                 </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label for="hrPayRevRemainingBalance">Remaining Balance (₹)</label>
+                    <input type="number" id="hrPayRevRemainingBalance" step="0.01">
+                </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
                 <div class="form-group" style="margin-bottom:0;">
                     <label for="hrPayRevStatus">Status</label>
                     <select id="hrPayRevStatus">
@@ -596,14 +616,14 @@
                         <option value="voided">voided</option>
                     </select>
                 </div>
-                <div class="form-group" style="margin-bottom:0;grid-column:1/-1;">
+                <div class="form-group" style="margin-bottom:0;grid-column:span 2;">
                     <label for="hrPayRevNotes">Notes</label>
                     <input type="text" id="hrPayRevNotes" placeholder="Optional">
                 </div>
             </div>
 
             <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #e2e8f0;margin-bottom:16px;">
-                <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Pay <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="netPay">?</button></span>
+                <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Payable <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="netPay">?</button></span>
                 <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
             </div>
 

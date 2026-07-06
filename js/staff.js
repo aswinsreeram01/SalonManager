@@ -17,6 +17,7 @@ const Staff = {
   _attData:          null,
   _payrollRows:      [],
   _payReviewId:      null,
+  _payRevOutstandingBalance: null,
   _attSumStaffId:    null,
   _attSumPeriod:     null,
   _attSumOverrides:  null,
@@ -74,6 +75,10 @@ const Staff = {
     document.querySelectorAll('#hrPayReviewModal .calc-help-btn').forEach(btn =>
       btn.addEventListener('click', () => this._showCalcExplanation(btn.dataset.calcField))
     );
+    document.getElementById('hrPayRevPayableDays').addEventListener('input', () => this._recalcLeaveAllowancePreview());
+    document.getElementById('hrPayRevEligOffs').addEventListener('input', () => this._recalcLeaveAllowancePreview());
+    document.getElementById('hrPayRevAdvDeduct').addEventListener('input', () => this._syncAdvanceFields('deduct'));
+    document.getElementById('hrPayRevRemainingBalance').addEventListener('input', () => this._syncAdvanceFields('remain'));
 
     // ── Payroll sub-tabs (Payroll / Staff Salary / Comp Plans) ──
     document.querySelectorAll('#prod-tab-hr-payroll .sub-tab').forEach(btn =>
@@ -1285,10 +1290,11 @@ const Staff = {
 
   // ── Payroll Review modal ──────────────────────────────────────────────────
 
-  openPayrollReview(payrollId) {
+  async openPayrollReview(payrollId) {
     const r = (this._payrollRows || []).find(x => x.payrollId === payrollId);
     if (!r) return;
     this._payReviewId = payrollId;
+    this._payRevOutstandingBalance = 0;
 
     document.getElementById('hrPayReviewTitle').textContent = `Payroll Review — ${r.staffName || r.staffId} (${r.period})`;
     document.getElementById('hrPayReviewMsg').innerHTML = '';
@@ -1297,28 +1303,88 @@ const Staff = {
 
     document.getElementById('hrPayRevPayableDays').value = r.payableDays ?? '';
     document.getElementById('hrPayRevEligOffs').value     = r.eligibleOffs ?? '';
-    document.getElementById('hrPayRevLongAbsence').value  = r.longAbsenceExcludedDays ?? '';
-    document.getElementById('hrPayRevSvcValue').value     = r.serviceValue ?? '';
-    document.getElementById('hrPayRevMakeupValue').value  = r.makeupValue ?? '';
-    document.getElementById('hrPayRevProdCount').value    = r.productCount ?? '';
-    document.getElementById('hrPayRevTips').value         = r.tipsOverride ?? '';
-    document.getElementById('hrPayRevAdvDeduct').value    = r.advanceDeducted ?? 0;
     document.getElementById('hrPayRevStatus').value       = r.status || 'draft';
     document.getElementById('hrPayRevNotes').value        = r.notes || '';
 
     document.getElementById('hrPayReviewModal').style.display = 'flex';
+
+    // The outstanding advance balance is fetched live every time the modal
+    // opens (get_advances is OR'd onto staff:hr-payroll) — Deduction
+    // defaults to "pay it all off", Remaining Balance to 0, and the two
+    // stay in sync as either is edited. Whatever's left in Remaining
+    // Balance when Calculate runs becomes the ledger's new balance.
+    try {
+      const advRes = await API.getAdvances(r.staffId);
+      this._payRevOutstandingBalance = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+    } catch (e) {
+      this._payRevOutstandingBalance = 0;
+    }
+    document.getElementById('hrPayRevAdvDeduct').value = this._payRevOutstandingBalance;
+    document.getElementById('hrPayRevRemainingBalance').value = 0;
+  },
+
+  // Deduction and Remaining Balance always sum to the outstanding balance
+  // snapshot taken when the modal opened — editing one live-updates the other.
+  _syncAdvanceFields(source) {
+    const outstanding = this._payRevOutstandingBalance || 0;
+    const deductEl = document.getElementById('hrPayRevAdvDeduct');
+    const remainEl = document.getElementById('hrPayRevRemainingBalance');
+    if (source === 'deduct') {
+      const deduct = parseFloat(deductEl.value) || 0;
+      remainEl.value = Math.round((outstanding - deduct) * 100) / 100;
+    } else {
+      const remain = parseFloat(remainEl.value) || 0;
+      deductEl.value = Math.round((outstanding - remain) * 100) / 100;
+    }
+  },
+
+  // Leave Allowance recalculates live in the browser as Eligible Offs or
+  // Payable Days change — mirrors the exact server formula so what's shown
+  // here matches what Calculate will persist, without waiting for a round trip.
+  _recalcLeaveAllowancePreview() {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    if (!r) return;
+    const payableDays = parseFloat(document.getElementById('hrPayRevPayableDays').value) || 0;
+    const eligibleOffs = parseFloat(document.getElementById('hrPayRevEligOffs').value) || 0;
+    const excessLeaves = Math.max(0, (r.totalDaysOff || 0) - eligibleOffs);
+    const leaveDeduction = payableDays > 0 ? excessLeaves * (r.baseSalary / payableDays) : 0;
+    document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(leaveDeduction);
   },
 
   _renderPayrollReviewReadonly(r) {
-    const incentives = (r.targetIncentive || 0) + (r.makeupIncentive || 0);
-    document.getElementById('hrPayRevBase').textContent        = this._fmt(r.baseSalary);
-    document.getElementById('hrPayRevDaysOff').textContent     = r.totalDaysOff ?? 0;
+    document.getElementById('hrPayRevSalary').textContent = this._fmt((r.baseSalary || 0) + (r.allowances || 0));
+
+    const wdFull = (r.weekdayAbsentDates || '').split(',').filter(Boolean).length;
+    const wdHalf = (r.weekdayHalfDayDates || '').split(',').filter(Boolean).length;
+    const weFull = (r.weekendAbsentDates || '').split(',').filter(Boolean).length;
+    const weHalf = (r.weekendHalfDayDates || '').split(',').filter(Boolean).length;
+    document.getElementById('hrPayRevWdFull').textContent = wdFull;
+    document.getElementById('hrPayRevWdHalf').textContent = wdHalf;
+    document.getElementById('hrPayRevWeFull').textContent = weFull;
+    document.getElementById('hrPayRevWeHalf').textContent = weHalf;
+    document.getElementById('hrPayRevDaysOff').textContent = r.totalDaysOff ?? 0;
+
+    const [yr, mo] = String(r.period || '').split('-').map(Number);
+    document.getElementById('hrPayRevWorkingDays').textContent = (yr && mo) ? new Date(yr, mo, 0).getDate() : '—';
+
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
-    document.getElementById('hrPayRevAdjBase').textContent     = this._fmt(r.adjustedBaseSalary);
-    document.getElementById('hrPayRevOt').textContent          = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
-    document.getElementById('hrPayRevAllowances').textContent  = this._fmt(r.allowances);
-    document.getElementById('hrPayRevIncentives').textContent  = this._fmt(incentives);
-    document.getElementById('hrPayRevNetPay').textContent      = this._fmt(r.netPay);
+
+    document.getElementById('hrPayRevOt').textContent = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
+    document.getElementById('hrPayRevSvcValueDisplay').textContent = this._fmt(r.serviceIncentive);
+    document.getElementById('hrPayRevServiceIncentive').textContent = this._fmt(r.targetIncentive);
+    // Make Up Value only has a single revenue figure to show when it was a
+    // manual entry — the bill-scanned path sums (line revenue x pct) per
+    // Flat-mode Service Group independently, so there's no one number to
+    // display as "the" revenue used in that case.
+    document.getElementById('hrPayRevMakeupValueDisplay').textContent =
+      (r.makeupValue !== '' && r.makeupValue != null) ? this._fmt(r.makeupValue) : '— (from billing)';
+    document.getElementById('hrPayRevMakeupIncentive').textContent = this._fmt(r.makeupIncentive);
+    document.getElementById('hrPayRevProdCountDisplay').textContent = (r.productCount !== '' && r.productCount != null) ? r.productCount : '—';
+    document.getElementById('hrPayRevProductsIncentive').textContent = this._fmt(r.productIncentive);
+
+    document.getElementById('hrPayRevTipsDisplay').textContent = this._fmt(r.tipsOverride);
+
+    document.getElementById('hrPayRevNetPay').textContent = this._fmt(r.netPay);
   },
 
   // Shows the exact formula + real numbers behind one of the read-only
@@ -1341,7 +1407,14 @@ const Staff = {
 
     switch (field) {
       case 'base':
-        return `Base Salary is set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\nCurrent value: ${fmt(r.baseSalary)}`;
+        return `Base Salary and Allowances are set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\n`
+          + `Salary = Base Salary (${fmt(r.baseSalary)}) + Allowances (${fmt(r.allowances)}) = ${fmt((r.baseSalary || 0) + (r.allowances || 0))}`;
+
+      case 'workingDays': {
+        const [yr, mo] = String(r.period || '').split('-').map(Number);
+        const days = (yr && mo) ? new Date(yr, mo, 0).getDate() : 0;
+        return `Working Days is simply the number of calendar days in ${r.period || 'the selected month'}.\n\nWorking Days = ${days}`;
+      }
 
       case 'daysOff': {
         const wdAbsent = (r.weekdayAbsentDates || '').split(',').filter(Boolean);
@@ -1362,11 +1435,8 @@ const Staff = {
         const perDay = r.payableDays ? r.baseSalary / r.payableDays : 0;
         return `Excess Leaves = max(0, Days Off (${r.totalDaysOff}) − Eligible Offs (${r.eligibleOffs})) = ${excess}\n`
           + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Payable Days (${r.payableDays}) = ${fmt(perDay)}\n\n`
-          + `Leave Deduct = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
+          + `Leave Allowance = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
       }
-
-      case 'adjBase':
-        return `Adjusted Base = Base Salary (${fmt(r.baseSalary)}) − Leave Deduct (${fmt(r.leaveDeduction)})\n= ${fmt(r.adjustedBaseSalary)}`;
 
       case 'ot': {
         const rate = r.otHours > 0 ? r.otPay / r.otHours : (profile ? profile.otHourlyRate : 0);
@@ -1374,42 +1444,47 @@ const Staff = {
           + `OT Pay = OT Hours (${r.otHours}) × OT Hourly Rate (${fmt(rate)}/hr${profile ? ', from Comp Plan' : ''})\n= ${fmt(r.otPay)}`;
       }
 
-      case 'allowances':
-        return `Allowances are set directly on the Staff Salary tab for ${r.staffName || r.staffId}.\n\nCurrent value: ${fmt(r.allowances)}`;
-
-      case 'incentives': {
+      case 'serviceIncentive': {
         const revenue = r.serviceIncentive || 0;
-        let targetExplain = 'Target Incentive: no Comp Plan found for this staff member — 0.';
+        let targetExplain = 'No Comp Plan found for this staff member — Service Incentive = 0.';
         if (profile) {
           const L1 = profile.l1Type === 'salary_pct' ? r.baseSalary * profile.l1Value / 100 : profile.l1Value;
           const L2 = profile.l2Type === 'salary_pct' ? r.baseSalary * profile.l2Value / 100 : profile.l2Value;
           if (revenue < L1) {
-            targetExplain = `Revenue (${fmt(revenue)}) is below L1 (${fmt(L1)}) → Target Incentive = 0`;
+            targetExplain = `Service Value (${fmt(revenue)}) is below L1 (${fmt(L1)}) → Service Incentive = 0`;
           } else if (revenue < L2) {
-            targetExplain = `Revenue (${fmt(revenue)}) is between L1 (${fmt(L1)}) and L2 (${fmt(L2)}):\n`
-              + `L1 × X% (${profile.xPct}%) + (Revenue − L1) × Y% (${profile.yPct}%)\n`
+            targetExplain = `Service Value (${fmt(revenue)}) is between L1 (${fmt(L1)}) and L2 (${fmt(L2)}):\n`
+              + `L1 × X% (${profile.xPct}%) + (Service Value − L1) × Y% (${profile.yPct}%)\n`
               + `= ${fmt(L1 * profile.xPct / 100)} + ${fmt((revenue - L1) * profile.yPct / 100)} = ${fmt(r.targetIncentive)}`;
           } else {
-            targetExplain = `Revenue (${fmt(revenue)}) is above L2 (${fmt(L2)}):\n`
-              + `L1 × X% + (L2 − L1) × Y% + (Revenue − L2) × Z% (${profile.zPct}%)\n`
+            targetExplain = `Service Value (${fmt(revenue)}) is above L2 (${fmt(L2)}):\n`
+              + `L1 × X% + (L2 − L1) × Y% + (Service Value − L2) × Z% (${profile.zPct}%)\n`
               + `= ${fmt(L1 * profile.xPct / 100)} + ${fmt((L2 - L1) * profile.yPct / 100)} + ${fmt((revenue - L2) * profile.zPct / 100)} = ${fmt(r.targetIncentive)}`;
           }
         }
-        let makeupExplain;
+        return targetExplain;
+      }
+
+      case 'makeupIncentive': {
         if (r.makeupValue !== '' && r.makeupValue != null) {
           const flatPct = profile ? (profile.flatIncentivePct || 0) : 0;
-          makeupExplain = `Make Up Value is a manually entered REVENUE figure, same as Service Value — not a final amount.\n`
+          return `Make Up Value is a manually entered REVENUE figure, same as Service Value — not a final amount.\n`
             + `Make Up Incentive = Make Up Value (${fmt(r.makeupValue)}) × Comp Plan Flat Incentive % (${flatPct}%)\n`
             + `= ${fmt(r.makeupIncentive)}`;
-        } else {
-          makeupExplain = `Make Up Incentive: sum of (line revenue × applicable flat %) across Flat-mode Service Groups this staff member billed — `
-            + `each group uses its own override % if set, else the Comp Plan's Flat Incentive %.\n= ${fmt(r.makeupIncentive)}`;
         }
-        return `${targetExplain}\n\n${makeupExplain}\n\nIncentives = Target (${fmt(r.targetIncentive)}) + Make Up (${fmt(r.makeupIncentive)}) = ${fmt(r.targetIncentive + r.makeupIncentive)}`;
+        return `Make Up Incentive: sum of (line revenue × applicable flat %) across Flat-mode Service Groups this staff member billed — `
+          + `each group uses its own override % if set, else the Comp Plan's Flat Incentive %.\n= ${fmt(r.makeupIncentive)}`;
+      }
+
+      case 'productsIncentive': {
+        const rate = profile ? (profile.defaultProductIncentive || 0) : 0;
+        const count = (r.productCount !== '' && r.productCount != null) ? r.productCount : 0;
+        return `Product Count is a manual entry with no specific Product Group to pull a per-unit rate from, so it always uses the Comp Plan's Default Product Incentive rate.\n\n`
+          + `Products Incentive = Product Count (${count}) × Default Product Incentive (${fmt(rate)}/unit) = ${fmt(r.productIncentive)}`;
       }
 
       case 'netPay':
-        return `Net Pay = Adjusted Base (${fmt(r.adjustedBaseSalary)}) + Allowances (${fmt(r.allowances)}) + OT Pay (${fmt(r.otPay)})\n`
+        return `Net Payable = Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))}) − Leave Allowance (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
           + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
           + `= ${fmt(r.netPay)}`;
 
@@ -1436,16 +1511,16 @@ const Staff = {
       return raw === '' ? '' : (parseFloat(raw) || 0);
     };
 
+    // Service Value, Make Up Value, Product Count, and Tips are no longer
+    // editable from this modal (Quick Entry owns them) — deliberately
+    // omitted here so update_payroll_row falls back to preserving whatever
+    // is already on the row, rather than being sent as blanks and clearing them.
     const data = {
       payrollId,
-      payableDays:             val('hrPayRevPayableDays'),
-      eligibleOffs:            val('hrPayRevEligOffs'),
-      longAbsenceExcludedDays: val('hrPayRevLongAbsence'),
-      serviceValue:            val('hrPayRevSvcValue'),
-      makeupValue:             val('hrPayRevMakeupValue'),
-      productCount:            val('hrPayRevProdCount'),
-      tipsOverride:            val('hrPayRevTips'),
-      advanceDeducted:         val('hrPayRevAdvDeduct'),
+      payableDays:      val('hrPayRevPayableDays'),
+      eligibleOffs:     val('hrPayRevEligOffs'),
+      advanceDeducted:  val('hrPayRevAdvDeduct'),
+      remainingBalance: val('hrPayRevRemainingBalance'),
       status: document.getElementById('hrPayRevStatus').value,
       notes:  document.getElementById('hrPayRevNotes').value.trim()
     };
@@ -1464,6 +1539,17 @@ const Staff = {
         document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
         this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
+
+        // The ledger just changed — re-fetch so Deduction/Remaining Balance
+        // reflect the new outstanding balance rather than the stale snapshot.
+        try {
+          const advRes = await API.getAdvances(res.staffId);
+          this._payRevOutstandingBalance = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+        } catch (e) {
+          this._payRevOutstandingBalance = 0;
+        }
+        document.getElementById('hrPayRevAdvDeduct').value = this._payRevOutstandingBalance;
+        document.getElementById('hrPayRevRemainingBalance').value = 0;
       } else {
         this._showInlineMsg(msgEl, res.message || 'Error calculating payroll', 'error');
       }

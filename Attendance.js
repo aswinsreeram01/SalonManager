@@ -326,19 +326,18 @@ const Attendance = {
 
   // ── Advances ──────────────────────────────────────────────────────────────
 
-  getAdvances(data) {
-    if (!data || !data.staffId) return Utils.createResponse('error', 'staffId is required');
-
+  // Plain-array read shared by getAdvances (public) and Payroll.js's advance
+  // ledger integration — do NOT read properties off getAdvances' own return
+  // value, that's a ContentService.TextOutput.
+  _getAdvancesRaw(staffId) {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('StaffAdvance');
-    if (!sheet) return Utils.createResponse('success', 'Advances retrieved', { advances: [], outstandingBalance: 0 });
+    if (!sheet) return [];
 
     const rows = sheet.getDataRange().getValues();
     const advances = [];
-    let outstandingBalance = 0;
-
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i][0]) continue;
-      if (rows[i][1] !== data.staffId) continue;
+      if (rows[i][1] !== staffId) continue;
       const d = rows[i][2];
       const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
       advances.push({
@@ -356,18 +355,26 @@ const Attendance = {
         paymentMode:     String(rows[i][11] || ''),
       });
     }
-
-    // Sort by date ascending
     advances.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return advances;
+  },
 
-    // Outstanding balance = only disbursed rows count
-    advances.forEach(r => {
+  // Sum of disbursed advance/repayment rows — the current amount owed.
+  _getOutstandingBalanceRaw(staffId) {
+    let outstandingBalance = 0;
+    this._getAdvancesRaw(staffId).forEach(r => {
       const status = r.status || 'disbursed';
       if (status === 'disbursed') {
         outstandingBalance += r.type === 'advance' ? r.amount : -r.amount;
       }
     });
+    return outstandingBalance;
+  },
 
+  getAdvances(data) {
+    if (!data || !data.staffId) return Utils.createResponse('error', 'staffId is required');
+    const advances = this._getAdvancesRaw(data.staffId);
+    const outstandingBalance = this._getOutstandingBalanceRaw(data.staffId);
     return Utils.createResponse('success', 'Advances retrieved', { advances, outstandingBalance });
   },
 

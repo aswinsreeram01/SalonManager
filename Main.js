@@ -100,7 +100,9 @@ const ACTION_PERMISSIONS = {
   add_staff: ['staff:hr-staff', 'update'],
   update_staff: [['staff:hr-staff', 'staff:hr-payroll'], 'update'],
   delete_staff: ['staff:hr-staff', 'update'],
-  get_advances: ['staff:hr-advances', 'read'],
+  // OR'd with staff:hr-payroll — the Payroll Review modal's Remaining
+  // Balance field reads the outstanding advance balance too.
+  get_advances: [['staff:hr-advances', 'staff:hr-payroll'], 'read'],
   add_advance: ['staff:hr-advances', 'update'],
   get_incentive_profiles: ['staff:hr-payroll', 'read'],
   add_incentive_profile: ['staff:hr-payroll', 'update'],
