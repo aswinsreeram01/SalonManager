@@ -124,7 +124,6 @@ const ACTION_PERMISSIONS = {
   get_payroll_summary: ['staff:hr-quickentry', 'read'],
   update_payroll_row: ['staff:hr-payroll', 'update'],
   get_payroll: ['staff:hr-payroll', 'read'],
-  update_payroll_status: ['staff:hr-payroll', 'update'],
 
   // HR Approvals (its own sidebar page)
   get_pending_attendance: ['hrapprovals', 'read'],
@@ -493,7 +492,6 @@ function doPost(e) {
       case 'get_payroll_summary': return Payroll.getSummaryForMonth(data);
       case 'update_payroll_row': return Payroll.updateRow(data);
       case 'get_payroll': return Payroll.getAll(data);
-      case 'update_payroll_status': return Payroll.updateStatus(data);
 
       // Setup / Sheet Scaffolding
       case 'get_setup_status':      return Setup.getStatus();

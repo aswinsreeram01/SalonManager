@@ -201,7 +201,7 @@ const Payroll = {
     let profile = {
       otHourlyRate: 0, l1Type: 'fixed', l1Value: 0, l2Type: 'fixed', l2Value: 0,
       xPct: 0, yPct: 0, zPct: 0, revenueBase: 'individual', eligibleOffs: 4,
-      flatIncentivePct: 0
+      defaultProductIncentive: 0, flatIncentivePct: 0
     };
     if (profileId) {
       const profSheet = ss.getSheetByName('IncentiveProfiles');
@@ -220,6 +220,7 @@ const Payroll = {
               yPct:         Number(profRows[i][10]) || 0,
               zPct:         Number(profRows[i][11]) || 0,
               eligibleOffs: Number(profRows[i][15]) || 4,
+              defaultProductIncentive: Number(profRows[i][16]) || 0,
               flatIncentivePct: Number(profRows[i][17]) || 0
             };
             break;
@@ -235,7 +236,7 @@ const Payroll = {
   // Each falls back to the existing bill-scan calculation only when its
   // manual override is blank. Product incentive is no longer computed here
   // at all (dropped) — see the schema note at the top of this file.
-  _computeRevenueAndMakeup(staffId, period, profile, serviceValueOverride, makeupValueOverride) {
+  _computeRevenueAndMakeup(staffId, period, profile, serviceValueOverride, makeupValueOverride, staffOrgId) {
     const needsBillScan = (serviceValueOverride === '' || serviceValueOverride === null || serviceValueOverride === undefined)
       || (makeupValueOverride === '' || makeupValueOverride === null || makeupValueOverride === undefined);
 
@@ -256,6 +257,10 @@ const Payroll = {
         for (let i = 1; i < billRows.length; i++) {
           if (!billRows[i][0]) continue;
           if (String(billRows[i][16] || '').toLowerCase() === 'void') continue;
+          // Scope the scan to the staff member's own org — an 'org' revenue
+          // base means THEIR salon's total revenue, not every org's combined.
+          const billOrg = String(billRows[i][19] || '');
+          if (staffOrgId && billOrg && billOrg !== String(staffOrgId)) continue;
           const d = billRows[i][4];
           const dateStr = d instanceof Date ? Utils.businessDate(d) : String(d).slice(0, 10);
           if (dateStr >= fromStr && dateStr <= toStr) periodBillIds.add(billRows[i][0]);
@@ -396,7 +401,7 @@ const Payroll = {
       }
       makeupIncentive = directIncentive;
     } else {
-      const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue);
+      const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue, orgId);
       serviceRevenue  = rev.revenue;
       makeupIncentive = rev.makeupIncentive;
       targetIncentive = Payroll._computeTargetIncentive(serviceRevenue, profile, salary);
@@ -547,7 +552,11 @@ const Payroll = {
       sheet.appendRow(this._breakdownToRowValues(breakdown));
     }
 
-    return Utils.createResponse('success', 'Payroll updated from attendance', breakdown);
+    // Nested under 'payroll' — the breakdown has its own status field
+    // ('draft'/'paid'/…) which would otherwise overwrite the response's
+    // status:'success' when spread at the top level, making every save
+    // look like a failure to the client.
+    return Utils.createResponse('success', 'Payroll updated from attendance', { payroll: breakdown });
   },
 
   // ── Payroll page reconcile ────────────────────────────────────────────────
@@ -562,6 +571,30 @@ const Payroll = {
     if (!existing) return Utils.createResponse('error', 'Payroll record not found');
 
     const current = this._rowToBreakdown(existing.row);
+
+    // Same org-scope rule as Staff.update — the page permission alone isn't
+    // enough, the target row must belong to the caller's org or a descendant.
+    if (!Organizations.isWithinScope(data.orgId, current.orgId)) {
+      return Utils.createResponse('error', 'You do not have access to that organization.');
+    }
+
+    // A paid record is final — only status (to void it) and notes may still
+    // change. Numeric edits and advance-ledger adjustments are rejected so a
+    // finalized payslip can't drift after the money has gone out.
+    if (current.status === 'paid') {
+      const changedKeys = ['payableDays', 'eligibleOffs', 'advanceDeducted', 'remainingBalance',
+        'serviceValue', 'productCount', 'tipsOverride', 'makeupValue', 'longAbsenceExcludedDays']
+        .filter(k => data[k] !== undefined && data[k] !== '' && Number(data[k]) !== Number(current[k] || 0));
+      if (changedKeys.length) {
+        return Utils.createResponse('error', 'This payroll record is paid and locked — only status and notes can change.');
+      }
+      if (data.status !== undefined) sheet.getRange(existing.index + 1, 22).setValue(data.status);
+      if (data.notes  !== undefined) sheet.getRange(existing.index + 1, 23).setValue(data.notes);
+      current.status = data.status !== undefined ? data.status : current.status;
+      current.notes  = data.notes  !== undefined ? data.notes  : current.notes;
+      return Utils.createResponse('success', 'Payroll record updated successfully', { payroll: current });
+    }
+
     const info = this._getStaffAndProfile(current.staffId);
     if (!info) return Utils.createResponse('error', 'Staff member not found');
 
@@ -571,7 +604,9 @@ const Payroll = {
 
     const breakdown = this._buildBreakdown({
       staffId: current.staffId, staffName: current.staffName, period: current.period, orgId: current.orgId,
-      salary: current.baseSalary, allowances: current.allowances, profile: info.profile,
+      // Fresh salary/allowances (like the profile) so a Staff Salary edit
+      // takes effect on the next Calculate, not only on a Quick Entry re-save.
+      salary: info.salary, allowances: info.allowances, profile: info.profile,
       targetPeriod: info.targetPeriod,
       payableDays,
       eligibleOffsInput: data.eligibleOffs !== undefined ? data.eligibleOffs : current.eligibleOffs,
@@ -604,7 +639,8 @@ const Payroll = {
       this._postAdvanceLedgerAdjustment(current.staffId, current.orgId, current.period, Number(data.remainingBalance) || 0);
     }
 
-    return Utils.createResponse('success', 'Payroll record updated successfully', breakdown);
+    // Nested under 'payroll' — see upsertFromAttendance for why.
+    return Utils.createResponse('success', 'Payroll record updated successfully', { payroll: breakdown });
   },
 
   // Adjusts the StaffAdvance ledger so its outstanding balance becomes
@@ -625,7 +661,9 @@ const Payroll = {
     const now = new Date().toISOString();
     const amount = Math.abs(delta);
     sheet.appendRow([
-      advanceId, staffId, now.slice(0, 10), delta > 0 ? 'repayment' : 'advance',
+      // Utils.businessDate, not the raw ISO date — that's UTC, and an evening
+      // save here would stamp the entry with tomorrow's/yesterday's date.
+      advanceId, staffId, Utils.businessDate(), delta > 0 ? 'repayment' : 'advance',
       amount, 'Payroll deduction for ' + period, targetRemainingBalance, now,
       orgId || '', 'disbursed', amount, 'Payroll Deduction'
     ]);
@@ -720,20 +758,5 @@ const Payroll = {
     }
 
     return Utils.createResponse('success', 'Payroll retrieved', { payroll });
-  },
-
-  updateStatus(data) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
-    if (!sheet) return Utils.createResponse('error', 'Payroll sheet not found');
-
-    const rows = sheet.getDataRange().getValues();
-    for (let i = 1; i < rows.length; i++) {
-      if (rows[i][0] === data.payrollId) {
-        sheet.getRange(i + 1, 22).setValue(data.status || rows[i][21]);
-        sheet.getRange(i + 1, 23).setValue(data.notes  || rows[i][22]);
-        return Utils.createResponse('success', 'Payroll status updated successfully');
-      }
-    }
-    return Utils.createResponse('error', 'Payroll record not found');
   }
 };

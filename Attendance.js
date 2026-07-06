@@ -373,6 +373,23 @@ const Attendance = {
 
   getAdvances(data) {
     if (!data || !data.staffId) return Utils.createResponse('error', 'staffId is required');
+
+    // The page permission alone isn't enough — the requested staff member
+    // must belong to the caller's org or a descendant (same rule as
+    // Staff.update / Payroll.updateRow).
+    const staffSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (staffSheet) {
+      const staffRows = staffSheet.getDataRange().getValues();
+      for (let i = 1; i < staffRows.length; i++) {
+        if (staffRows[i][0] === data.staffId) {
+          if (!Organizations.isWithinScope(data.orgId, staffRows[i][17] || '')) {
+            return Utils.createResponse('error', 'You do not have access to that organization.');
+          }
+          break;
+        }
+      }
+    }
+
     const advances = this._getAdvancesRaw(data.staffId);
     const outstandingBalance = this._getOutstandingBalanceRaw(data.staffId);
     return Utils.createResponse('success', 'Advances retrieved', { advances, outstandingBalance });

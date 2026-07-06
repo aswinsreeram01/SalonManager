@@ -17,7 +17,7 @@ const Staff = {
   _attData:          null,
   _payrollRows:      [],
   _payReviewId:      null,
-  _payRevOutstandingBalance: null,
+  _payRevAdvanceBase: null,
   _attSumStaffId:    null,
   _attSumPeriod:     null,
   _attSumOverrides:  null,
@@ -64,6 +64,7 @@ const Staff = {
 
     // ── Payroll tab ──
     document.getElementById('hrPayPeriod').addEventListener('change', () => this.loadPayrollForMonth());
+    document.getElementById('hrPayIncludeChildren').addEventListener('change', () => this.loadPayrollForMonth());
 
     // ── Payroll review modal ──
     document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
@@ -1243,7 +1244,7 @@ const Staff = {
 
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#a0aec0;">Loading…</td></tr>';
     try {
-      const res = await API.getPayroll({ period });
+      const res = await API.getPayroll({ period, includeChildren: document.getElementById('hrPayIncludeChildren')?.checked || false });
       if (res.status === 'success') {
         this._payrollRows = res.payroll || [];
         this._renderPayrollTable();
@@ -1302,36 +1303,56 @@ const Staff = {
     document.getElementById('hrPayRevEligOffs').value     = r.eligibleOffs ?? '';
     document.getElementById('hrPayRevStatus').value       = r.status || 'draft';
     document.getElementById('hrPayRevNotes').value        = r.notes || '';
+    document.getElementById('hrPayRevAdvDeduct').value = '';
+    document.getElementById('hrPayRevRemainingBalance').value = '';
 
+    this._setPayReviewLock(r.status === 'paid');
     document.getElementById('hrPayReviewModal').style.display = 'flex';
 
-    // The outstanding advance balance is fetched live every time the modal
-    // opens (get_advances is OR'd onto staff:hr-payroll) — Deduction
-    // defaults to "pay it all off", Remaining Balance to 0, and the two
-    // stay in sync as either is edited. Whatever's left in Remaining
-    // Balance when Calculate runs becomes the ledger's new balance.
+    // Advance model: the row's already-recorded advanceDeducted has already
+    // been posted to the ledger, so the two fields split a BASE of
+    // (live outstanding + that recorded deduction) — not the live balance
+    // alone, which would silently wipe the recorded deduction on reopen.
+    // Deduction defaults to what's already recorded, or "pay it all off"
+    // for a record with no deduction yet.
+    const rowDeducted = Number(r.advanceDeducted) || 0;
     try {
       const advRes = await API.getAdvances(r.staffId);
-      this._payRevOutstandingBalance = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+      if (this._payReviewId !== payrollId) return; // user opened another record meanwhile
+      const live = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+      this._payRevAdvanceBase = live + rowDeducted;
     } catch (e) {
-      this._payRevOutstandingBalance = 0;
+      if (this._payReviewId !== payrollId) return;
+      // Balance unavailable — fall back to just the recorded deduction so a
+      // Calculate can't over- or under-deduct based on a number we never got.
+      this._payRevAdvanceBase = rowDeducted;
     }
-    document.getElementById('hrPayRevAdvDeduct').value = this._payRevOutstandingBalance;
-    document.getElementById('hrPayRevRemainingBalance').value = 0;
+    const deduct = rowDeducted > 0 ? rowDeducted : this._payRevAdvanceBase;
+    document.getElementById('hrPayRevAdvDeduct').value = deduct;
+    document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - deduct) * 100) / 100;
   },
 
-  // Deduction and Remaining Balance always sum to the outstanding balance
-  // snapshot taken when the modal opened — editing one live-updates the other.
+  // A paid record is final — the server rejects numeric edits, so gray the
+  // inputs out rather than letting the user edit and then fail on save.
+  // Status and Notes stay editable (voiding a paid record is allowed).
+  _setPayReviewLock(locked) {
+    ['hrPayRevPayableDays', 'hrPayRevEligOffs', 'hrPayRevAdvDeduct', 'hrPayRevRemainingBalance']
+      .forEach(id => { document.getElementById(id).disabled = locked; });
+  },
+
+  // Deduction and Remaining Balance always sum to the advance base (live
+  // outstanding + the row's already-recorded deduction) snapshotted when the
+  // modal opened or last saved — editing one live-updates the other.
   _syncAdvanceFields(source) {
-    const outstanding = this._payRevOutstandingBalance || 0;
+    const base = this._payRevAdvanceBase || 0;
     const deductEl = document.getElementById('hrPayRevAdvDeduct');
     const remainEl = document.getElementById('hrPayRevRemainingBalance');
     if (source === 'deduct') {
       const deduct = parseFloat(deductEl.value) || 0;
-      remainEl.value = Math.round((outstanding - deduct) * 100) / 100;
+      remainEl.value = Math.round((base - deduct) * 100) / 100;
     } else {
       const remain = parseFloat(remainEl.value) || 0;
-      deductEl.value = Math.round((outstanding - remain) * 100) / 100;
+      deductEl.value = Math.round((base - remain) * 100) / 100;
     }
   },
 
@@ -1371,20 +1392,28 @@ const Staff = {
 
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
 
+    // Weekly-target staff earn incentives from approved weekly snapshots —
+    // the monthly revenue figures don't exist for them, so don't imply ₹0.
+    const staffMem = (this._staff || []).find(s => s.id === r.staffId);
+    const isWeekly = staffMem && staffMem.targetPeriod === 'weekly';
+
     document.getElementById('hrPayRevOt').textContent = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
-    document.getElementById('hrPayRevSvcValueDisplay').textContent = this._fmt(r.serviceIncentive);
+    document.getElementById('hrPayRevSvcValueDisplay').textContent =
+      isWeekly ? '— (weekly)' : this._fmt(r.serviceIncentive);
     document.getElementById('hrPayRevServiceIncentive').textContent = this._fmt(r.targetIncentive);
     // Make Up Value only has a single revenue figure to show when it was a
     // manual entry — the bill-scanned path sums (line revenue x pct) per
     // Flat-mode Service Group independently, so there's no one number to
     // display as "the" revenue used in that case.
     document.getElementById('hrPayRevMakeupValueDisplay').textContent =
-      (r.makeupValue !== '' && r.makeupValue != null) ? this._fmt(r.makeupValue) : '— (from billing)';
+      (r.makeupValue !== '' && r.makeupValue != null) ? this._fmt(r.makeupValue)
+        : (isWeekly ? '— (weekly)' : '— (from billing)');
     document.getElementById('hrPayRevMakeupIncentive').textContent = this._fmt(r.makeupIncentive);
     document.getElementById('hrPayRevProdCountDisplay').textContent = (r.productCount !== '' && r.productCount != null) ? r.productCount : '—';
     document.getElementById('hrPayRevProductsIncentive').textContent = this._fmt(r.productIncentive);
 
-    document.getElementById('hrPayRevTipsDisplay').textContent = this._fmt(r.tipsOverride);
+    document.getElementById('hrPayRevTipsDisplay').textContent =
+      (r.tipsOverride !== '' && r.tipsOverride != null) ? this._fmt(r.tipsOverride) : '—';
 
     document.getElementById('hrPayRevNetPay').textContent = this._fmt(r.netPay);
   },
@@ -1450,6 +1479,11 @@ const Staff = {
       }
 
       case 'serviceIncentive': {
+        if (staff && staff.targetPeriod === 'weekly') {
+          return `This staff member is on a WEEKLY target period — Service Incentive is the sum of their `
+            + `approved weekly incentive snapshots for ${r.period}, not the monthly L1/L2 slab calculation.\n\n`
+            + `Current value: ${fmt(r.targetIncentive)}`;
+        }
         const revenue = r.serviceIncentive || 0;
         let targetExplain = 'No Comp Plan found for this staff member — Service Incentive = 0.';
         if (profile) {
@@ -1471,6 +1505,11 @@ const Staff = {
       }
 
       case 'makeupIncentive': {
+        if (staff && staff.targetPeriod === 'weekly') {
+          return `This staff member is on a WEEKLY target period — Make Up Incentive is the sum of their `
+            + `approved weekly direct-incentive snapshots for ${r.period}.\n\n`
+            + `Current value: ${fmt(r.makeupIncentive)}`;
+        }
         if (r.makeupValue !== '' && r.makeupValue != null) {
           const flatPct = profile ? (profile.flatIncentivePct || 0) : 0;
           return `Make Up Value is a manually entered REVENUE figure, same as Service Value — not a final amount.\n`
@@ -1520,7 +1559,15 @@ const Staff = {
     // editable from this modal (Quick Entry owns them) — deliberately
     // omitted here so update_payroll_row falls back to preserving whatever
     // is already on the row, rather than being sent as blanks and clearing them.
-    const data = {
+    // A paid record only sends status/notes — the server rejects anything
+    // else, and the numeric inputs are disabled anyway.
+    const current = (this._payrollRows || []).find(x => x.payrollId === payrollId);
+    const isPaid = current && current.status === 'paid';
+    const data = isPaid ? {
+      payrollId,
+      status: document.getElementById('hrPayRevStatus').value,
+      notes:  document.getElementById('hrPayRevNotes').value.trim()
+    } : {
       payrollId,
       payableDays:      val('hrPayRevPayableDays'),
       eligibleOffs:     val('hrPayRevEligOffs'),
@@ -1537,24 +1584,32 @@ const Staff = {
 
     try {
       const res = await API.updatePayrollRow(data);
-      if (res.status === 'success') {
+      if (res.status === 'success' && res.payroll) {
+        const row = res.payroll;
         const idx = (this._payrollRows || []).findIndex(x => x.payrollId === payrollId);
-        if (idx >= 0) this._payrollRows[idx] = res;
-        this._renderPayrollReviewReadonly(res);
+        if (idx >= 0) this._payrollRows[idx] = row;
+        this._renderPayrollReviewReadonly(row);
+        document.getElementById('hrPayRevStatus').value = row.status || 'draft';
+        this._setPayReviewLock(row.status === 'paid');
         document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
         this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
 
-        // The ledger just changed — re-fetch so Deduction/Remaining Balance
-        // reflect the new outstanding balance rather than the stale snapshot.
+        // The ledger may have changed — rebuild the advance base from the
+        // saved row + fresh balance so a repeat Calculate is a no-op instead
+        // of re-deducting or wiping the recorded deduction.
+        const rowDeducted = Number(row.advanceDeducted) || 0;
         try {
-          const advRes = await API.getAdvances(res.staffId);
-          this._payRevOutstandingBalance = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+          const advRes = await API.getAdvances(row.staffId);
+          if (this._payReviewId !== payrollId) return;
+          const live = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
+          this._payRevAdvanceBase = live + rowDeducted;
         } catch (e) {
-          this._payRevOutstandingBalance = 0;
+          if (this._payReviewId !== payrollId) return;
+          this._payRevAdvanceBase = rowDeducted;
         }
-        document.getElementById('hrPayRevAdvDeduct').value = this._payRevOutstandingBalance;
-        document.getElementById('hrPayRevRemainingBalance').value = 0;
+        document.getElementById('hrPayRevAdvDeduct').value = rowDeducted;
+        document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - rowDeducted) * 100) / 100;
       } else {
         this._showInlineMsg(msgEl, res.message || 'Error calculating payroll', 'error');
       }
