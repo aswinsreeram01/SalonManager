@@ -19,7 +19,8 @@
         <div id="hrStaffFormCard" class="card" style="display:none;">
             <h3 id="hrStaffFormTitle" style="color:#2d3748;margin-bottom:20px;">Add Staff Member</h3>
             <form id="hrStaffForm">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;">
+                <h4 class="hr-section-title">Personal</h4>
+                <div class="form-grid">
                     <div class="form-group">
                         <label for="hrStaffName">Name*</label>
                         <input type="text" id="hrStaffName" required>
@@ -36,14 +37,9 @@
                         <label for="hrStaffAadhar">Aadhar Number</label>
                         <input type="text" id="hrStaffAadhar" placeholder="1234-5678-9012">
                     </div>
-                    <div class="form-group">
-                        <label for="hrStaffUpi">UPI / GPay ID</label>
-                        <input type="text" id="hrStaffUpi" placeholder="user@upi">
-                    </div>
-                    <div class="form-group">
-                        <label for="hrStaffStartDate">Start Date*</label>
-                        <input type="date" id="hrStaffStartDate" required>
-                    </div>
+                </div>
+                <h4 class="hr-section-title">Employment</h4>
+                <div class="form-grid">
                     <div class="form-group">
                         <label for="hrStaffRole">Role*</label>
                         <input type="text" id="hrStaffRole" required>
@@ -57,8 +53,8 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="hrStaffNotes">Notes</label>
-                        <input type="text" id="hrStaffNotes" placeholder="Optional">
+                        <label for="hrStaffStartDate">Start Date*</label>
+                        <input type="date" id="hrStaffStartDate" required>
                     </div>
                     <div class="form-group">
                         <label for="hrStaffTargetPeriod">Target Period</label>
@@ -79,6 +75,17 @@
                         <select id="hrStaffOrgId"></select>
                     </div>
                 </div>
+                <h4 class="hr-section-title">Payment &amp; Notes</h4>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="hrStaffUpi">UPI / GPay ID</label>
+                        <input type="text" id="hrStaffUpi" placeholder="user@upi">
+                    </div>
+                    <div class="form-group">
+                        <label for="hrStaffNotes">Notes</label>
+                        <input type="text" id="hrStaffNotes" placeholder="Optional">
+                    </div>
+                </div>
                 <div class="btn-group" style="margin-top:20px;">
                     <button type="submit" class="btn btn-primary" id="hrStaffSaveBtn">Save Staff Member</button>
                     <button type="button" class="btn btn-secondary" id="hrStaffCancelBtn">Cancel</button>
@@ -86,9 +93,9 @@
             </form>
         </div>
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Staff Members</h3>
-                <div style="display:flex;gap:10px;align-items:center;">
+            <div class="card-toolbar">
+                <h3>Staff Members</h3>
+                <div class="toolbar-controls">
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;">
                         <input type="checkbox" id="hrStaffIncludeChildren">
                         Include sub-orgs
@@ -114,16 +121,18 @@
     <!-- ═══ TAB: ADVANCES ═══ -->
     <div id="prod-tab-hr-advances" class="prod-tab-panel">
         <div class="card">
-            <h3 style="color:#2d3748;margin-bottom:16px;">Staff Advances</h3>
-            <div id="hrAdvMessage" class="message"></div>
-            <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-bottom:20px;">
-                <div class="form-group" style="margin-bottom:0;min-width:220px;">
-                    <label for="hrAdvStaff">Staff</label>
-                    <select id="hrAdvStaff">
-                        <option value="">Select staff</option>
-                    </select>
+            <div class="card-toolbar">
+                <h3>Staff Advances</h3>
+                <div class="toolbar-controls">
+                    <div class="form-group" style="margin-bottom:0;min-width:220px;">
+                        <label for="hrAdvStaff">Staff</label>
+                        <select id="hrAdvStaff">
+                            <option value="">Select staff</option>
+                        </select>
+                    </div>
                 </div>
             </div>
+            <div id="hrAdvMessage" class="message"></div>
 
             <p id="hrAdvEmptyHint" class="muted" style="text-align:center;padding:24px;">Select a staff member to view their advance ledger.</p>
 
@@ -209,9 +218,9 @@
             </form>
         </div>
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-                <h3 style="color:#2d3748;margin:0;">Shift Definitions</h3>
-                <div style="display:flex;gap:12px;align-items:center;">
+            <div class="card-toolbar">
+                <h3>Shift Definitions</h3>
+                <div class="toolbar-controls">
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
                         <input type="checkbox" id="hrShiftIncludeChildren"> Include sub-orgs
                     </label>
@@ -234,18 +243,21 @@
     <!-- ═══ TAB: ATTENDANCE ═══ -->
     <div id="prod-tab-hr-attendance" class="prod-tab-panel">
         <div class="card">
+            <div class="card-toolbar">
+                <h3>Attendance &amp; OT</h3>
+                <div class="toolbar-controls">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrAttMonth">Month</label>
+                        <input type="month" id="hrAttMonth">
+                    </div>
+                    <button class="btn btn-primary" id="hrAttLoadBtn" style="align-self:flex-end;">Load</button>
+                </div>
+            </div>
             <div id="hrAttMessage" class="message"></div>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:20px;">
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrAttMonth">Month</label>
-                    <input type="month" id="hrAttMonth">
-                </div>
-                <button class="btn btn-primary" id="hrAttLoadBtn" style="align-self:flex-end;">Load</button>
-                <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
-                    <button class="btn btn-secondary" id="hrAttPrevWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Previous week">&#8592;</button>
-                    <span id="hrAttWeekLabel" style="font-size:14px;font-weight:600;color:#2d3748;min-width:190px;text-align:center;">—</span>
-                    <button class="btn btn-secondary" id="hrAttNextWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Next week">&#8594;</button>
-                </div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:16px;">
+                <button class="btn btn-secondary" id="hrAttPrevWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Previous week">&#8592;</button>
+                <span id="hrAttWeekLabel" style="font-size:14px;font-weight:600;color:#2d3748;min-width:190px;text-align:center;">—</span>
+                <button class="btn btn-secondary" id="hrAttNextWeek" style="padding:8px 16px;font-size:16px;line-height:1;" title="Next week">&#8594;</button>
             </div>
             <div id="hrAttPlanWrap" style="display:none;margin:16px 0;padding:16px;background:#f7fafc;border-radius:8px;border:1px solid #e2e8f0;">
                 <!-- Week plan populated by JS -->
@@ -259,31 +271,36 @@
     <!-- ═══ TAB: QUICK ENTRY ═══ -->
     <div id="prod-tab-hr-quickentry" class="prod-tab-panel">
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
-                <h3 style="color:#2d3748;margin:0;">Quick Entry</h3>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrQeMonth">Month</label>
-                    <input type="month" id="hrQeMonth">
+            <div class="card-toolbar">
+                <h3>Quick Entry</h3>
+                <div class="toolbar-controls">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrQeMonth">Month</label>
+                        <input type="month" id="hrQeMonth">
+                    </div>
                 </div>
             </div>
-            <p class="muted" style="margin:0 0 16px;font-size:12px;">
-                Weekday/weekend absence, OT, and the manual overrides are shown from that staff member's payroll record for the
-                selected month, if one exists. Click Update to open the day-by-day calendar and edit any of it.
-            </p>
+            <p class="card-hint">Figures come from each staff member's payroll record for the selected month. Click Update to edit day-by-day.</p>
             <div id="hrQeMessage" class="message"></div>
             <div class="table-container">
                 <table>
-                    <thead><tr>
-                        <th>Staff</th>
-                        <th style="text-align:right;">Weekday Absence</th>
-                        <th style="text-align:right;">Weekend Absence</th>
-                        <th style="text-align:right;">OT (hrs)</th>
-                        <th style="text-align:right;">Service Value</th>
-                        <th style="text-align:right;">Make Up Value</th>
-                        <th style="text-align:right;">Product Count</th>
-                        <th style="text-align:right;">Tips</th>
-                        <th>Actions</th>
-                    </tr></thead>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="vertical-align:bottom;">Staff</th>
+                            <th colspan="3" style="text-align:center;font-size:11px;color:#a0aec0;border-bottom:1px solid #e2e8f0;">Attendance</th>
+                            <th colspan="4" style="text-align:center;font-size:11px;color:#a0aec0;border-bottom:1px solid #e2e8f0;">Manual Overrides</th>
+                            <th rowspan="2" style="vertical-align:bottom;">Actions</th>
+                        </tr>
+                        <tr>
+                            <th style="text-align:right;">Weekday Abs.</th>
+                            <th style="text-align:right;">Weekend Abs.</th>
+                            <th style="text-align:right;">OT (hrs)</th>
+                            <th style="text-align:right;">Service Value</th>
+                            <th style="text-align:right;">Make Up Value</th>
+                            <th style="text-align:right;">Product Count</th>
+                            <th style="text-align:right;">Tips</th>
+                        </tr>
+                    </thead>
                     <tbody id="hrQeTableBody">
                         <tr><td colspan="9" style="text-align:center;color:#a0aec0;">Select a month to load.</td></tr>
                     </tbody>
@@ -348,17 +365,16 @@
 
         <div id="sub-tab-hr-pay-generate" class="sub-tab-panel active">
         <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px;">
-                <h3 style="color:#2d3748;margin:0;">Payroll</h3>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label for="hrPayPeriod">Month</label>
-                    <input type="month" id="hrPayPeriod">
+            <div class="card-toolbar">
+                <h3>Payroll</h3>
+                <div class="toolbar-controls">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="hrPayPeriod">Month</label>
+                        <input type="month" id="hrPayPeriod">
+                    </div>
                 </div>
             </div>
-            <p class="muted" style="margin:0 0 16px;font-size:12px;">
-                Rows are created automatically by Quick Entry (Attendance &amp; OT &gt; Quick Entry) when attendance is saved for a staff member's period —
-                this page doesn't create new rows, only reconciles and finalizes ones that already exist for the selected month.
-            </p>
+            <p class="card-hint">Rows are created by Quick Entry when attendance is saved — this page reconciles and finalizes them.</p>
             <div id="hrPayMessage" class="message"></div>
             <div class="table-container">
                 <table>
@@ -375,8 +391,10 @@
 
         <div id="sub-tab-hr-pay-salary" class="sub-tab-panel">
             <div class="card">
-                <h3 style="color:#2d3748;margin-bottom:16px;">Staff Salary</h3>
-                <p class="muted" style="margin:0 0 16px;font-size:12px;">Update Base Salary, Allowances, and Comp Plan for existing staff. New staff members are added from the Staff tab; this tab does not add new staff.</p>
+                <div class="card-toolbar">
+                    <h3>Staff Salary</h3>
+                </div>
+                <p class="card-hint">Update Base Salary, Allowances, and Comp Plan for existing staff — new staff are added from the Staff tab.</p>
                 <div class="table-container">
                     <table>
                         <thead><tr>
@@ -492,9 +510,9 @@
                 </form>
             </div>
             <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-                    <h3 style="color:#2d3748;margin:0;">Comp Plans</h3>
-                    <div style="display:flex;gap:12px;align-items:center;">
+                <div class="card-toolbar">
+                    <h3>Comp Plans</h3>
+                    <div class="toolbar-controls">
                         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#4a5568;white-space:nowrap;">
                             <input type="checkbox" id="hrProfIncludeChildren"> Include sub-orgs
                         </label>
@@ -505,12 +523,12 @@
                     <table>
                         <thead><tr>
                             <th>Name</th><th>Type</th><th>Revenue Base</th>
-                            <th>OT Rate</th><th>OT Threshold</th><th>Elig. Offs</th><th>Def. Prod. Incentive</th><th>Flat Incentive %</th>
-                            <th>Target1</th><th>Target2</th>
-                            <th>X%/Y%/Z%</th><th>Status</th><th>Org</th><th>Actions</th>
+                            <th>Overtime</th><th>Elig. Offs</th><th>Prod. Incentive</th><th>Flat %</th>
+                            <th>Incentive Slabs</th>
+                            <th>Status</th><th>Org</th><th>Actions</th>
                         </tr></thead>
                         <tbody id="hrProfTableBody">
-                            <tr><td colspan="14" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
+                            <tr><td colspan="11" style="text-align:center;color:#a0aec0;">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -521,85 +539,98 @@
 
     <!-- Payroll Review Modal -->
     <div id="hrPayReviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
-        <div class="modal-box" style="max-width:640px;width:100%;max-height:85vh;overflow-y:auto;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div class="modal-box" style="max-width:560px;width:100%;max-height:88vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                 <h3 id="hrPayReviewTitle" style="color:#2d3748;margin:0;">Payroll Review</h3>
                 <button id="hrPayReviewCloseX" type="button" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a0aec0;line-height:1;padding:2px 6px;">✕</button>
             </div>
             <div id="hrPayReviewMsg" class="message"></div>
 
-            <!-- Salary -->
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f4f8;">
-                <span style="color:#2d3748;font-weight:600;">Salary <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="base">?</button></span>
-                <span id="hrPayRevSalary" style="font-weight:700;">—</span>
-            </div>
-
-            <!-- Weekday/Weekend Full/Half table -->
-            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:14px 0 8px;">Attendance</h4>
-            <table style="width:100%;font-size:14px;margin-bottom:10px;">
-                <thead><tr><th style="text-align:left;color:#718096;font-weight:500;"></th><th style="color:#718096;font-weight:500;">Full</th><th style="color:#718096;font-weight:500;">Half</th></tr></thead>
-                <tbody>
-                    <tr><td>Weekday</td><td style="text-align:center;font-weight:600;" id="hrPayRevWdFull">—</td><td style="text-align:center;font-weight:600;" id="hrPayRevWdHalf">—</td></tr>
-                    <tr><td>Weekend</td><td style="text-align:center;font-weight:600;" id="hrPayRevWeFull">—</td><td style="text-align:center;font-weight:600;" id="hrPayRevWeHalf">—</td></tr>
-                </tbody>
-            </table>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 16px;margin-bottom:14px;font-size:14px;">
-                <div><span style="color:#718096;">Calculated Days of Absence</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="daysOff">?</button><div id="hrPayRevDaysOff" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Working Days</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="workingDays">?</button><div id="hrPayRevWorkingDays" style="font-weight:600;">—</div></div>
-            </div>
-
-            <div id="hrPayRevExplainWrap" style="display:none;margin:0 0 16px;padding:12px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;">
+            <div id="hrPayRevExplainWrap" style="display:none;margin:0 0 14px;padding:12px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
                     <pre id="hrPayRevExplainText" style="margin:0;font-family:inherit;font-size:13px;color:#2d3748;white-space:pre-wrap;line-height:1.6;"></pre>
                     <button type="button" id="hrPayRevExplainClose" style="background:none;border:none;font-size:16px;cursor:pointer;color:#a0aec0;line-height:1;flex-shrink:0;">✕</button>
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
-                <div class="form-group" style="margin-bottom:0;">
+            <div class="kv-row">
+                <span class="kv-label" style="color:#2d3748;font-weight:600;">Salary <button type="button" class="calc-help-btn" data-calc-field="base">?</button></span>
+                <span class="kv-value" id="hrPayRevSalary">—</span>
+            </div>
+
+            <h4 class="hr-section-title">Attendance</h4>
+            <table class="pay-att-table">
+                <thead><tr><th></th><th>Full</th><th>Half</th></tr></thead>
+                <tbody>
+                    <tr><td>Weekday</td><td id="hrPayRevWdFull">—</td><td id="hrPayRevWdHalf">—</td></tr>
+                    <tr><td>Weekend</td><td id="hrPayRevWeFull">—</td><td id="hrPayRevWeHalf">—</td></tr>
+                </tbody>
+            </table>
+            <div class="kv-row">
+                <span class="kv-label">Calculated Days of Absence <button type="button" class="calc-help-btn" data-calc-field="daysOff">?</button></span>
+                <span class="kv-value" id="hrPayRevDaysOff">—</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Working Days <button type="button" class="calc-help-btn" data-calc-field="workingDays">?</button></span>
+                <span class="kv-value" id="hrPayRevWorkingDays">—</span>
+            </div>
+            <div class="hr-edit-block">
+                <div class="form-group">
                     <label for="hrPayRevPayableDays">Payable Days</label>
                     <input type="number" id="hrPayRevPayableDays" step="1">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
+                <div class="form-group">
                     <label for="hrPayRevEligOffs">Eligible Offs</label>
                     <input type="number" id="hrPayRevEligOffs" step="1">
                 </div>
-                <div>
-                    <span style="color:#718096;font-size:13px;">Leave Allowance</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="leaveDeduct">?</button>
-                    <div id="hrPayRevLeaveDeduct" style="font-weight:600;">—</div>
-                </div>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Leave Allowance <button type="button" class="calc-help-btn" data-calc-field="leaveDeduct">?</button></span>
+                <span class="kv-value" id="hrPayRevLeaveDeduct">—</span>
             </div>
 
-            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:14px 0 8px;">Incentives</h4>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 16px;margin-bottom:14px;font-size:14px;">
-                <div><span style="color:#718096;">Over Time</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="ot">?</button><div id="hrPayRevOt" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Service Value</span><div id="hrPayRevSvcValueDisplay" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Service Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="serviceIncentive">?</button><div id="hrPayRevServiceIncentive" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Make Up Value</span><div id="hrPayRevMakeupValueDisplay" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Make Up Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="makeupIncentive">?</button><div id="hrPayRevMakeupIncentive" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Product Count</span><div id="hrPayRevProdCountDisplay" style="font-weight:600;">—</div></div>
-                <div><span style="color:#718096;">Products Incentive</span> <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="productsIncentive">?</button><div id="hrPayRevProductsIncentive" style="font-weight:600;">—</div></div>
+            <h4 class="hr-section-title">Incentives</h4>
+            <div class="kv-row">
+                <span class="kv-label">Over Time <button type="button" class="calc-help-btn" data-calc-field="ot">?</button></span>
+                <span class="kv-value" id="hrPayRevOt">—</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Service Incentive <button type="button" class="calc-help-btn" data-calc-field="serviceIncentive">?</button>
+                    <span class="kv-sub">Service Value: <span id="hrPayRevSvcValueDisplay">—</span></span>
+                </span>
+                <span class="kv-value" id="hrPayRevServiceIncentive">—</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Make Up Incentive <button type="button" class="calc-help-btn" data-calc-field="makeupIncentive">?</button>
+                    <span class="kv-sub">Make Up Value: <span id="hrPayRevMakeupValueDisplay">—</span></span>
+                </span>
+                <span class="kv-value" id="hrPayRevMakeupIncentive">—</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Products Incentive <button type="button" class="calc-help-btn" data-calc-field="productsIncentive">?</button>
+                    <span class="kv-sub">Product Count: <span id="hrPayRevProdCountDisplay">—</span></span>
+                </span>
+                <span class="kv-value" id="hrPayRevProductsIncentive">—</span>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Tips</span>
+                <span class="kv-value" id="hrPayRevTipsDisplay">—</span>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f4f8;margin-bottom:14px;">
-                <span style="color:#718096;">Tips</span>
-                <span id="hrPayRevTipsDisplay" style="font-weight:600;">—</span>
-            </div>
-
-            <h4 style="color:#4a5568;font-size:13px;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 8px;">Advance</h4>
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
-                <div class="form-group" style="margin-bottom:0;">
+            <h4 class="hr-section-title">Advance</h4>
+            <div class="hr-edit-block" style="margin-top:0;">
+                <div class="form-group">
                     <label for="hrPayRevAdvDeduct">Deduction (₹)</label>
                     <input type="number" id="hrPayRevAdvDeduct" step="0.01">
                 </div>
-                <div class="form-group" style="margin-bottom:0;">
+                <div class="form-group">
                     <label for="hrPayRevRemainingBalance">Remaining Balance (₹)</label>
                     <input type="number" id="hrPayRevRemainingBalance" step="0.01">
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
-                <div class="form-group" style="margin-bottom:0;">
+            <div class="hr-edit-block">
+                <div class="form-group">
                     <label for="hrPayRevStatus">Status</label>
                     <select id="hrPayRevStatus">
                         <option value="draft">draft</option>
@@ -608,20 +639,21 @@
                         <option value="voided">voided</option>
                     </select>
                 </div>
-                <div class="form-group" style="margin-bottom:0;grid-column:span 2;">
+                <div class="form-group" style="grid-column:span 2;">
                     <label for="hrPayRevNotes">Notes</label>
                     <input type="text" id="hrPayRevNotes" placeholder="Optional">
                 </div>
             </div>
 
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:1px solid #e2e8f0;margin-bottom:16px;">
-                <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Payable <button type="button" class="calc-help-btn" style="width:16px;height:16px;line-height:14px;padding:0;border-radius:50%;border:1px solid #cbd5e0;background:#edf2f7;color:#4a5568;font-size:11px;font-weight:700;cursor:pointer;vertical-align:middle;" data-calc-field="netPay">?</button></span>
-                <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
-            </div>
-
-            <div class="btn-group">
-                <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button">Calculate</button>
-                <button class="btn btn-secondary" id="hrPayRevCloseBtn" type="button">Close</button>
+            <div class="pay-modal-footer">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Payable <button type="button" class="calc-help-btn" data-calc-field="netPay">?</button></span>
+                    <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
+                </div>
+                <div class="btn-group" style="margin:0;">
+                    <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button">Calculate</button>
+                    <button class="btn btn-secondary" id="hrPayRevCloseBtn" type="button">Close</button>
+                </div>
             </div>
         </div>
     </div>

@@ -562,7 +562,7 @@ const Staff = {
   _renderProfiles() {
     const tbody = document.getElementById('hrProfTableBody');
     if (!this._profiles.length) {
-      tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#a0aec0;padding:24px;">No comp plans found</td></tr>';
       return;
     }
     tbody.innerHTML = this._profiles.map(p => {
@@ -574,14 +574,11 @@ const Staff = {
         <td style="font-weight:500;">${this._esc(p.profileName || p.name)}</td>
         <td>${this._esc(p.profileType || p.type || '—')}</td>
         <td>${this._esc(p.revenueBase || '—')}</td>
-        <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate)}/hr</td>
-        <td style="text-align:right;white-space:nowrap;">${p.otThresholdHours ?? 9}h/day</td>
+        <td style="text-align:right;white-space:nowrap;">${this._fmt(p.otHourlyRate ?? p.otRate ?? p.hrProfOtRate)}/hr · ${p.otThresholdHours ?? 9}h/day</td>
         <td style="text-align:right;white-space:nowrap;">${p.eligibleOffs ?? 4}/mo</td>
         <td style="text-align:right;white-space:nowrap;">${this._fmt(p.defaultProductIncentive ?? 0)}</td>
         <td style="text-align:right;white-space:nowrap;">${p.flatIncentivePct ?? 0}%</td>
-        <td>${this._esc(l1)}</td>
-        <td>${this._esc(l2)}</td>
-        <td style="font-size:12px;white-space:nowrap;">${this._esc(brackets)}</td>
+        <td style="white-space:nowrap;">${this._esc(l1)} → ${this._esc(l2)}<span class="kv-sub">${this._esc(brackets)}</span></td>
         <td><span class="status-badge status-${p.status}">${p.status}</span></td>
         <td>${this._esc(this._orgName(p.orgId))}</td>
         <td>
@@ -1361,7 +1358,7 @@ const Staff = {
       const el = document.getElementById(id);
       if (!dates.length) { el.textContent = '—'; return; }
       const days = dates.map(d => Number(d.slice(8, 10))).sort((a, b) => a - b).join(', ');
-      el.innerHTML = `${dates.length}<div style="font-weight:400;font-size:12px;color:#718096;">${days}</div>`;
+      el.innerHTML = `${dates.length}<span class="kv-sub">${days}</span>`;
     };
     absCell('hrPayRevWdFull', r.weekdayAbsentDates);
     absCell('hrPayRevWdHalf', r.weekdayHalfDayDates);
@@ -1403,6 +1400,9 @@ const Staff = {
     if (!r || !wrap || !textEl) return;
     textEl.textContent = this._buildCalcExplanation(field, r);
     wrap.style.display = 'block';
+    // The explain box sits at the top of the modal — a "?" clicked further
+    // down would otherwise show nothing visible on screen.
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   },
 
   _buildCalcExplanation(field, r) {

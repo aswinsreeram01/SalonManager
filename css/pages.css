@@ -655,3 +655,131 @@
     }
 }
 
+/* ── Staff & HR shared components ──────────────────────────────────────── */
+
+/* Card header: title left, filters/actions right, one-line hint below */
+.card-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.card-toolbar h3 { color: #2d3748; margin: 0; }
+.card-toolbar .toolbar-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.card-hint {
+    color: #a0aec0;
+    font-size: 12px;
+    margin: 0 0 14px;
+}
+
+/* Form field grid + section headers inside forms */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 16px;
+}
+.hr-section-title {
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 18px 0 8px;
+}
+form .hr-section-title:first-child { margin-top: 0; }
+
+/* Payslip-style label/value statement rows */
+.kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f4f8;
+    font-size: 14px;
+}
+.kv-label { color: #718096; }
+.kv-value { font-weight: 600; color: #2d3748; text-align: right; white-space: nowrap; }
+.kv-sub {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: #a0aec0;
+    margin-top: 2px;
+}
+
+/* Calculation help "?" buttons — subtle, not competing with labels */
+.calc-help-btn {
+    width: 15px;
+    height: 15px;
+    line-height: 13px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid #cbd5e0;
+    background: transparent;
+    color: #a0aec0;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    vertical-align: 1px;
+}
+.calc-help-btn:hover { background: #edf2f7; color: #4a5568; }
+
+/* Tinted block marking the editable fields of an otherwise read-only view */
+.hr-edit-block {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+}
+.hr-edit-block .form-group { margin-bottom: 0; }
+
+/* Sticky Net Payable footer inside the Payroll Review modal */
+.pay-modal-footer {
+    position: sticky;
+    bottom: -28px;                    /* rides over .modal-box bottom padding */
+    margin: 16px -28px -28px;
+    padding: 12px 28px 24px;
+    background: white;
+    border-top: 2px solid #e2e8f0;
+}
+@media (max-width: 768px) {
+    .pay-modal-footer {
+        bottom: -20px;
+        margin: 16px -20px -20px;
+        padding: 12px 20px 20px;
+    }
+}
+
+/* Compact attendance Full/Half table inside the Payroll Review modal */
+.pay-att-table {
+    width: 100%;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+.pay-att-table th {
+    color: #718096;
+    font-weight: 500;
+    text-align: center;
+    padding: 4px 6px;
+}
+.pay-att-table th:first-child { text-align: left; }
+.pay-att-table td {
+    text-align: center;
+    font-weight: 600;
+    padding: 4px 6px;
+    vertical-align: top;
+}
+.pay-att-table td:first-child { text-align: left; font-weight: 400; color: #718096; }
+
