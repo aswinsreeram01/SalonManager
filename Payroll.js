@@ -682,8 +682,10 @@ const Payroll = {
 
       const b = this._rowToBreakdown(rows[i]);
       const splitCount = s => (s || '').split(',').filter(Boolean).length;
+      // Quick Entry shows the actual day counts, not the 2x-weighted figure
+      // used internally for totalDaysOff/payroll deduction purposes.
       const weekdayAbsence = splitCount(b.weekdayAbsentDates) + splitCount(b.weekdayHalfDayDates) * 0.5;
-      const weekendAbsence = splitCount(b.weekendAbsentDates) * 2 + splitCount(b.weekendHalfDayDates);
+      const weekendAbsence = splitCount(b.weekendAbsentDates) + splitCount(b.weekendHalfDayDates) * 0.5;
       summary.push({
         payrollId: b.payrollId, staffId: b.staffId,
         weekdayAbsence, weekendAbsence, otHours: b.otHours,

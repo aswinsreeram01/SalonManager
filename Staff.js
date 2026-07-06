@@ -1,4 +1,15 @@
 const Staff = {
+  // Same Sheets auto-date-coercion problem as Payroll's _normalizePeriod —
+  // Sheets can silently convert a "YYYY-MM-DD" string into a real Date cell,
+  // which then serializes as a full ISO timestamp and no longer matches what
+  // <input type="date"> expects, so it displays blank on the next edit.
+  _normalizeDate(v) {
+    if (v instanceof Date) {
+      return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+    return String(v || '');
+  },
+
   getAll(data) {
     const orgId = (data && data.orgId) || '';
     const includeChildren = !!(data && data.includeChildren);
@@ -22,7 +33,7 @@ const Staff = {
       staff.push({
         id: staffData[i][0], userId: staffData[i][1], name: staffData[i][2],
         phone: staffData[i][3], email: staffData[i][4], aadharNumber: staffData[i][5],
-        upiId: staffData[i][6], startDate: staffData[i][7], role: staffData[i][8],
+        upiId: staffData[i][6], startDate: this._normalizeDate(staffData[i][7]), role: staffData[i][8],
         salary: staffData[i][9], allowance: staffData[i][10],
         incentiveStructure: staffData[i][11], specialization: staffData[i][12], status: staffData[i][13],
         staffType: staffData[i][14] || 'service_provider', profileId: staffData[i][15] || '',
