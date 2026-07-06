@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbx4tNGCcERbheVsiccWxoffoMskW1_qqaTaR8j9fmQIpEy0q_Fs2SN_wr6lThiEvkfl/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbzrrYzPXqjzLeaDj47PdQGu2ctSKNWCq-uPPCNq31Kwfw_5wcqj5k-tL-l7XSE6gftYRA/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
@@ -30,6 +30,8 @@ const StaffAPI = {
     getMyAttendance()              { return this.call('get_my_attendance'); },
     requestAdvance(amount, notes)  { return this.call('request_advance',     { amount, notes }); },
     getMyAdvances()                { return this.call('get_my_advances'); },
+    getMyPayslips()                { return this.call('get_my_payslips'); },
+    approveMyPayslip(payrollId)    { return this.call('approve_my_payslip',  { payrollId }); },
 };
 
 // ── App controller ────────────────────────────────────────────────────────────
@@ -179,9 +181,11 @@ const StaffApp = {
         document.getElementById('tab-pending').style.display    = tab === 'pending'    ? 'block' : 'none';
         document.getElementById('tab-attendance').style.display = tab === 'attendance' ? 'block' : 'none';
         document.getElementById('tab-advance').style.display    = tab === 'advance'    ? 'block' : 'none';
+        document.getElementById('tab-payslips').style.display   = tab === 'payslips'   ? 'block' : 'none';
         if (tab === 'pending')    this.loadPendingItems();
         if (tab === 'attendance') this.loadAttendance();
         if (tab === 'advance')    this.loadAdvances();
+        if (tab === 'payslips')   this.loadPayslips();
     },
 
     // ── My Records tab ────────────────────────────────────────────────────────
@@ -612,6 +616,124 @@ const StaffApp = {
         document.getElementById('staffLoginSection').style.display = 'flex';
         document.getElementById('staffDashSection').style.display  = 'none';
         document.getElementById('staffLoginForm').reset();
+    },
+
+    // ── Payslips tab ──────────────────────────────────────────────────────────
+    // Records the admin has moved to 'review' show at the top awaiting this
+    // staff member's approval; approved/paid ones form the history below.
+
+    async loadPayslips() {
+        const wrap    = document.getElementById('payslipContent');
+        const loading = document.getElementById('payslipLoading');
+        loading.style.display = 'block';
+        wrap.style.display    = 'none';
+        _clearMsg(document.getElementById('payslipMessage'));
+
+        try {
+            const res = await StaffAPI.getMyPayslips();
+            if (res.status !== 'success') throw new Error(res.message);
+            this._renderPayslips(res.payslips || []);
+            wrap.style.display = 'block';
+        } catch (err) {
+            _showMsg(document.getElementById('payslipMessage'), 'Failed to load: ' + err.message, 'error');
+        } finally {
+            loading.style.display = 'none';
+        }
+    },
+
+    _renderPayslips(payslips) {
+        const pending = payslips.filter(p => p.status === 'review');
+        const history = payslips.filter(p => p.status === 'approved' || p.status === 'paid');
+
+        const badge = document.getElementById('payslipBadge');
+        badge.textContent   = pending.length;
+        badge.style.display = pending.length ? 'inline-flex' : 'none';
+
+        document.getElementById('payslipPendingWrap').innerHTML = pending.map(p => `
+            <div class="sp-card" style="border:2px solid #f6e05e;">
+                <div class="sp-card-title">⏳ Awaiting Your Approval — ${_esc(this._periodLabel(p.period))}</div>
+                ${this._payslipStatement(p)}
+                <button class="sp-btn sp-btn-confirm" style="width:100%;margin-top:14px;"
+                        onclick="StaffApp.approvePayslip('${_esc(p.payrollId)}')">✓ Approve Payslip</button>
+            </div>`).join('');
+
+        const chip = st => st === 'paid'
+            ? '<span class="sp-confirmed-chip">PAID</span>'
+            : '<span class="sp-confirmed-chip" style="background:#ebf8ff;color:#2c5282;border-color:#90cdf4;">APPROVED</span>';
+
+        document.getElementById('payslipHistList').innerHTML = history.length
+            ? history.map(p => `
+                <details style="border-bottom:1px solid #f0f4f8;padding:6px 0;">
+                    <summary style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;list-style:none;padding:6px 0;">
+                        <span style="font-weight:600;font-size:14px;">${_esc(this._periodLabel(p.period))}</span>
+                        <span style="display:flex;align-items:center;gap:8px;">
+                            <span class="sp-amt">${this._spFmt(p.netPay)}</span>
+                            ${chip(p.status)}
+                        </span>
+                    </summary>
+                    <div style="padding:8px 0 4px;">${this._payslipStatement(p)}</div>
+                </details>`).join('')
+            : '<div class="sp-empty-state" style="padding:20px;"><p>No payslips yet.</p></div>';
+    },
+
+    _spFmt(v) {
+        return '₹' + Number(v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    },
+
+    _periodLabel(period) {
+        const [yr, mo] = String(period || '').split('-').map(Number);
+        if (!yr || !mo) return String(period || '');
+        return new Date(yr, mo - 1, 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
+    },
+
+    // Read-only payslip statement — same figures the admin's Payroll Review
+    // shows, rendered as simple label/value rows.
+    _payslipStatement(p) {
+        const fmt = this._spFmt;
+        const row = (label, value, opts = {}) => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f4f8;font-size:13px;">
+                <span style="color:#718096;">${label}</span>
+                <span style="font-weight:600;color:${opts.negative ? '#c53030' : '#2d3748'};">${opts.negative ? '− ' : ''}${value}</span>
+            </div>`;
+        const section = t => `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:10px 0 2px;">${t}</div>`;
+
+        return `
+            <div style="font-size:12px;color:#718096;margin-bottom:6px;">
+                Payable Days: <b style="color:#2d3748;">${p.payableDays ?? '—'}</b> ·
+                Days of Absence: <b style="color:#2d3748;">${p.totalDaysOff ?? 0}</b> ·
+                Eligible Offs: <b style="color:#2d3748;">${p.eligibleOffs ?? 0}</b>
+            </div>
+            ${section('Earnings')}
+            ${row('Base Salary', fmt(p.baseSalary))}
+            ${row('Allowances', fmt(p.allowances))}
+            ${row(`Overtime (${p.otHours ?? 0}h)`, fmt(p.otPay))}
+            ${row('Service Incentive', fmt(p.targetIncentive))}
+            ${row('Make Up Incentive', fmt(p.makeupIncentive))}
+            ${row('Products Incentive', fmt(p.productIncentive))}
+            ${row('Tips', fmt(p.tipsOverride))}
+            ${section('Deductions')}
+            ${row('Leave Allowance', fmt(p.leaveDeduction), { negative: true })}
+            ${row('Advance Deducted', fmt(p.advanceDeducted), { negative: true })}
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:2px solid #e2e8f0;">
+                <span style="font-size:14px;font-weight:700;">Net Payable</span>
+                <span style="font-size:18px;font-weight:700;color:#667eea;">${fmt(p.netPay)}</span>
+            </div>`;
+    },
+
+    async approvePayslip(payrollId) {
+        if (!confirm('Approve this payslip? This confirms the figures are correct.')) return;
+        const msg = document.getElementById('payslipMessage');
+        try {
+            const res = await StaffAPI.approveMyPayslip(payrollId);
+            if (res.status === 'success') {
+                _showMsg(msg, 'Payslip approved ✓', 'success');
+                await this.loadPayslips();
+            } else {
+                _showMsg(msg, res.message || 'Could not approve payslip', 'error');
+            }
+        } catch (err) {
+            _showMsg(msg, 'Could not approve payslip: ' + err.message, 'error');
+        }
     },
 
     showDashboard() {

@@ -312,6 +312,10 @@
         </button>
         <button class="sp-tab" data-tab="attendance">Attendance</button>
         <button class="sp-tab" data-tab="advance">Advance</button>
+        <button class="sp-tab" data-tab="payslips">
+            Payslips
+            <span class="sp-badge" id="payslipBadge" style="display:none">0</span>
+        </button>
     </div>
 
     <!-- ── Tab: My Records ──────────────────────────────────────────────────── -->
@@ -558,6 +562,25 @@
             </div>
         </div>
     </div><!-- /tab-advance -->
+
+    <!-- ── Tab: Payslips ─────────────────────────────────────────────────────── -->
+    <div id="tab-payslips" class="sp-tab-panel" style="display:none">
+        <div id="payslipMessage" class="sp-message"></div>
+
+        <div id="payslipLoading" class="sp-loading">
+            <span class="sp-spinner"></span> Loading payslips…
+        </div>
+
+        <div id="payslipContent" style="display:none">
+            <!-- Payslips awaiting approval (review status) render here -->
+            <div id="payslipPendingWrap"></div>
+
+            <div class="sp-card">
+                <div class="sp-card-title">📜 Payslip History</div>
+                <div id="payslipHistList"></div>
+            </div>
+        </div>
+    </div><!-- /tab-payslips -->
 
 </div><!-- /staffDashSection -->
 

@@ -185,7 +185,8 @@ function doPost(e) {
     const STAFF_ACTIONS = [
       'staff_login', 'staff_logout',
       'get_staff_dashboard', 'get_pending_items', 'confirm_bill_items', 'change_staff_pin',
-      'log_attendance', 'get_my_attendance', 'request_advance', 'get_my_advances'
+      'log_attendance', 'get_my_attendance', 'request_advance', 'get_my_advances',
+      'get_my_payslips', 'approve_my_payslip'
     ];
     if (STAFF_ACTIONS.includes(action)) {
       if (action !== 'staff_login') {
@@ -207,6 +208,8 @@ function doPost(e) {
         case 'get_my_attendance':    return StaffPortal.getMyAttendance(data);
         case 'request_advance':      return StaffPortal.requestAdvance(data);
         case 'get_my_advances':      return StaffPortal.getMyAdvances(data);
+        case 'get_my_payslips':      return StaffPortal.getMyPayslips(data);
+        case 'approve_my_payslip':   return StaffPortal.approveMyPayslip(data);
       }
     }
 

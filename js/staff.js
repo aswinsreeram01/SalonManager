@@ -1281,6 +1281,7 @@ const Staff = {
   _payrollStatusBadge(status) {
     const map = {
       draft:    'background:#edf2f7;color:#4a5568;',
+      review:   'background:#fefcbf;color:#975a16;',
       approved: 'background:#bee3f8;color:#2c5282;',
       paid:     'background:#c6f6d5;color:#22543d;',
       voided:   'background:#fed7d7;color:#c53030;'
@@ -1312,18 +1313,20 @@ const Staff = {
     document.getElementById('hrPayRevAdvOutstanding').textContent = '· Outstanding: —';
     document.getElementById('hrPayReviewModal').style.display = 'flex';
 
-    // Advance model: the row's already-recorded advanceDeducted has already
-    // been posted to the ledger, so the two fields split a BASE of
-    // (live outstanding + that recorded deduction) — not the live balance
-    // alone, which would silently wipe the recorded deduction on reopen.
-    // Deduction defaults to what's already recorded, or "pay it all off"
-    // for a record with no deduction yet.
+    // Advance model: the ledger is only reconciled when a record is marked
+    // PAID, so the base the two fields split depends on status — for a paid
+    // record the recorded deduction is already in the ledger (base = live
+    // outstanding + that deduction); for anything earlier the ledger is
+    // untouched (base = live outstanding alone). Deduction defaults to
+    // what's already recorded on the row, or "pay it all off" for a record
+    // with no deduction yet.
     const rowDeducted = Number(r.advanceDeducted) || 0;
+    const ledgerReconciled = r.status === 'paid';
     try {
       const advRes = await API.getAdvances(r.staffId);
       if (this._payReviewId !== payrollId) return; // user opened another record meanwhile
       const live = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
-      this._payRevAdvanceBase = live + rowDeducted;
+      this._payRevAdvanceBase = live + (ledgerReconciled ? rowDeducted : 0);
     } catch (e) {
       if (this._payReviewId !== payrollId) return;
       // Balance unavailable — fall back to just the recorded deduction so a
@@ -1732,7 +1735,13 @@ const Staff = {
         this._updatePayReviewActions(row);
         document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
-        this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
+        if (isPaid && row.status === 'voided') {
+          this._showInlineMsg(msgEl, 'Voided. Note: the advance repayment recorded when this was paid has NOT been reversed — add a manual entry on the Advances tab if needed.', 'warning');
+        } else if (row.status === 'paid') {
+          this._showInlineMsg(msgEl, 'Saved and marked paid — the advance ledger has been reconciled.', 'success');
+        } else {
+          this._showInlineMsg(msgEl, 'Recalculated and saved.', 'success');
+        }
 
         // The ledger may have changed — rebuild the advance base from the
         // saved row + fresh balance so a repeat Calculate is a no-op instead
@@ -1742,7 +1751,7 @@ const Staff = {
           const advRes = await API.getAdvances(row.staffId);
           if (this._payReviewId !== payrollId) return;
           const live = advRes.status === 'success' ? (advRes.outstandingBalance || 0) : 0;
-          this._payRevAdvanceBase = live + rowDeducted;
+          this._payRevAdvanceBase = live + (row.status === 'paid' ? rowDeducted : 0);
         } catch (e) {
           if (this._payReviewId !== payrollId) return;
           this._payRevAdvanceBase = rowDeducted;

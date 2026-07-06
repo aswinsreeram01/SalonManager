@@ -595,6 +595,13 @@ const Payroll = {
       return Utils.createResponse('success', 'Payroll record updated successfully', { payroll: current });
     }
 
+    // Status flow is draft → review → approved → paid. Paid triggers the
+    // advance-ledger reconciliation below, so it's only reachable from
+    // approved — a draft/review record hasn't been signed off yet.
+    if (data.status === 'paid' && current.status !== 'approved') {
+      return Utils.createResponse('error', 'Only an approved payroll record can be marked paid.');
+    }
+
     const info = this._getStaffAndProfile(current.staffId);
     if (!info) return Utils.createResponse('error', 'Staff member not found');
 
@@ -631,11 +638,12 @@ const Payroll = {
 
     // Remaining Balance is a Payroll-Review-only concept — it's never stored
     // on the Payroll row itself, only reflected into the StaffAdvance ledger
-    // so it's the single source of truth. Deliberately re-fetches the LIVE
-    // outstanding balance right before diffing (not a client-sent snapshot),
-    // so clicking Calculate twice with the same Remaining Balance is a no-op
-    // the second time — the ledger already matches, delta is 0, nothing posted.
-    if (data.remainingBalance !== undefined && data.remainingBalance !== '') {
+    // so it's the single source of truth. The ledger is reconciled ONLY when
+    // the record is marked paid (money actually moved) — draft/review/
+    // approved saves store advanceDeducted on the row for the Net Payable
+    // figure but leave the ledger untouched. Re-fetches the LIVE balance
+    // right before diffing so a repeat save is an idempotent no-op.
+    if (data.status === 'paid' && data.remainingBalance !== undefined && data.remainingBalance !== '') {
       this._postAdvanceLedgerAdjustment(current.staffId, current.orgId, current.period, Number(data.remainingBalance) || 0);
     }
 

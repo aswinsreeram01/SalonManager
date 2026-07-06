@@ -412,6 +412,57 @@ const StaffPortal = {
     return Utils.createResponse('success', 'Advances loaded', { advances, balance, hasPending });
   },
 
+  // ── Payslips: view + approve own payroll records ───────────────────────────
+  // Status flow (admin side): draft → review → approved → paid. Staff see a
+  // record once the admin moves it to 'review'; approving it moves it to
+  // 'approved', after which it stays visible here as history (and 'paid'
+  // records remain visible permanently). Draft/voided records never appear.
+
+  getMyPayslips(data) {
+    const { staffId } = data;
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return Utils.createResponse('success', 'No payslips', { payslips: [] });
+
+    const VISIBLE = ['review', 'approved', 'paid'];
+    const rows = sheet.getDataRange().getValues();
+    const payslips = [];
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i][0]) continue;
+      if (String(rows[i][1]) !== staffId) continue;
+      const status = String(rows[i][21] || '').toLowerCase();
+      if (!VISIBLE.includes(status)) continue;
+      payslips.push(Payroll._rowToBreakdown(rows[i]));
+    }
+
+    payslips.sort((a, b) => String(b.period).localeCompare(String(a.period)));
+    return Utils.createResponse('success', 'Payslips loaded', { payslips });
+  },
+
+  approveMyPayslip(data) {
+    const { staffId } = data;
+    const payrollId = String(data.payrollId || '');
+    if (!payrollId) return Utils.createResponse('error', 'payrollId is required');
+
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return Utils.createResponse('error', 'Payroll sheet not found');
+
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) !== payrollId) continue;
+      // Own record only, and only while it's awaiting review — staff can't
+      // touch any other status transition.
+      if (String(rows[i][1]) !== staffId) {
+        return Utils.createResponse('error', 'This payslip does not belong to you.');
+      }
+      if (String(rows[i][21] || '').toLowerCase() !== 'review') {
+        return Utils.createResponse('error', 'This payslip is not awaiting your approval.');
+      }
+      sheet.getRange(i + 1, 22).setValue('approved');
+      return Utils.createResponse('success', 'Payslip approved', { payrollId });
+    }
+    return Utils.createResponse('error', 'Payslip not found');
+  },
+
   // ── Private helpers ─────────────────────────────────────────────────────────
 
   _buildShiftMap(ss, orgId) {
