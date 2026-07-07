@@ -609,19 +609,20 @@ const Payroll = {
       return Utils.createResponse('error', 'You do not have access to that organization.');
     }
 
-    // An approved or paid record is locked — only status (Back / Mark as
-    // Paid / Void) and notes may still change. Numeric edits are rejected so
-    // signed-off figures can't drift. The approved→paid transition also
-    // reconciles the advance ledger here: the client sends the SAVED row's
-    // remaining balance (never unsaved form edits) along with the status.
-    if (current.status === 'paid' || current.status === 'approved') {
+    // Only a DRAFT is editable. Once sent for review — and while approved or
+    // paid — the record is locked: only status (Send back / Approve / Mark
+    // as Paid / Void) and notes may change, so the staff member approves
+    // exactly what was finalized and signed-off figures can't drift. The
+    // approved→paid transition also reconciles the advance ledger here: the
+    // client sends the SAVED row's remaining balance (never unsaved edits).
+    if (current.status === 'paid' || current.status === 'approved' || current.status === 'review') {
       const changedKeys = ['payableDays', 'eligibleOffs', 'advanceDeducted',
         'serviceValue', 'productCount', 'tipsOverride', 'makeupValue', 'longAbsenceExcludedDays']
         .filter(k => data[k] !== undefined && data[k] !== '' && Number(data[k]) !== Number(current[k] || 0));
       if (data.payUnusedLeaves !== undefined && !!data.payUnusedLeaves !== !!current.payUnusedLeaves) changedKeys.push('payUnusedLeaves');
       if (data.unusedLeavesReason !== undefined && String(data.unusedLeavesReason) !== String(current.unusedLeavesReason || '')) changedKeys.push('unusedLeavesReason');
       if (changedKeys.length) {
-        return Utils.createResponse('error', `This payroll record is ${current.status} and locked — move it back to review to edit figures.`);
+        return Utils.createResponse('error', `This payroll record is ${current.status} and locked — send it back to draft to edit figures.`);
       }
       if (data.status === 'paid' && current.status !== 'approved') {
         return Utils.createResponse('error', 'Only an approved payroll record can be marked paid.');

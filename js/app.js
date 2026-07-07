@@ -461,7 +461,7 @@ const PAGE_HTML = [
 async function _loadPageHTML() {
     await Promise.all(PAGE_HTML.map(async page => {
         try {
-            const r = await fetch(`pages/${page}.html`);
+            const r = await fetch(`pages/${page}.html?v=20260107a`);
             if (r.ok) {
                 const el = document.getElementById(page);
                 if (el) el.innerHTML = await r.text();

@@ -1362,25 +1362,28 @@ const Staff = {
     document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - deduct) * 100) / 100;
 
     // Recompute Leave Deduction / Unused Leave Pay / Net Payable from the
-    // (trustworthy) input fields on open, for anything not yet finalized —
-    // so a stale or corrupt stored figure can never display, and Calculate &
-    // Save overwrites it. A paid record shows its signed-off figures as-is.
-    if (r.status !== 'paid') this._recalcLeaveAllowancePreview();
+    // (trustworthy) input fields on open while the record is still an
+    // editable DRAFT — so a stale or corrupt stored figure never displays,
+    // and Calculate & Save overwrites it. Once locked (review/approved/paid)
+    // the modal shows the signed-off figures exactly as saved.
+    if (r.status === 'draft') this._recalcLeaveAllowancePreview();
   },
 
   // Workflow-driven button visibility + field locking. The status flow is
   // draft → review → approved → paid, with Back walking one step backwards
   // and Void available from any non-draft state. Figures are editable ONLY
-  // in review — the only status with a save button (Calculate & Save).
+  // in DRAFT (the reconcile stage, with the only save button — Calculate &
+  // Save); once sent for review the record is locked so the staff member
+  // approves exactly what the admin finalized.
   _updatePayReviewActions(r) {
     const status = r.status || 'draft';
-    this._setPayReviewLock(status !== 'review');
+    this._setPayReviewLock(status !== 'draft');
 
     document.getElementById('hrPayRevStatusBadge').innerHTML = this._payrollStatusBadge(status);
 
     const show = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+    show('hrPayRevCalcBtn',       status === 'draft');
     show('hrPayRevSendReviewBtn', status === 'draft');
-    show('hrPayRevCalcBtn',       status === 'review');
     show('hrPayRevApproveBtn',    status === 'review');
     show('hrPayRevMarkPaidBtn',   status === 'approved');
     show('hrPayRevBackBtn',       ['review', 'approved', 'paid'].includes(status));
