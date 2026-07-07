@@ -519,6 +519,21 @@ const Payroll = {
     return null;
   },
 
+  // A period is LOCKED for attendance/Quick Entry edits once its payroll
+  // record has moved past review (approved or paid) — the figures were
+  // signed off, so nothing may silently change them underneath. Draft,
+  // review, voided, or no record at all = open. Enforced server-side in
+  // Attendance.saveAttendance, StaffPortal.logAttendance, and
+  // upsertFromAttendance, regardless of the caller's payroll access.
+  _isPeriodLocked(staffId, period) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Payroll');
+    if (!sheet) return false;
+    const existing = this._findRowByStaffPeriod(sheet, staffId, period);
+    if (!existing) return false;
+    const status = String(existing.row[21] || '').toLowerCase();
+    return status === 'approved' || status === 'paid';
+  },
+
   // ── Quick Entry integration ───────────────────────────────────────────────
   // Called after Attendance.saveAttendance succeeds for a staff+period.
   // Recomputes the attendance-derived fields fresh from current attendance
@@ -540,9 +555,18 @@ const Payroll = {
     let sheet = ss.getSheetByName('Payroll');
     if (!sheet) return Utils.createResponse('error', 'Payroll sheet not found');
 
-    const attDerived = this._computeAttendanceDerived(staffId, period);
     const existing = this._findRowByStaffPeriod(sheet, staffId, period);
     const existingBreakdown = existing ? this._rowToBreakdown(existing.row) : null;
+
+    // Signed-off periods are immutable from Quick Entry — the payroll record
+    // must come back to draft/review (Back button on the Payroll page)
+    // before attendance-driven figures may change again.
+    if (existingBreakdown && ['approved', 'paid'].includes(String(existingBreakdown.status || '').toLowerCase())) {
+      return Utils.createResponse('error',
+        `Payroll for ${period} is ${existingBreakdown.status} and locked — move it back to draft/review on the Payroll page before editing.`);
+    }
+
+    const attDerived = this._computeAttendanceDerived(staffId, period);
 
     const payableDays = existingBreakdown && existingBreakdown.payableDays
       ? existingBreakdown.payableDays
@@ -606,29 +630,37 @@ const Payroll = {
       return Utils.createResponse('error', 'You do not have access to that organization.');
     }
 
-    // A paid record is final — only status (to void it) and notes may still
-    // change. Numeric edits and advance-ledger adjustments are rejected so a
-    // finalized payslip can't drift after the money has gone out.
-    if (current.status === 'paid') {
-      const changedKeys = ['payableDays', 'eligibleOffs', 'advanceDeducted', 'remainingBalance',
+    // An approved or paid record is locked — only status (Back / Mark as
+    // Paid / Void) and notes may still change. Numeric edits are rejected so
+    // signed-off figures can't drift. The approved→paid transition also
+    // reconciles the advance ledger here: the client sends the SAVED row's
+    // remaining balance (never unsaved form edits) along with the status.
+    if (current.status === 'paid' || current.status === 'approved') {
+      const changedKeys = ['payableDays', 'eligibleOffs', 'advanceDeducted',
         'serviceValue', 'productCount', 'tipsOverride', 'makeupValue', 'longAbsenceExcludedDays']
         .filter(k => data[k] !== undefined && data[k] !== '' && Number(data[k]) !== Number(current[k] || 0));
       if (data.payUnusedLeaves !== undefined && !!data.payUnusedLeaves !== !!current.payUnusedLeaves) changedKeys.push('payUnusedLeaves');
       if (data.unusedLeavesReason !== undefined && String(data.unusedLeavesReason) !== String(current.unusedLeavesReason || '')) changedKeys.push('unusedLeavesReason');
       if (changedKeys.length) {
-        return Utils.createResponse('error', 'This payroll record is paid and locked — only status and notes can change.');
+        return Utils.createResponse('error', `This payroll record is ${current.status} and locked — move it back to review to edit figures.`);
       }
+      if (data.status === 'paid' && current.status !== 'approved') {
+        return Utils.createResponse('error', 'Only an approved payroll record can be marked paid.');
+      }
+      const becomingPaid = data.status === 'paid' && current.status === 'approved';
       if (data.status !== undefined) sheet.getRange(existing.index + 1, 22).setValue(data.status);
       if (data.notes  !== undefined) sheet.getRange(existing.index + 1, 23).setValue(data.notes);
       current.status = data.status !== undefined ? data.status : current.status;
       current.notes  = data.notes  !== undefined ? data.notes  : current.notes;
+      if (becomingPaid && data.remainingBalance !== undefined && data.remainingBalance !== '') {
+        this._postAdvanceLedgerAdjustment(current.staffId, current.orgId, current.period, Number(data.remainingBalance) || 0);
+      }
       return Utils.createResponse('success', 'Payroll record updated successfully', { payroll: current });
     }
 
-    // Status flow is draft → review → approved → paid. Paid triggers the
-    // advance-ledger reconciliation below, so it's only reachable from
-    // approved — a draft/review record hasn't been signed off yet.
-    if (data.status === 'paid' && current.status !== 'approved') {
+    // Draft/review records can't jump straight to paid — the flow is
+    // draft → review → approved → paid.
+    if (data.status === 'paid') {
       return Utils.createResponse('error', 'Only an approved payroll record can be marked paid.');
     }
 
@@ -668,16 +700,10 @@ const Payroll = {
 
     sheet.getRange(existing.index + 1, 1, 1, 37).setValues([this._breakdownToRowValues(breakdown)]);
 
-    // Remaining Balance is a Payroll-Review-only concept — it's never stored
-    // on the Payroll row itself, only reflected into the StaffAdvance ledger
-    // so it's the single source of truth. The ledger is reconciled ONLY when
-    // the record is marked paid (money actually moved) — draft/review/
-    // approved saves store advanceDeducted on the row for the Net Payable
-    // figure but leave the ledger untouched. Re-fetches the LIVE balance
-    // right before diffing so a repeat save is an idempotent no-op.
-    if (data.status === 'paid' && data.remainingBalance !== undefined && data.remainingBalance !== '') {
-      this._postAdvanceLedgerAdjustment(current.staffId, current.orgId, current.period, Number(data.remainingBalance) || 0);
-    }
+    // Note: the advance ledger is reconciled ONLY on the approved→paid
+    // transition (handled in the locked branch above) — draft/review saves
+    // store advanceDeducted on the row for the Net Payable figure but leave
+    // the StaffAdvance ledger untouched until money actually moves.
 
     // Nested under 'payroll' — see upsertFromAttendance for why.
     return Utils.createResponse('success', 'Payroll record updated successfully', { payroll: breakdown });

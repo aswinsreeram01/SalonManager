@@ -256,10 +256,29 @@ const Attendance = {
     const errors = [];
     const now = new Date().toISOString();
 
+    // Once a month's payroll record is approved or paid, its attendance is
+    // frozen — signed-off figures can't silently change underneath. Applies
+    // to every caller (week grid, Quick Entry, staff portal approvals),
+    // regardless of whether they can see the Payroll tab. Cached per
+    // staff+month so a bulk save checks each period once.
+    const lockCache = {};
+    const isLocked = (staffId, dateStr) => {
+      const cacheKey = staffId + '|' + dateStr.slice(0, 7);
+      if (lockCache[cacheKey] === undefined) {
+        lockCache[cacheKey] = Payroll._isPeriodLocked(staffId, dateStr.slice(0, 7));
+      }
+      return lockCache[cacheKey];
+    };
+
     records.forEach(rec => {
       const recDate = rec.date instanceof Date ? Utils.businessDate(rec.date) : String(rec.date).slice(0, 10);
       const key = rec.staffId + '|' + recDate;
       const existingRow = existingMap[key];
+
+      if (isLocked(rec.staffId, recDate)) {
+        errors.push({ staffId: rec.staffId, date: recDate, message: 'Payroll for this month is approved/paid — attendance is locked.' });
+        return;
+      }
 
       // manualOnly: from the Attendance & OT > Quick Entry bulk-edit grid,
       // which only ever edits days with no clock-in/out on record (that grid

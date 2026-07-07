@@ -214,6 +214,12 @@ const StaffPortal = {
     const { staffId, orgId } = data;
     const tz      = Session.getScriptTimeZone();
     const today   = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+
+    // Frozen once this month's payroll is approved/paid — same rule the
+    // admin-side attendance editors enforce.
+    if (Payroll._isPeriodLocked(staffId, today.slice(0, 7))) {
+      return Utils.createResponse('error', 'This month\'s payroll has already been finalized — attendance can no longer be changed. Please contact your manager.');
+    }
     const clockIn  = String(data.clockIn  || '').trim();
     const clockOut = String(data.clockOut || '').trim();
     const notes    = String(data.notes    || '').trim();

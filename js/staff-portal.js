@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbx6kJkyP7v5iyR8uPrjcPlmBOKzT6Y-gqsMq8lEV9g_mjuji8NX7_NHam5h1JTLY9zJmA/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbxVwHZ4Z4B8eLoQomhNTmcd5PvmGyO8MoVdcujtbzbXZNmScyTmIjBxo3bMUfVOKxuc_w/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
@@ -729,17 +729,26 @@ const StaffApp = {
             <div style="font-size:12px;color:#718096;margin-bottom:6px;">
                 Days Absent: <b style="color:#2d3748;">${_esc(this._absentDaysLabel(p))}</b>
             </div>
-            ${section('Earnings')}
-            ${row('Salary', fmt((Number(p.baseSalary) || 0) + (Number(p.allowances) || 0)))}
-            ${row(`Overtime (${p.otHours ?? 0}h)`, fmt(p.otPay))}
-            ${row('Service Incentive', fmt(p.targetIncentive))}
-            ${row('Make Up Incentive', fmt(p.makeupIncentive))}
-            ${row('Products Incentive', fmt(p.productIncentive))}
-            ${row('Tips', fmt(p.tipsOverride))}
-            ${(Number(p.unusedLeavePay) || 0) > 0 ? row('Unused Leave Pay', fmt(p.unusedLeavePay)) : ''}
-            ${section('Deductions')}
-            ${row('Leave Allowance', fmt(p.leaveDeduction), { negative: true })}
-            ${row('Advance Deducted', fmt(p.advanceDeducted), { negative: true })}
+            ${(() => {
+                // Rows render only when the figure is non-zero — a payslip
+                // shouldn't list a page of ₹0.00 lines.
+                const nz = (v, label, opts) => (Number(v) || 0) !== 0 ? row(label, fmt(v), opts) : '';
+                const earnings = [
+                    nz((Number(p.baseSalary) || 0) + (Number(p.allowances) || 0), 'Salary'),
+                    nz(p.otPay, `Overtime (${p.otHours ?? 0}h)`),
+                    nz(p.targetIncentive, 'Service Incentive'),
+                    nz(p.makeupIncentive, 'Make Up Incentive'),
+                    nz(p.productIncentive, 'Products Incentive'),
+                    nz(p.tipsOverride, 'Tips'),
+                    nz(p.unusedLeavePay, 'Unused Leave Pay')
+                ].join('');
+                const deductions = [
+                    nz(p.leaveDeduction, 'Leave Deduction', { negative: true }),
+                    nz(p.advanceDeducted, 'Advance Deducted', { negative: true })
+                ].join('');
+                return (earnings ? section('Earnings') + earnings : '')
+                     + (deductions ? section('Deductions') + deductions : '');
+            })()}
             <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:2px solid #e2e8f0;">
                 <span style="font-size:14px;font-weight:700;">Net Payable</span>
                 <span style="font-size:18px;font-weight:700;color:#667eea;">${fmt(p.netPay)}</span>

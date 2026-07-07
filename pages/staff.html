@@ -351,7 +351,7 @@
                 <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed #e2e8f0;">
                     <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;padding-bottom:10px;">
                         <input type="checkbox" id="hrAttSumPayUnused">
-                        Pay for leaves not taken
+                        Approve Unused Leave Allowance
                     </label>
                     <div class="form-group" style="margin-bottom:0;flex:1;min-width:220px;">
                         <label for="hrAttSumUnusedReason">Reason</label>
@@ -553,9 +553,11 @@
     <!-- Payroll Review Modal -->
     <div id="hrPayReviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
         <div class="modal-box" style="max-width:560px;width:100%;max-height:88vh;overflow-y:auto;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                <h3 id="hrPayReviewTitle" style="color:#2d3748;margin:0;">Payroll Review</h3>
-                <button id="hrPayReviewCloseX" type="button" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a0aec0;line-height:1;padding:2px 6px;">✕</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;">
+                <h3 id="hrPayReviewTitle" style="color:#2d3748;margin:0;flex:1;min-width:0;">Payroll Review</h3>
+                <button id="hrPayRevDownloadBtn" type="button" title="Download payslip (PNG)"
+                        style="background:none;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;cursor:pointer;color:#718096;line-height:1;padding:5px 9px;flex-shrink:0;">⤓</button>
+                <button id="hrPayReviewCloseX" type="button" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a0aec0;line-height:1;padding:2px 6px;flex-shrink:0;">✕</button>
             </div>
             <div id="hrPayReviewMsg" class="message"></div>
 
@@ -598,15 +600,15 @@
                 </div>
             </div>
             <div class="kv-row">
-                <span class="kv-label">Leave Allowance <button type="button" class="calc-help-btn" data-calc-field="leaveDeduct">?</button></span>
+                <span class="kv-label">Leave Deduction <button type="button" class="calc-help-btn" data-calc-field="leaveDeduct">?</button></span>
                 <span class="kv-value" id="hrPayRevLeaveDeduct">—</span>
             </div>
-            <div class="hr-edit-block">
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;grid-column:1/-1;">
+            <div class="hr-edit-block" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px;">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;padding-bottom:10px;">
                     <input type="checkbox" id="hrPayRevPayUnused">
-                    Pay for leaves not taken
+                    Approve Unused Leave Allowance
                 </label>
-                <div class="form-group" style="grid-column:1/-1;">
+                <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
                     <label for="hrPayRevUnusedReason">Reason</label>
                     <input type="text" id="hrPayRevUnusedReason" placeholder="Why the offs weren't taken">
                 </div>
@@ -656,18 +658,12 @@
                 </div>
             </div>
 
-            <div class="hr-edit-block">
-                <div class="form-group">
-                    <label for="hrPayRevStatus">Status</label>
-                    <select id="hrPayRevStatus">
-                        <option value="draft">draft</option>
-                        <option value="review">review</option>
-                        <option value="approved">approved</option>
-                        <option value="paid">paid</option>
-                        <option value="voided">voided</option>
-                    </select>
+            <div class="hr-edit-block" style="display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px;">
+                <div style="padding-bottom:6px;">
+                    <div style="font-size:12px;font-weight:500;color:#4a5568;margin-bottom:6px;">Status</div>
+                    <span id="hrPayRevStatusBadge">—</span>
                 </div>
-                <div class="form-group" style="grid-column:span 2;">
+                <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
                     <label for="hrPayRevNotes">Notes</label>
                     <input type="text" id="hrPayRevNotes" placeholder="Optional">
                 </div>
@@ -678,11 +674,15 @@
                     <span style="font-size:15px;font-weight:600;color:#2d3748;">Net Payable <button type="button" class="calc-help-btn" data-calc-field="netPay">?</button></span>
                     <span id="hrPayRevNetPay" style="font-size:20px;font-weight:700;color:#667eea;">—</span>
                 </div>
-                <div class="btn-group" style="margin:0;flex-wrap:wrap;">
-                    <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button">Calculate</button>
-                    <button class="btn btn-secondary" id="hrPayRevDownloadBtn" type="button">Download Payslip</button>
+                <div class="btn-group" style="margin:0;flex-wrap:wrap;align-items:center;">
+                    <button class="btn btn-primary" id="hrPayRevSendReviewBtn" type="button" style="display:none;">Send for Review</button>
+                    <button class="btn btn-primary" id="hrPayRevCalcBtn" type="button" style="display:none;">Calculate &amp; Save</button>
+                    <button class="btn btn-primary" id="hrPayRevApproveBtn" type="button" style="display:none;background:#2c5282;">Approve (Override)</button>
                     <button class="btn btn-primary" id="hrPayRevPayBtn" type="button" style="display:none;background:#276749;" title="Opens your UPI app (mobile only)">Pay via UPI</button>
+                    <button class="btn btn-primary" id="hrPayRevMarkPaidBtn" type="button" style="display:none;background:#22543d;">Mark as Paid</button>
+                    <button class="btn btn-secondary" id="hrPayRevBackBtn" type="button" style="display:none;" title="Move back to the previous status">← Back</button>
                     <button class="btn btn-secondary" id="hrPayRevCloseBtn" type="button">Close</button>
+                    <button id="hrPayRevVoidBtn" type="button" style="display:none;background:none;border:none;color:#c53030;font-size:12px;cursor:pointer;text-decoration:underline;padding:6px 8px;margin-left:auto;">Void</button>
                 </div>
             </div>
         </div>

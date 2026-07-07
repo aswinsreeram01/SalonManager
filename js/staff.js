@@ -70,6 +70,15 @@ const Staff = {
     document.getElementById('hrPayRevCalcBtn').addEventListener('click', () => this.calculatePayrollReview());
     document.getElementById('hrPayRevDownloadBtn').addEventListener('click', () => this.downloadPayslip());
     document.getElementById('hrPayRevPayBtn').addEventListener('click', () => this.payViaUpi());
+    document.getElementById('hrPayRevSendReviewBtn').addEventListener('click', () => this._payrollStatusTransition('review'));
+    document.getElementById('hrPayRevApproveBtn').addEventListener('click', () => this._payrollStatusTransition('approved'));
+    document.getElementById('hrPayRevMarkPaidBtn').addEventListener('click', () => this._payrollStatusTransition('paid'));
+    document.getElementById('hrPayRevBackBtn').addEventListener('click', () => this._payrollStatusBack());
+    document.getElementById('hrPayRevVoidBtn').addEventListener('click', () => {
+      if (confirm('Void this payroll record? It will drop out of the normal workflow.')) {
+        this._payrollStatusTransition('voided');
+      }
+    });
     document.getElementById('hrPayRevCloseBtn').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayReviewCloseX').addEventListener('click', () => this.closePayrollReview());
     document.getElementById('hrPayRevExplainClose').addEventListener('click', () => {
@@ -1321,7 +1330,6 @@ const Staff = {
     document.getElementById('hrPayRevEligOffs').value     = r.eligibleOffs ?? '';
     document.getElementById('hrPayRevPayUnused').checked  = !!r.payUnusedLeaves;
     document.getElementById('hrPayRevUnusedReason').value = r.unusedLeavesReason || '';
-    document.getElementById('hrPayRevStatus').value       = r.status || 'draft';
     document.getElementById('hrPayRevNotes').value        = r.notes || '';
     document.getElementById('hrPayRevAdvDeduct').value = '';
     document.getElementById('hrPayRevRemainingBalance').value = '';
@@ -1356,15 +1364,28 @@ const Staff = {
     document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - deduct) * 100) / 100;
   },
 
-  // Lock state + action-button visibility for the current record: numeric
-  // inputs disabled when paid, and Pay via UPI shown only for APPROVED
-  // records (a draft hasn't been reconciled; a paid one is already settled).
+  // Workflow-driven button visibility + field locking. The status flow is
+  // draft → review → approved → paid, with Back walking one step backwards
+  // and Void available from any non-draft state. Figures are editable ONLY
+  // in review — the only status with a save button (Calculate & Save).
   _updatePayReviewActions(r) {
-    this._setPayReviewLock(r.status === 'paid');
+    const status = r.status || 'draft';
+    this._setPayReviewLock(status !== 'review');
+
+    document.getElementById('hrPayRevStatusBadge').innerHTML = this._payrollStatusBadge(status);
+
+    const show = (id, on) => { document.getElementById(id).style.display = on ? '' : 'none'; };
+    show('hrPayRevSendReviewBtn', status === 'draft');
+    show('hrPayRevCalcBtn',       status === 'review');
+    show('hrPayRevApproveBtn',    status === 'review');
+    show('hrPayRevMarkPaidBtn',   status === 'approved');
+    show('hrPayRevBackBtn',       ['review', 'approved', 'paid'].includes(status));
+    show('hrPayRevVoidBtn',       ['review', 'approved', 'paid'].includes(status));
+
     const payBtn = document.getElementById('hrPayRevPayBtn');
     const staffMem = (this._staff || []).find(s => s.id === r.staffId);
     const upiId = staffMem ? String(staffMem.upiId || '').trim() : '';
-    if (r.status === 'approved') {
+    if (status === 'approved') {
       const payable = (Number(r.netPay) || 0) > 0;
       payBtn.style.display = '';
       payBtn.disabled = !upiId || !payable;
@@ -1374,6 +1395,47 @@ const Staff = {
     } else {
       payBtn.style.display = 'none';
     }
+  },
+
+  // Status-only transition — deliberately does NOT save pending form edits
+  // (Calculate & Save is the only save path). Marking paid additionally
+  // sends the SAVED row's remaining balance so the advance ledger reconciles
+  // from what was signed off, never from unsaved edits on screen.
+  async _payrollStatusTransition(newStatus) {
+    const payrollId = this._payReviewId;
+    const r = (this._payrollRows || []).find(x => x.payrollId === payrollId);
+    if (!r) return;
+    const msgEl = document.getElementById('hrPayReviewMsg');
+
+    const data = { payrollId, status: newStatus };
+    if (newStatus === 'paid') {
+      const rowDeducted = Number(r.advanceDeducted) || 0;
+      data.remainingBalance = Math.round(((this._payRevAdvanceBase || 0) - rowDeducted) * 100) / 100;
+    }
+
+    try {
+      const res = await API.updatePayrollRow(data);
+      if (res.status === 'success' && res.payroll) {
+        const row = res.payroll;
+        const idx = (this._payrollRows || []).findIndex(x => x.payrollId === payrollId);
+        if (idx >= 0) this._payrollRows[idx] = row;
+        this._renderPayrollReviewReadonly(row);
+        this._updatePayReviewActions(row);
+        this._renderPayrollTable();
+        this._showInlineMsg(msgEl, `Status changed to ${row.status}.`, 'success');
+      } else {
+        this._showInlineMsg(msgEl, res.message || 'Error changing status', 'error');
+      }
+    } catch (err) {
+      this._showInlineMsg(msgEl, 'Network error changing status', 'error');
+    }
+  },
+
+  _payrollStatusBack() {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    if (!r) return;
+    const prev = { review: 'draft', approved: 'review', paid: 'approved' }[r.status];
+    if (prev) this._payrollStatusTransition(prev);
   },
 
   // A paid record is final — the server rejects numeric edits, so gray the
@@ -1524,7 +1586,7 @@ const Staff = {
         const perDay = r.payableDays ? r.baseSalary / r.payableDays : 0;
         return `Excess Leaves = max(0, Days Off (${r.totalDaysOff}) − Eligible Offs (${r.eligibleOffs})) = ${excess}\n`
           + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Payable Days (${r.payableDays}) = ${fmt(perDay)}\n\n`
-          + `Leave Allowance = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
+          + `Leave Deduction = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
       }
 
       case 'unusedLeavePay': {
@@ -1532,7 +1594,7 @@ const Staff = {
         const calDays = (uyr && umo) ? new Date(uyr, umo, 0).getDate() : 30;
         const unused = Math.max(0, (r.eligibleOffs || 0) - (r.totalDaysOff || 0));
         if (!r.payUnusedLeaves) {
-          return `"Pay for leaves not taken" is not ticked for this record, so Unused Leave Pay = 0.\n\n`
+          return `"Approve Unused Leave Allowance" is not ticked for this record, so Unused Leave Pay = 0.\n\n`
             + `If ticked, it would pay Unused Offs (max(0, Eligible Offs (${r.eligibleOffs}) − Days Off (${r.totalDaysOff})) = ${unused}) `
             + `× Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}).`;
         }
@@ -1599,7 +1661,7 @@ const Staff = {
       }
 
       case 'netPay':
-        return `Net Payable = Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))}) − Leave Allowance (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
+        return `Net Payable = Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))}) − Leave Deduction (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
           + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) + Unused Leave Pay (${fmt(r.unusedLeavePay)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
           + `= ${fmt(r.netPay)}`;
 
@@ -1717,7 +1779,7 @@ const Staff = {
       ${(Number(r.unusedLeavePay) || 0) > 0 ? row('Unused Leave Pay', fmt(r.unusedLeavePay)) : ''}
 
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:14px 0 4px;">Deductions</div>
-      ${row('Leave Allowance', fmt(r.leaveDeduction), { negative: true })}
+      ${row('Leave Deduction', fmt(r.leaveDeduction), { negative: true })}
       ${row('Advance Deducted', fmt(r.advanceDeducted), { negative: true })}
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:3px solid #667eea;">
@@ -1746,15 +1808,9 @@ const Staff = {
     // editable from this modal (Quick Entry owns them) — deliberately
     // omitted here so update_payroll_row falls back to preserving whatever
     // is already on the row, rather than being sent as blanks and clearing them.
-    // A paid record only sends status/notes — the server rejects anything
-    // else, and the numeric inputs are disabled anyway.
-    const current = (this._payrollRows || []).find(x => x.payrollId === payrollId);
-    const isPaid = current && current.status === 'paid';
-    const data = isPaid ? {
-      payrollId,
-      status: document.getElementById('hrPayRevStatus').value,
-      notes:  document.getElementById('hrPayRevNotes').value.trim()
-    } : {
+    // Status is deliberately NOT sent — Calculate & Save only exists in
+    // review status, and transitions happen via the workflow buttons.
+    const data = {
       payrollId,
       payableDays:      val('hrPayRevPayableDays'),
       eligibleOffs:     val('hrPayRevEligOffs'),
@@ -1762,7 +1818,6 @@ const Staff = {
       remainingBalance: val('hrPayRevRemainingBalance'),
       payUnusedLeaves:  document.getElementById('hrPayRevPayUnused').checked,
       unusedLeavesReason: document.getElementById('hrPayRevUnusedReason').value.trim(),
-      status: document.getElementById('hrPayRevStatus').value,
       notes:  document.getElementById('hrPayRevNotes').value.trim()
     };
 
@@ -1778,7 +1833,6 @@ const Staff = {
         const idx = (this._payrollRows || []).findIndex(x => x.payrollId === payrollId);
         if (idx >= 0) this._payrollRows[idx] = row;
         this._renderPayrollReviewReadonly(row);
-        document.getElementById('hrPayRevStatus').value = row.status || 'draft';
         this._updatePayReviewActions(row);
         document.getElementById('hrPayRevExplainWrap').style.display = 'none';
         this._renderPayrollTable();
