@@ -151,7 +151,7 @@
 <tr><td>Staff</td><td><code>get_staff</code>, <code>add_staff</code>, <code>update_staff</code>, <code>delete_staff</code></td><td><span class="pill adm">ADM</span></td></tr>
 <tr><td>Incentive Profiles</td><td><code>get_incentive_profiles</code>, <code>add_incentive_profile</code>, <code>update_incentive_profile</code>, <code>delete_incentive_profile</code></td><td><span class="pill adm">ADM</span></td></tr>
 <tr><td>Shifts &amp; Schedule</td><td><code>get_shifts</code>, <code>save_shift</code>, <code>get_attendance</code>, <code>save_attendance</code>, <code>get_week_schedule</code>, <code>save_week_schedule</code>, <code>get_allocations</code>, <code>save_allocation</code></td><td><span class="pill adm">ADM</span></td></tr>
-<tr><td>Advances / Incentives</td><td><code>get_advances</code>, <code>add_advance</code>, <code>save_weekly_incentive</code>, <code>get_weekly_incentives</code></td><td><span class="pill adm">ADM</span></td></tr>
+<tr><td>Advances</td><td><code>get_advances</code>, <code>add_advance</code></td><td><span class="pill adm">ADM</span></td></tr>
 <tr><td>HR Approvals</td><td><code>get_pending_attendance</code>, <code>approve_attendance</code>, <code>reject_attendance</code>, <code>get_pending_advances</code>, <code>approve_advance</code>, <code>disburse_advance</code>, <code>reject_advance</code></td><td><span class="pill adm">ADM</span></td></tr>
 <tr><td>Payroll</td><td><code>calculate_payroll</code>, <code>save_payroll</code>, <code>get_payroll</code>, <code>update_payroll_status</code></td><td><span class="pill adm">ADM</span></td></tr>
 <tr><td>Org / Access</td><td><code>get_organizations</code>…, <code>get_users</code>…, <code>get_roles</code>…, <code>get_permissions</code>, <code>get_user_permissions</code>, <code>update_permissions</code></td><td><span class="pill adm">ADM</span></td></tr>
@@ -223,7 +223,6 @@
 <tr><td><strong>WeeklySchedule</strong> (6)</td><td>scheduleId, staffId, weekStart, shiftId, offDays, orgId</td></tr>
 <tr><td><strong>StaffAttendance</strong> (13)</td><td>attendanceId, staffId, date, shiftId, clockIn, clockOut, hoursWorked, otHours, dayStatus, notes, createdAt, orgId, status</td></tr>
 <tr><td><strong>StaffAdvance</strong> (12)</td><td>advanceId, staffId, date, type, amount, notes, runningBalance, createdAt, orgId, status, approvedAmount, paymentMode</td></tr>
-<tr><td><strong>WeeklyIncentive</strong> (12)</td><td>snapshotId, staffId, weekStart, weekEnd, revenueBase, targetIncentive, directIncentive, productIncentive, totalIncentive, status, calculatedAt, orgId</td></tr>
 <tr><td><strong>Payroll</strong> (25)</td><td>payrollId, staffId, staffName, period, baseSalary, payableDays, eligibleOffs, totalDaysOff, excessLeaves, leaveDeduction, adjustedBaseSalary, allowances, otHours, otPay, serviceIncentive, productIncentive, makeupIncentive, targetIncentive, totalIncentive, advanceDeducted, netPay, status, notes, createdAt, orgId</td></tr>
 </table></div>
 
@@ -348,7 +347,7 @@ R ≥ L2            → L1·X% + (L2−L1)·Y% + (R−L2)·Z%</code></pre>
 <li><strong>Weekend weighting</strong> (peak days = Fri/Sat/Sun): absent on a peak day counts as <strong>2 days off</strong> (weekday = 1); half-day peak = 1 day (weekday = 0.5).</li>
 <li><code>excessLeaves = max(0, totalDaysOff − eligibleOffs)</code>; <code>leaveDeduction = excessLeaves × (salary / payableDays)</code>; <code>adjustedBaseSalary = salary − leaveDeduction</code>.</li>
 <li><code>otPay = otHours × profile.otHourlyRate</code>.</li>
-<li>Incentives: if <code>targetPeriod === 'weekly'</code>, sum WeeklyIncentive snapshots in range; else compute monthly from bills (service revenue, product unit-incentives, direct-incentive "makeup", and the tiered target incentive).</li>
+<li>Incentives: computed monthly from bills (service revenue, product unit-incentives, direct-incentive "makeup", and the tiered target incentive).</li>
 </ul>
 <pre><code>totalIncentive = targetIncentive + directIncentive + productIncentive
 netPay = adjustedBaseSalary + allowances + otPay + totalIncentive − advanceDeducted</code></pre>

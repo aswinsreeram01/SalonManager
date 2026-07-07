@@ -10,11 +10,6 @@
 //
 // StaffAdvance sheet columns (0-based):
 // advanceId(0), staffId(1), date(2), type(3), amount(4), notes(5), runningBalance(6), createdAt(7)
-//
-// WeeklyIncentive sheet columns (0-based):
-// snapshotId(0), staffId(1), weekStart(2), weekEnd(3), revenueBase(4),
-// targetIncentive(5), directIncentive(6), productIncentive(7), totalIncentive(8),
-// status(9), calculatedAt(10)
 
 // Safely extract HH:mm from a cell value that may be a Date object or a string.
 function _fmtTime(val) {
@@ -453,90 +448,5 @@ const Attendance = {
     ]);
 
     return Utils.createResponse('success', 'Advance recorded successfully', { advanceId, runningBalance: newBalance });
-  },
-
-  // ── Weekly Incentive ──────────────────────────────────────────────────────
-
-  saveWeeklyIncentive(data) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WeeklyIncentive');
-    if (!sheet) return Utils.createResponse('error', 'WeeklyIncentive sheet not found');
-
-    const targetIncentive  = Number(data.targetIncentive)  || 0;
-    const directIncentive  = Number(data.directIncentive)  || 0;
-    const productIncentive = Number(data.productIncentive) || 0;
-    const totalIncentive   = targetIncentive + directIncentive + productIncentive;
-    const now = new Date().toISOString();
-
-    // Upsert: look for existing row with same staffId + weekStart
-    const rows = sheet.getDataRange().getValues();
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i][0]) continue;
-      const ws = rows[i][2] instanceof Date ? Utils.businessDate(rows[i][2]) : String(rows[i][2]).slice(0, 10);
-      if (rows[i][1] === data.staffId && ws === data.weekStart) {
-        sheet.getRange(i + 1, 4).setValue(data.weekEnd          || '');
-        sheet.getRange(i + 1, 5).setValue(data.revenueBase      || '');
-        sheet.getRange(i + 1, 6).setValue(targetIncentive);
-        sheet.getRange(i + 1, 7).setValue(directIncentive);
-        sheet.getRange(i + 1, 8).setValue(productIncentive);
-        sheet.getRange(i + 1, 9).setValue(totalIncentive);
-        sheet.getRange(i + 1, 10).setValue(data.status          || 'draft');
-        sheet.getRange(i + 1, 11).setValue(now);
-        return Utils.createResponse('success', 'Weekly incentive updated', { snapshotId: rows[i][0] });
-      }
-    }
-
-    const snapshotId = 'WKI' + Date.now() + Math.random().toString(36).substr(2, 4);
-    sheet.appendRow([
-      snapshotId,
-      data.staffId,
-      data.weekStart       || '',
-      data.weekEnd         || '',
-      data.revenueBase     || '',
-      targetIncentive,
-      directIncentive,
-      productIncentive,
-      totalIncentive,
-      data.status          || 'draft',
-      now,
-      data.orgId           || ''
-    ]);
-
-    return Utils.createResponse('success', 'Weekly incentive saved', { snapshotId });
-  },
-
-  getWeeklyIncentives(data) {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('WeeklyIncentive');
-    if (!sheet) return Utils.createResponse('success', 'Weekly incentives retrieved', { weeklyIncentives: [] });
-
-    const rows = sheet.getDataRange().getValues();
-    const filterStaffId = (data && data.staffId)  ? data.staffId  : null;
-    const fromDate      = (data && data.fromDate)  ? data.fromDate : null;
-    const weeklyIncentives = [];
-
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i][0]) continue;
-      if (filterStaffId && rows[i][1] !== filterStaffId) continue;
-
-      const ws = rows[i][2] instanceof Date ? Utils.businessDate(rows[i][2]) : String(rows[i][2]).slice(0, 10);
-      if (fromDate && ws < fromDate) continue;
-
-      const we = rows[i][3] instanceof Date ? Utils.businessDate(rows[i][3]) : String(rows[i][3]).slice(0, 10);
-
-      weeklyIncentives.push({
-        snapshotId:        rows[i][0],
-        staffId:           rows[i][1],
-        weekStart:         ws,
-        weekEnd:           we,
-        revenueBase:       rows[i][4],
-        targetIncentive:   Number(rows[i][5]) || 0,
-        directIncentive:   Number(rows[i][6]) || 0,
-        productIncentive:  Number(rows[i][7]) || 0,
-        totalIncentive:    Number(rows[i][8]) || 0,
-        status:            rows[i][9],
-        calculatedAt:      rows[i][10]
-      });
-    }
-
-    return Utils.createResponse('success', 'Weekly incentives retrieved', { weeklyIncentives });
   }
 };

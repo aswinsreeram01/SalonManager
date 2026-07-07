@@ -73,9 +73,6 @@ const SHEET_SCHEMA = {
                         'hoursWorked','otHours','dayStatus','notes','createdAt','orgId','status'],
   StaffAdvance:        ['advanceId','staffId','date','type','amount','notes','runningBalance','createdAt','orgId',
                         'status','approvedAmount','paymentMode'],
-  WeeklyIncentive:     ['snapshotId','staffId','weekStart','weekEnd','revenueBase',
-                        'targetIncentive','directIncentive','productIncentive',
-                        'totalIncentive','status','calculatedAt','orgId'],
   Payroll:             ['payrollId','staffId','staffName','period','baseSalary',
                         'payableDays','eligibleOffs','totalDaysOff','excessLeaves',
                         'leaveDeduction','adjustedBaseSalary','allowances','otHours','otPay',
@@ -99,7 +96,7 @@ const SHEET_GROUPS = {
   'Appointments':        ['Appointments'],
   'Expenses':            ['Expenses'],
   'HR':                  ['Staff','IncentiveProfiles','Shifts','StaffShiftAllocation','WeeklySchedule',
-                          'StaffAttendance','StaffAdvance','WeeklyIncentive','Payroll'],
+                          'StaffAttendance','StaffAdvance','Payroll'],
   'Settings':            ['OrgSettings']
 };
 
@@ -151,7 +148,6 @@ const SHEET_DESCRIPTIONS = {
   WeeklySchedule:      'Week-level shift assignments and planned off days per staff member, used to drive attendance tracking and HR approvals.',
   StaffAttendance:     'Daily attendance log — clock-in/out times, hours worked, overtime, day status (present / absent / half-day), and manager approval.',
   StaffAdvance:        'Salary advance requests with approval status, disbursement mode, and a running balance per staff member.',
-  WeeklyIncentive:     'Calculated weekly incentive snapshots per staff — revenue achieved, and the breakdown of target, direct, and product incentives.',
   Payroll:             'Monthly payroll runs with a full pay-slip breakdown: base salary, days worked, deductions, OT pay, incentives, advance recovery, and net pay.',
 
   // Settings

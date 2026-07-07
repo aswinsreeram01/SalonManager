@@ -313,7 +313,6 @@ const Staff = {
         document.getElementById('hrStaffType').value           = s.staffType      || '';
         document.getElementById('hrStaffNotes').value           = s.specialization || '';
         document.getElementById('hrStaffStatus').value         = s.status         || 'active';
-        document.getElementById('hrStaffTargetPeriod').value   = s.targetPeriod   || '';
         recordOrgId = s.orgId || recordOrgId;
       }
     }
@@ -354,7 +353,6 @@ const Staff = {
       profileId:         existing ? existing.profileId : '',
       specialization:    document.getElementById('hrStaffNotes').value.trim(),
       status:            document.getElementById('hrStaffStatus').value,
-      targetPeriod:      document.getElementById('hrStaffTargetPeriod').value,
       incentiveStructure: ''
     };
     if (this._editingId) data.id = this._editingId;
@@ -1509,22 +1507,15 @@ const Staff = {
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
     document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(r.unusedLeavePay);
 
-    // Weekly-target staff earn incentives from approved weekly snapshots —
-    // the monthly revenue figures don't exist for them, so don't imply ₹0.
-    const staffMem = (this._staff || []).find(s => s.id === r.staffId);
-    const isWeekly = staffMem && staffMem.targetPeriod === 'weekly';
-
     document.getElementById('hrPayRevOt').textContent = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
-    document.getElementById('hrPayRevSvcValueDisplay').textContent =
-      isWeekly ? '— (weekly)' : this._fmt(r.serviceIncentive);
+    document.getElementById('hrPayRevSvcValueDisplay').textContent = this._fmt(r.serviceIncentive);
     document.getElementById('hrPayRevServiceIncentive').textContent = this._fmt(r.targetIncentive);
     // Make Up Value only has a single revenue figure to show when it was a
     // manual entry — the bill-scanned path sums (line revenue x pct) per
     // Flat-mode Service Group independently, so there's no one number to
     // display as "the" revenue used in that case.
     document.getElementById('hrPayRevMakeupValueDisplay').textContent =
-      (r.makeupValue !== '' && r.makeupValue != null) ? this._fmt(r.makeupValue)
-        : (isWeekly ? '— (weekly)' : '— (from billing)');
+      (r.makeupValue !== '' && r.makeupValue != null) ? this._fmt(r.makeupValue) : '— (from billing)';
     document.getElementById('hrPayRevMakeupIncentive').textContent = this._fmt(r.makeupIncentive);
     document.getElementById('hrPayRevProdCountDisplay').textContent = (r.productCount !== '' && r.productCount != null) ? r.productCount : '—';
     document.getElementById('hrPayRevProductsIncentive').textContent = this._fmt(r.productIncentive);
@@ -1612,11 +1603,6 @@ const Staff = {
       }
 
       case 'serviceIncentive': {
-        if (staff && staff.targetPeriod === 'weekly') {
-          return `This staff member is on a WEEKLY target period — Service Incentive is the sum of their `
-            + `approved weekly incentive snapshots for ${r.period}, not the monthly L1/L2 slab calculation.\n\n`
-            + `Current value: ${fmt(r.targetIncentive)}`;
-        }
         const revenue = r.serviceIncentive || 0;
         let targetExplain = 'No Comp Plan found for this staff member — Service Incentive = 0.';
         if (profile) {
@@ -1638,11 +1624,6 @@ const Staff = {
       }
 
       case 'makeupIncentive': {
-        if (staff && staff.targetPeriod === 'weekly') {
-          return `This staff member is on a WEEKLY target period — Make Up Incentive is the sum of their `
-            + `approved weekly direct-incentive snapshots for ${r.period}.\n\n`
-            + `Current value: ${fmt(r.makeupIncentive)}`;
-        }
         if (r.makeupValue !== '' && r.makeupValue != null) {
           const flatPct = profile ? (profile.flatIncentivePct || 0) : 0;
           return `Make Up Value is a manually entered REVENUE figure, same as Service Value — not a final amount.\n`

@@ -201,7 +201,6 @@ const Payroll = {
     const salary       = Number(staffRow[9])  || 0;
     const allowances   = Number(staffRow[10]) || 0;
     const profileId    = staffRow[15] || '';
-    const targetPeriod = staffRow[16] || 'monthly';
     const orgId        = staffRow[17] || '';
 
     let profile = {
@@ -235,7 +234,7 @@ const Payroll = {
       }
     }
 
-    return { staffName, salary, allowances, profileId, targetPeriod, orgId, profile };
+    return { staffName, salary, allowances, profileId, orgId, profile };
   },
 
   // Revenue for the target-incentive slabs and the makeup incentive $ amount.
@@ -363,7 +362,7 @@ const Payroll = {
 
   _buildBreakdown(inputs) {
     const {
-      staffId, staffName, period, orgId, salary, allowances, profile, targetPeriod,
+      staffId, staffName, period, orgId, salary, allowances, profile,
       payableDays, eligibleOffsInput, totalDaysOff, otHours,
       weekdayAbsentDates, weekendAbsentDates, weekdayHalfDayDates, weekendHalfDayDates,
       longAbsenceExcludedDays,
@@ -382,37 +381,10 @@ const Payroll = {
     const adjustedBaseSalary = salary - leaveDeduction;
     const otPay              = otHours * profile.otHourlyRate;
 
-    let targetIncentive = 0;
-    let serviceRevenue  = 0;
-    let makeupIncentive = 0;
-
-    if (targetPeriod === 'weekly') {
-      // Unaffected — sums pre-approved WeeklyIncentive snapshot rows.
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const [yr, mo] = period.split('-').map(Number);
-      const fromStr = period + '-01';
-      const lastDay = new Date(yr, mo, 0).getDate();
-      const toStr   = period + '-' + String(lastDay).padStart(2, '0');
-      const wkiSheet = ss.getSheetByName('WeeklyIncentive');
-      let directIncentive = 0;
-      if (wkiSheet) {
-        const wkiRows = wkiSheet.getDataRange().getValues();
-        for (let i = 1; i < wkiRows.length; i++) {
-          if (!wkiRows[i][0]) continue;
-          if (wkiRows[i][1] !== staffId) continue;
-          const ws = wkiRows[i][2] instanceof Date ? Utils.businessDate(wkiRows[i][2]) : String(wkiRows[i][2]).slice(0, 10);
-          if (ws < fromStr || ws > toStr) continue;
-          targetIncentive  += Number(wkiRows[i][5]) || 0;
-          directIncentive  += Number(wkiRows[i][6]) || 0;
-        }
-      }
-      makeupIncentive = directIncentive;
-    } else {
-      const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue, orgId);
-      serviceRevenue  = rev.revenue;
-      makeupIncentive = rev.makeupIncentive;
-      targetIncentive = Payroll._computeTargetIncentive(serviceRevenue, profile, salary);
-    }
+    const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue, orgId);
+    const serviceRevenue  = rev.revenue;
+    const makeupIncentive = rev.makeupIncentive;
+    const targetIncentive = Payroll._computeTargetIncentive(serviceRevenue, profile, salary);
 
     // Product Count is a manual entry (Quick Entry) with no specific Product
     // Group to pull a per-unit rate from, so — same pattern as Make Up Value
@@ -575,7 +547,6 @@ const Payroll = {
     const breakdown = this._buildBreakdown({
       staffId, staffName: info.staffName, period, orgId: info.orgId,
       salary: info.salary, allowances: info.allowances, profile: info.profile,
-      targetPeriod: info.targetPeriod,
       payableDays,
       eligibleOffsInput: existingBreakdown ? existingBreakdown.eligibleOffs : '',
       totalDaysOff: attDerived.totalDaysOff, otHours: attDerived.otHours,
@@ -676,7 +647,6 @@ const Payroll = {
       // Fresh salary/allowances (like the profile) so a Staff Salary edit
       // takes effect on the next Calculate, not only on a Quick Entry re-save.
       salary: info.salary, allowances: info.allowances, profile: info.profile,
-      targetPeriod: info.targetPeriod,
       payableDays,
       eligibleOffsInput: data.eligibleOffs !== undefined ? data.eligibleOffs : current.eligibleOffs,
       totalDaysOff: current.totalDaysOff, otHours: current.otHours,

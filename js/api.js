@@ -361,10 +361,6 @@ const API = {
     getAdvances(staffId) { return this.call('get_advances', { staffId }); },
     addAdvance(data) { return this.call('add_advance', data); },
 
-    // Weekly Incentives
-    saveWeeklyIncentive(data) { return this.call('save_weekly_incentive', data); },
-    getWeeklyIncentives(params) { return this.call('get_weekly_incentives', params || {}); },
-
     // Payroll
     getPayroll(params) { return this.call('get_payroll', params || {}); },
     resetStaffPin(id) { return this.call('reset_staff_pin', { id }); },

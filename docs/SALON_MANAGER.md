@@ -78,7 +78,7 @@ Browser (GitHub Pages)                    GAS Web App
 - **publicActions (no session):** `login, request_password_reset, validate_reset_token, reset_password, customer_login, get_customer_history, get_customer_loyalty, get_loyalty_ledger`
 - Everything else requires an admin session.
 
-Full action catalogue is in the [Technical Design](technical-design.html#actions). Highlights by domain: Auth, Customers, Loyalty, Bills, Services/ServiceGroups, PriceBooks (+items), Products (+stock/receive/audit), ProductGroups, Vendors, PurchaseOrders, Appointments, Expenses, Staff, IncentiveProfiles, Shifts/Schedule/Allocations, Advances/WeeklyIncentive, HRApprovals, Payroll, Organizations/Users/Roles/Permissions, OrgSettings, Setup, and the Staff Portal set.
+Full action catalogue is in the [Technical Design](technical-design.html#actions). Highlights by domain: Auth, Customers, Loyalty, Bills, Services/ServiceGroups, PriceBooks (+items), Products (+stock/receive/audit), ProductGroups, Vendors, PurchaseOrders, Appointments, Expenses, Staff, IncentiveProfiles, Shifts/Schedule/Allocations, Advances, HRApprovals, Payroll, Organizations/Users/Roles/Permissions, OrgSettings, Setup, and the Staff Portal set.
 
 ---
 
@@ -130,7 +130,6 @@ Columns are 0-based and **order matters** (GAS reads by position). Source of tru
 - **WeeklySchedule** (6): scheduleId, staffId, weekStart, shiftId, offDays, orgId
 - **StaffAttendance** (13): attendanceId, staffId, date, shiftId, clockIn, clockOut, hoursWorked, otHours, dayStatus, notes, createdAt, orgId, status
 - **StaffAdvance** (12): advanceId, staffId, date, type, amount, notes, runningBalance, createdAt, orgId, status, approvedAmount, paymentMode
-- **WeeklyIncentive** (12): snapshotId, staffId, weekStart, weekEnd, revenueBase, targetIncentive, directIncentive, productIncentive, totalIncentive, status, calculatedAt, orgId
 - **Payroll** (25): payrollId, staffId, staffName, period, baseSalary, payableDays, eligibleOffs, totalDaysOff, excessLeaves, leaveDeduction, adjustedBaseSalary, allowances, otHours, otPay, serviceIncentive, productIncentive, makeupIncentive, targetIncentive, totalIncentive, advanceDeducted, netPay, status, notes, createdAt, orgId
 
 **Settings**

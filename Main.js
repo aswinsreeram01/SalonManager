@@ -115,8 +115,6 @@ const ACTION_PERMISSIONS = {
   save_attendance: [['staff:hr-attendance', 'staff:hr-quickentry'], 'update'],
   get_week_schedule: ['staff:hr-attendance', 'read'],
   save_week_schedule: ['staff:hr-attendance', 'update'],
-  save_weekly_incentive: ['staff:hr-payroll', 'update'],
-  get_weekly_incentives: ['staff:hr-payroll', 'read'],
   upsert_payroll_from_attendance: ['staff:hr-quickentry', 'update'],
   // Deliberately their own permission, not OR'd with staff:hr-payroll — these
   // only return specific fields (never the full breakdown), so a
@@ -488,8 +486,6 @@ function doPost(e) {
       case 'add_advance': return Attendance.addAdvance(data);
 
       // Weekly Incentive
-      case 'save_weekly_incentive': return Attendance.saveWeeklyIncentive(data);
-      case 'get_weekly_incentives': return Attendance.getWeeklyIncentives(data);
 
       // HR Approvals
       case 'get_pending_attendance': return HRApprovals.getPendingAttendance(data);
