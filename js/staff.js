@@ -1360,6 +1360,12 @@ const Staff = {
     const deduct = rowDeducted > 0 ? rowDeducted : this._payRevAdvanceBase;
     document.getElementById('hrPayRevAdvDeduct').value = deduct;
     document.getElementById('hrPayRevRemainingBalance').value = Math.round((this._payRevAdvanceBase - deduct) * 100) / 100;
+
+    // Recompute Leave Deduction / Unused Leave Pay / Net Payable from the
+    // (trustworthy) input fields on open, for anything not yet finalized —
+    // so a stale or corrupt stored figure can never display, and Calculate &
+    // Save overwrites it. A paid record shows its signed-off figures as-is.
+    if (r.status !== 'paid') this._recalcLeaveAllowancePreview();
   },
 
   // Workflow-driven button visibility + field locking. The status flow is
