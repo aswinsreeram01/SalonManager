@@ -1459,28 +1459,57 @@ const Staff = {
       const remain = parseFloat(remainEl.value) || 0;
       deductEl.value = Math.round((base - remain) * 100) / 100;
     }
+    // Advance deduction feeds Net Payable — keep the live total in sync.
+    this._recalcLeaveAllowancePreview();
   },
 
-  // Leave Allowance recalculates live in the browser as Eligible Offs or
-  // Payable Days change — mirrors the exact server formula so what's shown
-  // here matches what Calculate will persist, without waiting for a round trip.
+  // Leave Deduction, Unused Leave Pay, and Net Payable recalculate live in
+  // the browser as the editable fields change — mirroring the server formulas
+  // so what's shown matches what Calculate & Save will persist, without
+  // waiting for a round trip. Returns the computed figures so the Net Payable
+  // preview can reuse them.
   _recalcLeaveAllowancePreview() {
     const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
     if (!r) return;
     const payableDays = parseFloat(document.getElementById('hrPayRevPayableDays').value) || 0;
     const eligibleOffs = parseFloat(document.getElementById('hrPayRevEligOffs').value) || 0;
+
+    // Leave DEDUCTION uses the weekend-2x-weighted totalDaysOff (its long-
+    // standing basis) against payable days.
     const excessLeaves = Math.max(0, (r.totalDaysOff || 0) - eligibleOffs);
     const leaveDeduction = payableDays > 0 ? excessLeaves * (r.baseSalary / payableDays) : 0;
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(leaveDeduction);
 
-    // Unused Leave Pay previews live too — same server formula: unused offs
-    // × (base salary ÷ calendar days of the month).
+    // Unused Leave Pay counts against ACTUAL calendar days absent (full = 1,
+    // half = 0.5), NOT the weighted totalDaysOff — matching the server.
+    const splitCount = s => (s || '').split(',').filter(Boolean).length;
+    const actualDaysAbsent =
+      splitCount(r.weekdayAbsentDates) + splitCount(r.weekendAbsentDates) +
+      (splitCount(r.weekdayHalfDayDates) + splitCount(r.weekendHalfDayDates)) * 0.5;
     const [pyr, pmo] = String(r.period || '').split('-').map(Number);
     const calDays = (pyr && pmo) ? new Date(pyr, pmo, 0).getDate() : 30;
-    const unusedOffs = Math.max(0, eligibleOffs - (r.totalDaysOff || 0));
+    const unusedOffs = Math.max(0, eligibleOffs - actualDaysAbsent);
     const paysUnused = document.getElementById('hrPayRevPayUnused').checked;
     const unusedLeavePay = paysUnused && calDays > 0 ? unusedOffs * (r.baseSalary / calDays) : 0;
     document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(unusedLeavePay);
+
+    this._recalcNetPayPreview(leaveDeduction, unusedLeavePay);
+  },
+
+  // Live Net Payable = adjusted base + allowances + OT + incentives + tips
+  // + unused leave pay − advance deducted. The server-computed incentives/
+  // OT/tips come from the loaded row; the leave-driven pieces and the advance
+  // deduction come from the current field state so the total always matches
+  // the line items on screen.
+  _recalcNetPayPreview(leaveDeduction, unusedLeavePay) {
+    const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
+    if (!r) return;
+    const advanceDeducted = parseFloat(document.getElementById('hrPayRevAdvDeduct').value) || 0;
+    const tips = (r.tipsOverride === '' || r.tipsOverride == null) ? 0 : (Number(r.tipsOverride) || 0);
+    const adjustedBase = (r.baseSalary || 0) - leaveDeduction;
+    const netPay = adjustedBase + (r.allowances || 0) + (r.otPay || 0)
+      + (r.totalIncentive || 0) + tips + unusedLeavePay - advanceDeducted;
+    document.getElementById('hrPayRevNetPay').textContent = this._fmt(netPay);
   },
 
   _renderPayrollReviewReadonly(r) {
@@ -1583,17 +1612,25 @@ const Staff = {
       case 'unusedLeavePay': {
         const [uyr, umo] = String(r.period || '').split('-').map(Number);
         const calDays = (uyr && umo) ? new Date(uyr, umo, 0).getDate() : 30;
-        const unused = Math.max(0, (r.eligibleOffs || 0) - (r.totalDaysOff || 0));
+        // Actual calendar days absent (full = 1, half = 0.5) — NOT the
+        // weekend-weighted Calculated Days of Absence used for the deduction.
+        const splitCount = s => (s || '').split(',').filter(Boolean).length;
+        const daysAbsent =
+          splitCount(r.weekdayAbsentDates) + splitCount(r.weekendAbsentDates) +
+          (splitCount(r.weekdayHalfDayDates) + splitCount(r.weekendHalfDayDates)) * 0.5;
+        const unused = Math.max(0, (r.eligibleOffs || 0) - daysAbsent);
+        const perDay = calDays > 0 ? r.baseSalary / calDays : 0;
         if (!r.payUnusedLeaves) {
           return `"Approve Unused Leave Allowance" is not ticked for this record, so Unused Leave Pay = 0.\n\n`
-            + `If ticked, it would pay Unused Offs (max(0, Eligible Offs (${r.eligibleOffs}) − Days Off (${r.totalDaysOff})) = ${unused}) `
+            + `If ticked, it would pay Unused Offs (max(0, Eligible Offs (${r.eligibleOffs}) − Actual Days Absent (${daysAbsent})) = ${unused}) `
             + `× Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}).`;
         }
         return `The manager attested this staff member skipped eligible offs on instruction`
           + (r.unusedLeavesReason ? ` — "${r.unusedLeavesReason}"` : '') + `.\n\n`
-          + `Unused Offs = max(0, Eligible Offs (${r.eligibleOffs}) − Days Off (${r.totalDaysOff})) = ${unused}\n`
-          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}) = ${fmt(calDays > 0 ? r.baseSalary / calDays : 0)}\n\n`
-          + `Unused Leave Pay = ${unused} × ${fmt(calDays > 0 ? r.baseSalary / calDays : 0)} = ${fmt(r.unusedLeavePay)}`;
+          + `Actual Days Absent counts full days as 1 and half-days as 0.5 (not the weekend-weighted figure).\n`
+          + `Unused Offs = max(0, Eligible Offs (${r.eligibleOffs}) − Actual Days Absent (${daysAbsent})) = ${unused}\n`
+          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}) = ${fmt(perDay)}\n\n`
+          + `Unused Leave Pay = ${unused} × ${fmt(perDay)} = ${fmt(r.unusedLeavePay)}`;
       }
 
       case 'ot': {

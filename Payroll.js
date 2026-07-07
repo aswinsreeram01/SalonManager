@@ -396,15 +396,23 @@ const Payroll = {
     const tips              = (tipsOverride === '' || tipsOverride === null || tipsOverride === undefined) ? 0 : Number(tipsOverride) || 0;
     const advDeducted       = Number(advanceDeducted) || 0;
 
-    // "Pay for leaves not taken" — a manager attestation that the staff
+    // "Approve Unused Leave Allowance" — a manager attestation that the staff
     // member skipped eligible offs on instruction and should be compensated
     // for them. Each unused off pays one calendar day of base salary
     // (base ÷ calendar days of the month — deliberately NOT payableDays,
     // and deliberately excluding allowances).
+    //
+    // Unused offs count against ACTUAL calendar days absent (a full day = 1,
+    // a half-day = 0.5) — NOT the weekend-2x-weighted totalDaysOff, which is
+    // only meant for the leave-DEDUCTION side. Using the weighted figure here
+    // would over-count leave taken and shortchange the unused-leave payout.
+    const actualDaysAbsent =
+      (weekdayAbsentDates  || []).length + (weekendAbsentDates  || []).length +
+      ((weekdayHalfDayDates || []).length + (weekendHalfDayDates || []).length) * 0.5;
     const paysUnused = payUnusedLeaves === true || payUnusedLeaves === 'true' || payUnusedLeaves === 'TRUE';
     const [byr, bmo] = String(period || '').split('-').map(Number);
     const calendarDays = (byr && bmo) ? new Date(byr, bmo, 0).getDate() : 30;
-    const unusedOffs = Math.max(0, eligibleOffs - totalDaysOff);
+    const unusedOffs = Math.max(0, eligibleOffs - actualDaysAbsent);
     const unusedLeavePay = paysUnused && calendarDays > 0 ? unusedOffs * (salary / calendarDays) : 0;
 
     const netPay = adjustedBaseSalary + allowances + otPay + totalIncentive + tips + unusedLeavePay - advDeducted;
