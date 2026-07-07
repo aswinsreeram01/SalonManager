@@ -4,118 +4,231 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#1a1a2e">
-    <title>My Gems — Salon Manager</title>
+    <meta name="theme-color" content="#07060a">
+    <title>My Gems — Members' Lounge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* ═══════════════════════════════════════════════════════
+           MIDNIGHT & GOLD — design tokens
+        ═══════════════════════════════════════════════════════ */
+        :root {
+            --bg0:   #07060a;
+            --bg1:   #0d0b12;
+            --card:  #131019;
+            --gold:        #d4af37;
+            --gold-bright: #f3d67f;
+            --gold-deep:   #a97e33;
+            --champagne: linear-gradient(115deg, #f6e27a 0%, #cb9b51 40%, #f6e27a 65%, #a97e33 100%);
+            --ink:   #f4efe4;
+            --muted: rgba(244,239,228,0.58);
+            --faint: rgba(244,239,228,0.34);
+            --hairline: rgba(212,175,55,0.30);
+            --hairline-soft: rgba(212,175,55,0.16);
+            --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+            --sans:  'Jost', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        }
+
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         html { -webkit-text-size-adjust: 100%; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            background: #f7fafc;
+            font-family: var(--sans);
+            font-weight: 400;
+            background:
+                radial-gradient(120% 90% at 50% -10%, #16121f 0%, transparent 55%),
+                radial-gradient(130% 100% at 100% 110%, #120e18 0%, transparent 55%),
+                var(--bg0);
+            background-attachment: fixed;
             min-height: 100dvh;
             -webkit-tap-highlight-color: transparent;
-            color: #2d3748;
+            color: var(--ink);
             overflow-x: hidden;
         }
         button, input { font-family: inherit; touch-action: manipulation; }
 
+        /* Film grain — one fixed layer, transform/opacity free, zero reflow */
+        .grain {
+            position: fixed; inset: 0; z-index: 300; pointer-events: none;
+            opacity: 0.05; mix-blend-mode: overlay;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
+        }
+
+        /* Confetti canvas — above everything except overlays' content */
+        #fxCanvas {
+            position: fixed; inset: 0; z-index: 950;
+            pointer-events: none;
+        }
+
+        .lux-eyebrow {
+            font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase;
+            color: var(--gold); font-weight: 500;
+        }
+        .lux-rule {
+            display: flex; align-items: center; gap: 12px;
+            color: var(--gold); font-size: 10px;
+        }
+        .lux-rule::before, .lux-rule::after {
+            content: ''; height: 1px; flex: 1;
+            background: linear-gradient(90deg, transparent, var(--hairline));
+        }
+        .lux-rule::after { background: linear-gradient(90deg, var(--hairline), transparent); }
+
         /* ═══════════════════════════════════════════════════════
-           LOGIN SCREEN
+           LOGIN
         ═══════════════════════════════════════════════════════ */
         #loginSection {
             min-height: 100dvh;
             display: flex; align-items: center; justify-content: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 24px;
             position: relative; overflow: hidden;
+            perspective: 1400px;
         }
-        /* Floating particles */
+        /* Rising gold dust */
         .particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
         .particle {
             position: absolute; bottom: -30px;
-            font-size: 18px; opacity: 0; user-select: none;
+            opacity: 0; user-select: none;
+            color: var(--gold);
+            text-shadow: 0 0 12px rgba(212,175,55,0.8);
             animation: floatUp linear infinite;
+            will-change: transform, opacity;
         }
         @keyframes floatUp {
-            0%   { transform: translateY(0) rotate(0deg) scale(0.8);   opacity: 0; }
-            5%   { opacity: 0.7; }
-            85%  { opacity: 0.4; }
-            100% { transform: translateY(-110vh) rotate(360deg) scale(1.1); opacity: 0; }
+            0%   { transform: translateY(0) rotate(0deg);        opacity: 0; }
+            8%   { opacity: 0.55; }
+            85%  { opacity: 0.25; }
+            100% { transform: translateY(-110vh) rotate(300deg); opacity: 0; }
         }
 
-        /* Login box */
         .login-box {
-            background: rgba(255,255,255,0.06);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 24px;
-            box-shadow: 0 32px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-            padding: 40px 32px; width: 100%; max-width: 400px;
+            background: linear-gradient(160deg, rgba(24,20,32,0.92) 0%, rgba(13,11,18,0.94) 100%);
+            border: 1px solid var(--hairline);
+            border-radius: 22px;
+            box-shadow:
+                0 40px 100px rgba(0,0,0,0.65),
+                0 0 0 1px rgba(0,0,0,0.4),
+                inset 0 1px 0 rgba(244,239,228,0.06);
+            padding: 44px 34px 38px; width: 100%; max-width: 400px;
             position: relative; z-index: 10;
+            transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+            transform-style: preserve-3d;
+            transition: transform 0.25s ease-out;
+            will-change: transform;
         }
-        .login-logo { text-align: center; margin-bottom: 32px; }
-        .login-gem {
-            font-size: 56px; display: block; margin-bottom: 12px;
-            animation: gemFloat 3s ease-in-out infinite;
-            filter: drop-shadow(0 0 20px rgba(168,85,247,0.6));
+        /* Gold corner flourishes */
+        .login-box::before, .login-box::after {
+            content: ''; position: absolute; width: 26px; height: 26px;
+            border: 1px solid var(--hairline); pointer-events: none;
         }
-        @keyframes gemFloat {
-            0%, 100% { transform: translateY(0) rotate(-5deg); }
-            50%       { transform: translateY(-8px) rotate(5deg); }
-        }
-        .login-logo h1 { font-size: 24px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-        .login-logo p  { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 6px; }
+        .login-box::before { top: 10px; left: 10px; border-right: none; border-bottom: none; border-top-left-radius: 12px; }
+        .login-box::after  { bottom: 10px; right: 10px; border-left: none; border-top: none; border-bottom-right-radius: 12px; }
 
-        .form-group { margin-bottom: 20px; }
-        .form-group label { display: block; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6); margin-bottom: 8px; letter-spacing: 0.8px; text-transform: uppercase; }
-        .form-group input {
-            width: 100%; padding: 14px 16px;
-            background: rgba(255,255,255,0.08);
-            border: 2px solid rgba(255,255,255,0.1);
-            border-radius: 12px; font-size: 22px; font-weight: 600;
-            color: white; letter-spacing: 2px;
-            transition: border-color 0.2s, box-shadow 0.2s;
+        .login-logo { text-align: center; margin-bottom: 30px; transform: translateZ(40px); }
+        .login-crest {
+            width: 84px; height: 84px; margin: 0 auto 18px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 34px;
+            background:
+                radial-gradient(circle at 35% 30%, rgba(244,239,228,0.10), transparent 55%),
+                linear-gradient(160deg, #17131f, #0b0910);
+            border: 1px solid var(--hairline);
+            box-shadow:
+                0 0 0 5px rgba(212,175,55,0.06),
+                0 0 40px rgba(212,175,55,0.22),
+                inset 0 0 18px rgba(212,175,55,0.10);
+            animation: crestBreathe 4.5s ease-in-out infinite;
         }
-        .form-group input::placeholder { color: rgba(255,255,255,0.25); font-size: 16px; letter-spacing: 0; }
-        .form-group input:focus { outline: none; border-color: rgba(168,85,247,0.8); box-shadow: 0 0 0 4px rgba(168,85,247,0.15); }
+        @keyframes crestBreathe {
+            0%, 100% { box-shadow: 0 0 0 5px rgba(212,175,55,0.06), 0 0 30px rgba(212,175,55,0.16), inset 0 0 18px rgba(212,175,55,0.10); }
+            50%      { box-shadow: 0 0 0 5px rgba(212,175,55,0.10), 0 0 52px rgba(212,175,55,0.30), inset 0 0 24px rgba(212,175,55,0.16); }
+        }
+        .login-logo h1 {
+            font-family: var(--serif); font-size: 30px; font-weight: 700;
+            color: var(--ink); letter-spacing: 0.5px;
+        }
+        .login-logo h1 em {
+            font-style: italic; font-weight: 500;
+            background: var(--champagne);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+        }
+        .login-logo .lux-rule { margin: 14px 24px 10px; }
+        .login-logo p {
+            font-size: 10px; letter-spacing: 0.30em; text-transform: uppercase;
+            color: var(--muted); font-weight: 400;
+        }
+
+        .form-group { margin-bottom: 22px; transform: translateZ(24px); }
+        .form-group label {
+            display: block; font-size: 10px; font-weight: 500; color: var(--gold);
+            margin-bottom: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+        }
+        .form-group input {
+            width: 100%; padding: 13px 4px;
+            background: transparent;
+            border: none; border-bottom: 1px solid rgba(244,239,228,0.18);
+            border-radius: 0; font-size: 24px; font-weight: 400;
+            font-family: var(--serif);
+            color: var(--ink); letter-spacing: 3px;
+            transition: border-color 0.25s;
+        }
+        .form-group input::placeholder { color: rgba(244,239,228,0.18); font-size: 20px; letter-spacing: 2px; }
+        .form-group input:focus { outline: none; border-bottom-color: var(--gold); }
+        .form-group { position: relative; }
+        .form-group .input-glow {
+            position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+            background: var(--champagne); transform: scaleX(0); transform-origin: center;
+            transition: transform 0.4s cubic-bezier(0.22,1,0.36,1);
+        }
+        .form-group input:focus ~ .input-glow { transform: scaleX(1); }
 
         .btn-login {
-            width: 100%; padding: 16px;
-            background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
-            color: white; border: none; border-radius: 12px;
-            font-size: 16px; font-weight: 700; cursor: pointer;
-            transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
-            box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+            width: 100%; padding: 17px;
+            background: var(--champagne);
+            background-size: 220% 100%;
+            color: #171106; border: none; border-radius: 100px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+            letter-spacing: 0.26em; text-transform: uppercase;
+            transition: transform 0.15s, box-shadow 0.25s, background-position 0.6s;
+            box-shadow: 0 8px 30px rgba(212,175,55,0.28), inset 0 1px 0 rgba(255,255,255,0.5);
             display: flex; align-items: center; justify-content: center; gap: 8px;
             position: relative; overflow: hidden;
+            transform: translateZ(30px);
         }
         .btn-login::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 100%);
-            opacity: 0; transition: opacity 0.2s;
+            content: ''; position: absolute; top: 0; bottom: 0; left: -80%; width: 60%;
+            background: linear-gradient(105deg, transparent, rgba(255,255,255,0.55), transparent);
+            transform: skewX(-20deg);
+            animation: btnSheen 3.4s ease-in-out infinite;
         }
-        .btn-login:hover:not(:disabled)::after { opacity: 1; }
-        .btn-login:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(124,58,237,0.5); }
-        .btn-login:active:not(:disabled) { transform: translateY(0); }
-        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
-        .btn-login.has-input { box-shadow: 0 4px 20px rgba(124,58,237,0.5), 0 0 0 0 rgba(168,85,247,0); animation: btnPulse 2s infinite; }
+        @keyframes btnSheen {
+            0%, 55%  { left: -80%; }
+            85%, 100%{ left: 130%; }
+        }
+        .btn-login:hover:not(:disabled)  { box-shadow: 0 12px 44px rgba(212,175,55,0.42), inset 0 1px 0 rgba(255,255,255,0.5); background-position: 100% 0; }
+        .btn-login:active:not(:disabled) { transform: translateZ(30px) scale(0.985); }
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-login.has-input { animation: btnPulse 2.2s infinite; }
         @keyframes btnPulse {
-            0%, 100% { box-shadow: 0 4px 20px rgba(124,58,237,0.5), 0 0 0 0 rgba(168,85,247,0.4); }
-            50%       { box-shadow: 0 4px 20px rgba(124,58,237,0.5), 0 0 0 8px rgba(168,85,247,0); }
+            0%, 100% { box-shadow: 0 8px 30px rgba(212,175,55,0.28), 0 0 0 0 rgba(212,175,55,0.35), inset 0 1px 0 rgba(255,255,255,0.5); }
+            50%      { box-shadow: 0 8px 30px rgba(212,175,55,0.38), 0 0 0 10px rgba(212,175,55,0), inset 0 1px 0 rgba(255,255,255,0.5); }
         }
 
-        .login-msg { margin-top: 14px; padding: 12px 16px; border-radius: 10px; font-size: 13px; display: none; font-weight: 500; }
-        .login-msg.error   { background: rgba(252,129,74,0.15); color: #fc8f4a; border: 1px solid rgba(252,129,74,0.3); display: block; }
+        .login-msg { margin-top: 16px; padding: 12px 16px; border-radius: 10px; font-size: 13px; display: none; font-weight: 400; letter-spacing: 0.02em; }
+        .login-msg.error { background: rgba(214,116,74,0.10); color: #e8a380; border: 1px solid rgba(214,116,74,0.30); display: block; }
 
         /* ═══════════════════════════════════════════════════════
-           LOADING OVERLAY
+           LOADING OVERLAY — 3D gold rings
         ═══════════════════════════════════════════════════════ */
         #loadingOverlay {
             position: fixed; inset: 0; z-index: 500;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            background:
+                radial-gradient(120% 90% at 50% -10%, #16121f 0%, transparent 55%),
+                var(--bg0);
             display: flex; align-items: center; justify-content: center;
-            flex-direction: column; gap: 28px;
+            flex-direction: column; gap: 34px;
             opacity: 0; pointer-events: none; transition: opacity 0.3s;
         }
         #loadingOverlay.active { opacity: 1; pointer-events: all; }
@@ -124,21 +237,40 @@
             0%   { opacity: 1; }
             100% { opacity: 0; pointer-events: none; }
         }
+        .lux-loader { position: relative; width: 110px; height: 110px; perspective: 700px; }
+        .lux-ring {
+            position: absolute; inset: 0; border-radius: 50%;
+            border: 1px solid transparent;
+            will-change: transform;
+        }
+        .lux-ring.r1 {
+            border-top-color: var(--gold-bright); border-bottom-color: rgba(212,175,55,0.25);
+            animation: ringSpinY 1.7s linear infinite;
+        }
+        .lux-ring.r2 {
+            inset: 12px;
+            border-left-color: rgba(243,214,127,0.85); border-right-color: rgba(212,175,55,0.2);
+            animation: ringSpinX 2.3s linear infinite;
+        }
+        @keyframes ringSpinY { from { transform: rotateY(0) rotateZ(0); } to { transform: rotateY(360deg) rotateZ(180deg); } }
+        @keyframes ringSpinX { from { transform: rotateX(0) rotateZ(0); } to { transform: rotateX(360deg) rotateZ(-180deg); } }
         .loading-gem {
-            font-size: 64px;
-            animation: loadGemSpin 1.5s ease-in-out infinite;
-            filter: drop-shadow(0 0 30px rgba(168,85,247,0.8));
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 38px;
+            filter: drop-shadow(0 0 22px rgba(212,175,55,0.75));
+            animation: gemBreathe 2.2s ease-in-out infinite;
         }
-        @keyframes loadGemSpin {
-            0%   { transform: rotateY(0deg) scale(1);   }
-            50%  { transform: rotateY(180deg) scale(1.1); }
-            100% { transform: rotateY(360deg) scale(1); }
+        @keyframes gemBreathe {
+            0%, 100% { transform: scale(1); }
+            50%      { transform: scale(1.12); }
         }
-        .loading-msgs { height: 36px; position: relative; }
+        .loading-msgs { height: 40px; position: relative; width: 100%; }
         .load-msg {
             position: absolute; left: 50%; transform: translateX(-50%);
-            font-size: 18px; font-weight: 600; color: white;
-            white-space: nowrap; opacity: 0;
+            font-family: var(--serif); font-style: italic;
+            font-size: 19px; font-weight: 500; color: var(--ink);
+            white-space: nowrap; opacity: 0; letter-spacing: 0.03em;
             transition: opacity 0.35s;
         }
         .load-msg.visible { opacity: 1; }
@@ -148,48 +280,42 @@
         ═══════════════════════════════════════════════════════ */
         #tierUpgradeOverlay {
             position: fixed; inset: 0; z-index: 900;
-            background: rgba(0,0,0,0.85);
+            background: rgba(4,3,7,0.9);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
             display: flex; align-items: center; justify-content: center;
             opacity: 0; pointer-events: none;
             transition: opacity 0.4s;
         }
         #tierUpgradeOverlay.active { opacity: 1; pointer-events: all; }
         .upgrade-card {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-radius: 28px; padding: 48px 40px; text-align: center;
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+            background: linear-gradient(160deg, #191424 0%, #0d0b12 100%);
+            border-radius: 24px; padding: 52px 42px; text-align: center;
+            border: 1px solid var(--hairline);
+            box-shadow: 0 40px 120px rgba(0,0,0,0.8), 0 0 80px rgba(212,175,55,0.12);
             position: relative; overflow: hidden; max-width: 340px; width: 90%;
-            transform: scale(0.8); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: scale(0.85); transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         #tierUpgradeOverlay.active .upgrade-card { transform: scale(1); }
-        .upgrade-gem { font-size: 72px; display: block; margin-bottom: 16px; animation: upgradeGemBounce 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.3s both; }
+        .upgrade-gem { font-size: 68px; display: block; margin-bottom: 18px; animation: upgradeGemBounce 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.3s both; }
         @keyframes upgradeGemBounce { from { transform: scale(0) rotate(-30deg); } to { transform: scale(1) rotate(0deg); } }
-        .upgrade-levelup { font-size: 13px; font-weight: 800; letter-spacing: 4px; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-bottom: 8px; }
-        .upgrade-tier { font-size: 32px; font-weight: 900; color: white; margin-bottom: 8px; }
-        .upgrade-sub  { font-size: 15px; color: rgba(255,255,255,0.5); }
-        .upgrade-dismiss { margin-top: 28px; font-size: 12px; color: rgba(255,255,255,0.3); }
-
-        /* Confetti pieces */
-        .confetti-piece {
-            position: fixed; top: -20px; font-size: 16px;
-            animation: confettiFall linear forwards;
-            pointer-events: none; z-index: 901;
+        .upgrade-levelup {
+            font-size: 10px; font-weight: 500; letter-spacing: 0.4em;
+            color: var(--gold); text-transform: uppercase; margin-bottom: 12px;
         }
-        @keyframes confettiFall {
-            0%   { transform: translateY(0) rotate(0deg) scale(1);    opacity: 1; }
-            80%  { opacity: 1; }
-            100% { transform: translateY(110vh) rotate(720deg) scale(0.5); opacity: 0; }
-        }
+        .upgrade-tier { font-family: var(--serif); font-size: 30px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+        .upgrade-sub  { font-size: 14px; color: var(--muted); font-weight: 300; letter-spacing: 0.04em; }
+        .upgrade-dismiss { margin-top: 30px; font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint); }
 
         /* ═══════════════════════════════════════════════════════
            MILESTONE BANNER
         ═══════════════════════════════════════════════════════ */
         #milestoneBanner {
-            position: fixed; top: 70px; left: 50%; transform: translateX(-50%) translateY(-100px);
-            z-index: 400; background: linear-gradient(135deg, #7c3aed, #a855f7);
-            color: white; padding: 12px 24px; border-radius: 100px;
-            font-size: 14px; font-weight: 700; box-shadow: 0 8px 32px rgba(124,58,237,0.5);
+            position: fixed; top: 74px; left: 50%; transform: translateX(-50%) translateY(-120px);
+            z-index: 400;
+            background: var(--champagne);
+            color: #171106; padding: 12px 26px; border-radius: 100px;
+            font-size: 12px; font-weight: 600; letter-spacing: 0.08em;
+            box-shadow: 0 10px 40px rgba(212,175,55,0.45);
             transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
             white-space: nowrap;
         }
@@ -200,55 +326,107 @@
         ═══════════════════════════════════════════════════════ */
         #dashSection { display: none; }
         .cp-header {
-            position: fixed; top: 0; left: 0; right: 0; height: 64px;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-            border-bottom: 1px solid #e2e8f0;
+            position: fixed; top: 0; left: 0; right: 0; height: 66px;
+            background: rgba(10,8,14,0.85);
+            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--hairline-soft);
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 18px; z-index: 200;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
         }
         .cp-header-left { display: flex; flex-direction: column; gap: 2px; }
-        .cp-greeting { font-size: 11px; color: #a0aec0; font-weight: 500; }
-        .cp-header-name { font-size: 17px; font-weight: 800; color: #1a1a2e; }
-        .btn-logout {
-            padding: 8px 16px; border: 1.5px solid #e2e8f0; border-radius: 100px;
-            background: white; color: #718096; font-size: 13px; font-weight: 600; cursor: pointer;
-            transition: all 0.15s;
+        .cp-greeting {
+            font-size: 9px; color: var(--gold); font-weight: 500;
+            letter-spacing: 0.28em; text-transform: uppercase;
         }
-        .btn-logout:hover { background: #f7fafc; border-color: #cbd5e0; }
+        .cp-header-name { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink); }
+        .btn-logout {
+            padding: 8px 18px; border: 1px solid var(--hairline); border-radius: 100px;
+            background: transparent; color: var(--muted);
+            font-size: 10px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-logout:hover { color: var(--gold-bright); border-color: var(--gold); }
 
-        /* ── Content ── */
-        .cp-content { padding: 80px 16px 32px; max-width: 680px; margin: 0 auto; }
+        .cp-content { padding: 86px 16px 40px; max-width: 680px; margin: 0 auto; perspective: 1400px; }
 
-        /* ── Reveal animation system ── */
-        .reveal-item { opacity: 0; transform: translateY(24px); }
-        .reveal-item.in { animation: revealUp 0.55s cubic-bezier(0.22,1,0.36,1) forwards; }
+        /* ── Reveal system (unchanged mechanics) ── */
+        .reveal-item { opacity: 0; transform: translateY(26px); }
+        .reveal-item.in { animation: revealUp 0.6s cubic-bezier(0.22,1,0.36,1) forwards; }
         @keyframes revealUp {
             to { opacity: 1; transform: translateY(0); }
         }
 
         /* ═══════════════════════════════════════════════════════
-           LOYALTY CARD
+           MEMBERSHIP CARD — the 3D hero
         ═══════════════════════════════════════════════════════ */
-        .loyalty-card {
-            border-radius: 20px; padding: 24px;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
-            box-shadow: 0 8px 40px rgba(15,52,96,0.35);
-            margin-bottom: 16px; overflow: hidden; position: relative;
+        .loyalty-card { margin-bottom: 18px; }
+        .member-card {
+            border-radius: 22px; padding: 26px 26px 22px;
+            background:
+                radial-gradient(130% 170% at 88% -12%, rgba(212,175,55,0.15), transparent 50%),
+                radial-gradient(110% 150% at -5% 105%, rgba(96,66,150,0.14), transparent 55%),
+                linear-gradient(155deg, #17131f 0%, #0d0a12 55%, #141019 100%);
+            border: 1px solid var(--hairline);
+            box-shadow:
+                0 24px 70px rgba(0,0,0,0.6),
+                0 2px 0 rgba(244,239,228,0.04) inset,
+                0 0 60px rgba(212,175,55,0.06);
+            overflow: hidden; position: relative;
+            transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+            transform-style: preserve-3d;
+            transition: transform 0.22s ease-out;
+            will-change: transform;
         }
-        .loyalty-card::before {
-            content: '💎'; position: absolute; right: -10px; top: -20px;
-            font-size: 100px; opacity: 0.07; transform: rotate(15deg);
+        .member-card.idle { animation: cardIdle 10s ease-in-out infinite; }
+        @keyframes cardIdle {
+            0%, 100% { transform: rotateX(0.6deg)  rotateY(-2.6deg); }
+            25%      { transform: rotateX(-1.6deg) rotateY(2.2deg);  }
+            50%      { transform: rotateX(1.4deg)  rotateY(2.8deg);  }
+            75%      { transform: rotateX(-1.2deg) rotateY(-2.0deg); }
+        }
+        /* Moving holographic sheen, driven by tilt */
+        .card-sheen {
+            position: absolute; inset: -30%;
+            background: radial-gradient(circle at var(--shx, 72%) var(--shy, 18%),
+                rgba(255,246,214,0.14) 0%, rgba(212,175,55,0.05) 22%, transparent 46%);
             pointer-events: none;
+            transition: background-position 0.2s;
+        }
+        /* Engraved watermark */
+        .card-mark {
+            position: absolute; right: -14px; bottom: -26px;
+            font-family: var(--serif); font-size: 130px; font-style: italic; line-height: 1;
+            color: rgba(212,175,55,0.05);
+            pointer-events: none; user-select: none;
+        }
+        .card-top {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px; position: relative;
+        }
+        .card-chip {
+            width: 42px; height: 31px; border-radius: 6px;
+            background: var(--champagne);
+            box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), 0 1px 4px rgba(0,0,0,0.4);
+            position: relative; overflow: hidden;
+        }
+        .card-chip::before {
+            content: ''; position: absolute; inset: 0;
+            background:
+                linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)) 50% 50% / 100% 1px no-repeat,
+                linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)) 33% 50% / 1px 100% no-repeat,
+                linear-gradient(rgba(0,0,0,0.22), rgba(0,0,0,0.22)) 67% 50% / 1px 100% no-repeat;
+        }
+        .card-wordmark {
+            font-size: 10px; letter-spacing: 0.34em; text-transform: uppercase;
+            color: var(--gold); font-weight: 500;
         }
 
-        .tier-badge-wrap { margin-bottom: 16px; }
+        .tier-badge-wrap { margin-bottom: 18px; position: relative; }
         .tier-badge {
             display: inline-flex; align-items: center; gap: 6px;
-            font-size: 13px; font-weight: 800; padding: 6px 16px;
-            border-radius: 100px; border: 2px solid;
-            letter-spacing: 0.6px; text-transform: uppercase;
+            font-size: 10px; font-weight: 600; padding: 6px 16px;
+            border-radius: 100px; border: 1px solid;
+            letter-spacing: 0.24em; text-transform: uppercase;
             opacity: 0; transform: scale(0.6);
         }
         .tier-badge.pop {
@@ -260,121 +438,157 @@
             100%{ opacity: 1; transform: scale(1);     }
         }
         .tier-badge-glow {
-            position: absolute; width: 120px; height: 120px;
-            border-radius: 50%; filter: blur(40px); opacity: 0;
-            top: 16px; left: 16px; transition: opacity 0.5s;
+            position: absolute; width: 130px; height: 130px;
+            border-radius: 50%; filter: blur(46px); opacity: 0;
+            top: -20px; left: -10px; transition: opacity 0.5s;
             pointer-events: none;
         }
-        .tier-badge-glow.visible { opacity: 0.35; }
+        .tier-badge-glow.visible { opacity: 0.30; }
 
-        .gems-row {
-            display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px;
-        }
-        .gems-icon { font-size: 28px; line-height: 1; }
+        .gems-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; position: relative; }
+        .gems-icon { font-size: 26px; line-height: 1; filter: drop-shadow(0 0 10px rgba(212,175,55,0.5)); }
         .gems-count {
-            font-size: 52px; font-weight: 900; color: white;
-            line-height: 1; letter-spacing: -2px; font-variant-numeric: tabular-nums;
+            font-family: var(--serif);
+            font-size: 56px; font-weight: 700; line-height: 1; letter-spacing: -1px;
+            background: var(--champagne);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+            font-variant-numeric: tabular-nums;
         }
-        .gems-label { font-size: 14px; color: rgba(255,255,255,0.5); font-weight: 600; align-self: flex-end; padding-bottom: 4px; }
+        .gems-label {
+            font-size: 11px; color: var(--muted); font-weight: 500;
+            letter-spacing: 0.22em; text-transform: uppercase;
+            align-self: flex-end; padding-bottom: 8px;
+        }
+        .gems-sub { font-size: 12px; color: var(--faint); margin-bottom: 22px; font-style: italic; font-family: var(--serif); letter-spacing: 0.04em; }
 
-        .gems-sub {
-            font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 20px;
-        }
-
-        /* Progress bar */
-        .progress-section { }
-        .progress-meta {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px;
-        }
-        .progress-next { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 600; }
-        .progress-pct  { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 700; }
+        /* Progress */
+        .progress-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; }
+        .progress-next { font-size: 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; }
+        .progress-pct  { font-size: 12px; color: var(--gold-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
         .progress-bar {
-            height: 8px; background: rgba(255,255,255,0.1);
-            border-radius: 4px; overflow: hidden; position: relative;
+            height: 6px; background: rgba(244,239,228,0.08);
+            border-radius: 3px; overflow: hidden; position: relative;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
         }
         .progress-fill {
-            height: 100%; border-radius: 4px; width: 0;
+            height: 100%; border-radius: 3px; width: 0;
             transition: width 1.2s cubic-bezier(0.22,1,0.36,1);
             position: relative; overflow: hidden;
         }
         .progress-fill::after {
             content: ''; position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
             animation: shimmer 2.5s infinite 1.5s;
         }
         @keyframes shimmer { to { left: 200%; } }
-        .progress-fill.close {
-            animation: progressPulse 1.5s ease-in-out infinite;
-        }
+        .progress-fill.close { animation: progressPulse 1.5s ease-in-out infinite; }
         @keyframes progressPulse {
             0%, 100% { filter: brightness(1);   }
-            50%       { filter: brightness(1.4); }
+            50%      { filter: brightness(1.4); }
         }
-        .progress-sub { font-size: 11px; color: rgba(255,255,255,0.3); margin-top: 6px; }
-        .top-tier-msg { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; margin-top: 12px; }
+        .progress-sub { font-size: 11px; color: var(--faint); margin-top: 7px; letter-spacing: 0.03em; }
+        .top-tier-msg { font-size: 13px; color: var(--gold-bright); font-weight: 400; margin-top: 12px; font-family: var(--serif); font-style: italic; }
 
         /* Happy hour */
         .hh-banner {
             display: flex; align-items: center; gap: 8px;
-            margin-top: 16px; padding: 10px 14px; border-radius: 10px;
-            background: rgba(255,200,50,0.12); border: 1px solid rgba(255,200,50,0.25);
-            font-size: 13px; font-weight: 700; color: #fcd34d;
+            margin-top: 18px; padding: 11px 15px; border-radius: 12px;
+            background: rgba(212,175,55,0.10); border: 1px solid rgba(212,175,55,0.30);
+            font-size: 12.5px; font-weight: 500; color: var(--gold-bright);
+            letter-spacing: 0.03em;
             animation: hhPulse 2s ease-in-out infinite;
         }
         @keyframes hhPulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(252,211,77,0); }
-            50%       { box-shadow: 0 0 0 4px rgba(252,211,77,0.15); }
+            0%, 100% { box-shadow: 0 0 0 0 rgba(212,175,55,0); }
+            50%      { box-shadow: 0 0 0 4px rgba(212,175,55,0.12); }
         }
 
-        /* Absence banner */
         .absence-note {
-            margin-top: 12px; font-size: 12px; color: rgba(255,255,255,0.4);
-            font-style: italic;
+            margin-top: 14px; font-size: 12.5px; color: var(--muted);
+            font-style: italic; font-family: var(--serif); letter-spacing: 0.03em;
+        }
+
+        /* Cardholder line */
+        .card-holder {
+            margin-top: 22px; padding-top: 16px;
+            border-top: 1px solid var(--hairline-soft);
+            display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+        }
+        .card-holder-name {
+            font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase;
+            color: var(--ink); font-weight: 500;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .card-holder-tag {
+            font-size: 9px; letter-spacing: 0.26em; text-transform: uppercase;
+            color: var(--gold); font-weight: 500; flex-shrink: 0;
         }
 
         /* ═══════════════════════════════════════════════════════
            SUMMARY BAR
         ═══════════════════════════════════════════════════════ */
         .summary-bar {
-            background: white; border-radius: 16px; padding: 16px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin-bottom: 16px;
-            display: flex;
+            background: rgba(244,239,228,0.035);
+            border: 1px solid var(--hairline-soft);
+            border-radius: 18px; padding: 18px 8px;
+            margin-bottom: 18px; display: flex;
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
         }
         .summary-item { flex: 1; text-align: center; }
-        .summary-item + .summary-item { border-left: 1px solid #edf2f7; }
-        .summary-val { font-size: 20px; font-weight: 800; color: #1a1a2e; }
-        .summary-lbl { font-size: 11px; color: #a0aec0; margin-top: 2px; font-weight: 500; }
+        .summary-item + .summary-item { border-left: 1px solid var(--hairline-soft); }
+        .summary-val {
+            font-family: var(--serif); font-size: 22px; font-weight: 700;
+            color: var(--gold-bright); letter-spacing: 0.01em;
+        }
+        .summary-lbl {
+            font-size: 9px; color: var(--faint); margin-top: 4px;
+            font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase;
+        }
 
         /* ═══════════════════════════════════════════════════════
-           LAST VISIT CARD
+           SECTION TITLES / LAST VISIT
         ═══════════════════════════════════════════════════════ */
         .section-title {
-            font-size: 11px; font-weight: 800; color: #a0aec0;
-            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+            font-size: 10px; font-weight: 500; color: var(--gold);
+            text-transform: uppercase; letter-spacing: 0.30em; margin-bottom: 12px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .section-title::after {
+            content: ''; height: 1px; flex: 1;
+            background: linear-gradient(90deg, var(--hairline-soft), transparent);
         }
         .last-visit-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 18px; padding: 22px; margin-bottom: 16px; color: white;
-            box-shadow: 0 6px 28px rgba(102,126,234,0.35);
+            background:
+                radial-gradient(120% 160% at 90% -10%, rgba(212,175,55,0.10), transparent 50%),
+                linear-gradient(155deg, #16121e 0%, #0e0b13 100%);
+            border: 1px solid var(--hairline-soft);
+            border-radius: 20px; padding: 24px; margin-bottom: 18px; color: var(--ink);
+            box-shadow: 0 14px 50px rgba(0,0,0,0.45);
         }
-        .lv-label { font-size: 11px; font-weight: 700; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
-        .lv-date  { font-size: 17px; font-weight: 700; margin-bottom: 4px; }
-        .lv-visit-num { font-size: 11px; opacity: 0.6; margin-bottom: 14px; }
-        .lv-amount { font-size: 36px; font-weight: 900; letter-spacing: -1px; }
-        .lv-amount span { font-size: 15px; font-weight: 500; opacity: 0.7; }
-        .lv-meta { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; }
-        .lv-meta-item { font-size: 12px; opacity: 0.8; }
-        .lv-meta-item strong { display: block; font-size: 14px; font-weight: 700; opacity: 1; }
-        .lv-items { margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.2); }
-        .lv-items-title { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
-        .lv-item-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
-        .lv-item-name { opacity: 0.85; }
-        .lv-item-price { font-weight: 700; }
-        .lv-pts-row { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .lv-label { font-size: 9px; font-weight: 500; color: var(--gold); text-transform: uppercase; letter-spacing: 0.28em; margin-bottom: 8px; }
+        .lv-date  { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+        .lv-visit-num { font-size: 10px; color: var(--faint); margin-bottom: 16px; letter-spacing: 0.14em; text-transform: uppercase; }
+        .lv-amount {
+            font-family: var(--serif); font-size: 38px; font-weight: 700; letter-spacing: -0.5px;
+            background: var(--champagne);
+            -webkit-background-clip: text; background-clip: text;
+            -webkit-text-fill-color: transparent; color: transparent;
+        }
+        .lv-amount span { font-size: 14px; font-weight: 400; -webkit-text-fill-color: initial; color: var(--faint); font-family: var(--sans); letter-spacing: 0.06em; }
+        .lv-meta { margin-top: 14px; display: flex; gap: 20px; flex-wrap: wrap; }
+        .lv-meta-item { font-size: 10px; color: var(--faint); letter-spacing: 0.10em; text-transform: uppercase; }
+        .lv-meta-item strong { display: block; font-size: 14px; font-weight: 600; color: var(--ink); letter-spacing: 0.02em; text-transform: none; margin-bottom: 2px; }
+        .lv-items { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--hairline-soft); }
+        .lv-items-title { font-size: 9px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.24em; margin-bottom: 10px; }
+        .lv-item-row { display: flex; justify-content: space-between; font-size: 13.5px; margin-bottom: 6px; gap: 12px; }
+        .lv-item-name { color: var(--muted); }
+        .lv-item-price { font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+        .lv-pts-row { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
         .lv-pts-pill {
-            font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 100px;
-            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            font-size: 11px; font-weight: 500; padding: 5px 14px; border-radius: 100px;
+            background: rgba(212,175,55,0.12); border: 1px solid rgba(212,175,55,0.30);
+            color: var(--gold-bright); letter-spacing: 0.05em;
         }
 
         /* ═══════════════════════════════════════════════════════
@@ -382,61 +596,92 @@
         ═══════════════════════════════════════════════════════ */
         .hist-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 32px; }
         .hist-card {
-            background: white; border-radius: 14px; padding: 14px 16px;
-            box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+            background: rgba(244,239,228,0.03);
+            border: 1px solid var(--hairline-soft);
+            border-radius: 16px; padding: 15px 18px;
             display: flex; align-items: center; gap: 12px;
+            transition: border-color 0.2s, background 0.2s;
         }
+        .hist-card:hover { border-color: var(--hairline); background: rgba(244,239,228,0.05); }
         .hist-left { flex: 1; min-width: 0; }
-        .hist-date  { font-size: 14px; font-weight: 700; color: #1a1a2e; }
-        .hist-meta  { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
-        .hist-mode  { font-size: 11px; color: #a0aec0; }
+        .hist-date  { font-family: var(--serif); font-size: 15px; font-weight: 600; color: var(--ink); }
+        .hist-meta  { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 5px; }
+        .hist-mode  { font-size: 10px; color: var(--faint); letter-spacing: 0.12em; text-transform: uppercase; }
         .hist-right { text-align: right; flex-shrink: 0; }
-        .hist-amount   { font-size: 18px; font-weight: 800; color: #1a1a2e; }
-        .hist-discount { font-size: 11px; color: #38a169; margin-top: 2px; font-weight: 600; }
+        .hist-amount   { font-family: var(--serif); font-size: 18px; font-weight: 700; color: var(--gold-bright); font-variant-numeric: tabular-nums; }
+        .hist-discount { font-size: 11px; color: #9ec49a; margin-top: 2px; font-weight: 500; }
         .pts-pill {
-            font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 100px;
+            font-size: 10px; font-weight: 500; padding: 2px 10px; border-radius: 100px;
+            letter-spacing: 0.04em;
         }
-        .pts-pill.earn   { background: #ede9fe; color: #6d28d9; }
-        .pts-pill.redeem { background: #fef3c7; color: #92400e; }
+        .pts-pill.earn   { background: rgba(212,175,55,0.12); color: var(--gold-bright); border: 1px solid rgba(212,175,55,0.25); }
+        .pts-pill.redeem { background: rgba(190,140,80,0.12); color: #dcb287; border: 1px solid rgba(190,140,80,0.28); }
 
         /* ═══════════════════════════════════════════════════════
-           EMPTY STATE
+           PROFILE
         ═══════════════════════════════════════════════════════ */
-        .empty-state { text-align: center; padding: 56px 16px; color: #a0aec0; }
-        .empty-state .empty-icon { font-size: 52px; margin-bottom: 14px; }
-        .empty-state p { font-size: 15px; line-height: 1.6; }
+        .profile-card {
+            background: rgba(244,239,228,0.03);
+            border: 1px solid var(--hairline-soft);
+            border-radius: 18px; padding: 6px 20px;
+        }
+        .profile-row {
+            display: flex; justify-content: space-between; gap: 12px;
+            padding: 15px 0; font-size: 14px;
+        }
+        .profile-row + .profile-row { border-top: 1px solid var(--hairline-soft); }
+        .profile-lbl { color: var(--faint); font-size: 10px; letter-spacing: 0.20em; text-transform: uppercase; align-self: center; }
+        .profile-val { font-weight: 500; color: var(--ink); text-align: right; letter-spacing: 0.02em; }
+        .profile-hint { font-size: 11.5px; color: var(--faint); margin-top: 10px; font-style: italic; font-family: var(--serif); letter-spacing: 0.03em; }
 
         /* ═══════════════════════════════════════════════════════
-           SPINNER
+           EMPTY STATE / SPINNER
         ═══════════════════════════════════════════════════════ */
+        .empty-state { text-align: center; padding: 60px 16px; color: var(--muted); }
+        .empty-state .empty-icon { font-size: 46px; margin-bottom: 16px; filter: drop-shadow(0 0 18px rgba(212,175,55,0.4)); }
+        .empty-state p { font-family: var(--serif); font-style: italic; font-size: 16px; line-height: 1.7; letter-spacing: 0.02em; }
+
         .spinner {
-            width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,0.3);
-            border-top-color: white; border-radius: 50%;
+            width: 18px; height: 18px; border: 2px solid rgba(23,17,6,0.3);
+            border-top-color: #171106; border-radius: 50%;
             animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ═══════════════════════════════════════════════════════
+           MOTION SAFETY
+        ═══════════════════════════════════════════════════════ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; transition-duration: 0.001s !important; }
+            .member-card.idle { animation: none; }
+        }
     </style>
 </head>
 <body>
+
+<div class="grain"></div>
+<canvas id="fxCanvas"></canvas>
 
 <!-- ══════════════════════════════════════════
      LOGIN
 ══════════════════════════════════════════ -->
 <div id="loginSection">
     <div class="particles" id="particles"></div>
-    <div class="login-box">
+    <div class="login-box" id="loginBox">
         <div class="login-logo">
-            <span class="login-gem">💎</span>
-            <h1>My Gems</h1>
-            <p>Enter your phone number to unlock your rewards</p>
+            <div class="login-crest">💎</div>
+            <h1>My <em>Gems</em></h1>
+            <div class="lux-rule">✦</div>
+            <p>Private Members' Lounge</p>
         </div>
         <form id="loginForm">
             <div class="form-group">
                 <label for="phoneInput">Mobile Number</label>
                 <input type="tel" id="phoneInput" placeholder="98765 43210"
                        inputmode="numeric" autocomplete="tel" autofocus required>
+                <span class="input-glow"></span>
             </div>
-            <button type="submit" class="btn-login" id="loginBtn">View My Gems</button>
+            <button type="submit" class="btn-login" id="loginBtn">Enter the Lounge</button>
         </form>
         <div class="login-msg" id="loginMsg"></div>
     </div>
@@ -446,11 +691,15 @@
      LOADING OVERLAY
 ══════════════════════════════════════════ -->
 <div id="loadingOverlay">
-    <div class="loading-gem">💎</div>
+    <div class="lux-loader">
+        <div class="lux-ring r1"></div>
+        <div class="lux-ring r2"></div>
+        <div class="loading-gem">💎</div>
+    </div>
     <div class="loading-msgs">
-        <span class="load-msg" id="loadMsg0">Searching for your account…</span>
+        <span class="load-msg" id="loadMsg0">Verifying your membership…</span>
         <span class="load-msg" id="loadMsg1"></span>
-        <span class="load-msg" id="loadMsg2">Loading your Gems…</span>
+        <span class="load-msg" id="loadMsg2">Curating your privileges…</span>
     </div>
 </div>
 
@@ -460,9 +709,9 @@
 <div id="tierUpgradeOverlay">
     <div class="upgrade-card">
         <span class="upgrade-gem" id="upgradeGemIcon">💎</span>
-        <div class="upgrade-levelup">Level Up!</div>
+        <div class="upgrade-levelup">Elevated</div>
         <div class="upgrade-tier" id="upgradeTierName"></div>
-        <div class="upgrade-sub" id="upgradeSub">Welcome to a new tier</div>
+        <div class="upgrade-sub" id="upgradeSub">Welcome to a new circle</div>
         <div class="upgrade-dismiss">Tap anywhere to continue</div>
     </div>
 </div>
@@ -486,33 +735,45 @@
 
     <div class="cp-content">
 
-        <!-- Loyalty card -->
+        <!-- Membership card -->
         <div class="loyalty-card reveal-item" id="loyaltyCard" style="display:none;">
-            <div class="tier-badge-glow" id="tierGlow"></div>
-            <div class="tier-badge-wrap">
-                <span class="tier-badge" id="cpTierBadge">Member</span>
-            </div>
-            <div class="gems-row">
-                <span class="gems-icon">💎</span>
-                <span class="gems-count" id="cpGemsCount">0</span>
-                <span class="gems-label" id="cpGemsLabel">Gems</span>
-            </div>
-            <div class="gems-sub" id="cpGemsSub">available to redeem</div>
-            <div id="cpProgressSection" class="progress-section" style="display:none;">
-                <div class="progress-meta">
-                    <span class="progress-next" id="cpProgressNext"></span>
-                    <span class="progress-pct"  id="cpProgressPct"></span>
+            <div class="member-card idle" id="memberCard">
+                <div class="card-sheen"></div>
+                <div class="card-mark">G</div>
+                <div class="tier-badge-glow" id="tierGlow"></div>
+                <div class="card-top">
+                    <div class="card-chip"></div>
+                    <span class="card-wordmark">✦ My Gems</span>
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="cpProgressFill"></div>
+                <div class="tier-badge-wrap">
+                    <span class="tier-badge" id="cpTierBadge">Member</span>
                 </div>
-                <div class="progress-sub" id="cpProgressSub"></div>
+                <div class="gems-row">
+                    <span class="gems-icon">💎</span>
+                    <span class="gems-count" id="cpGemsCount">0</span>
+                    <span class="gems-label" id="cpGemsLabel">Gems</span>
+                </div>
+                <div class="gems-sub" id="cpGemsSub">at your disposal</div>
+                <div id="cpProgressSection" class="progress-section" style="display:none;">
+                    <div class="progress-meta">
+                        <span class="progress-next" id="cpProgressNext"></span>
+                        <span class="progress-pct"  id="cpProgressPct"></span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="cpProgressFill"></div>
+                    </div>
+                    <div class="progress-sub" id="cpProgressSub"></div>
+                </div>
+                <div class="top-tier-msg" id="cpTopTierMsg" style="display:none;">You stand at our highest circle — thank you. ✦</div>
+                <div class="hh-banner" id="cpHHBanner" style="display:none;">
+                    ✨ Happy Hour is on — you earn <span id="cpHHMult">2</span>× Gems right now
+                </div>
+                <div class="absence-note" id="cpAbsenceNote" style="display:none;"></div>
+                <div class="card-holder">
+                    <span class="card-holder-name" id="cardHolderName"></span>
+                    <span class="card-holder-tag">Privileged Member</span>
+                </div>
             </div>
-            <div class="top-tier-msg" id="cpTopTierMsg" style="display:none;">⭐ You're at our highest tier — thank you!</div>
-            <div class="hh-banner" id="cpHHBanner" style="display:none;">
-                🎉 Happy Hour is active — earn <span id="cpHHMult">2</span>× Gems right now!
-            </div>
-            <div class="absence-note" id="cpAbsenceNote" style="display:none;"></div>
         </div>
 
         <!-- Summary bar -->
@@ -546,26 +807,26 @@
         <!-- Profile (view-only) -->
         <div id="profileWrap" class="reveal-item" style="display:none;">
             <p class="section-title" style="margin-top:20px;">My Profile</p>
-            <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08);padding:4px 18px;">
-                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f0f4f8;font-size:14px;">
-                    <span style="color:#718096;">Name</span>
-                    <span style="font-weight:600;color:#2d3748;" id="cpProfileName">—</span>
+            <div class="profile-card">
+                <div class="profile-row">
+                    <span class="profile-lbl">Name</span>
+                    <span class="profile-val" id="cpProfileName">—</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f0f4f8;font-size:14px;">
-                    <span style="color:#718096;">Phone</span>
-                    <span style="font-weight:600;color:#2d3748;" id="cpProfilePhone">—</span>
+                <div class="profile-row">
+                    <span class="profile-lbl">Phone</span>
+                    <span class="profile-val" id="cpProfilePhone">—</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;font-size:14px;">
-                    <span style="color:#718096;">Member Since</span>
-                    <span style="font-weight:600;color:#2d3748;" id="cpProfileSince">—</span>
+                <div class="profile-row">
+                    <span class="profile-lbl">Member Since</span>
+                    <span class="profile-val" id="cpProfileSince">—</span>
                 </div>
             </div>
-            <p style="font-size:12px;color:#a0aec0;margin-top:8px;">To update these details, please ask at the salon on your next visit.</p>
+            <p class="profile-hint">To update these details, ask us on your next visit — we'd love to see you.</p>
         </div>
 
         <div class="empty-state" id="emptyState" style="display:none;">
-            <div class="empty-icon">🧾</div>
-            <p>No visits found yet.<br>Come visit us soon!</p>
+            <div class="empty-icon">💎</div>
+            <p>Your story with us is just beginning.<br>We look forward to welcoming you.</p>
         </div>
     </div>
 </div>
@@ -576,6 +837,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx6kJkyP7v5iyR8uPrjcPlm
 // ── State ──────────────────────────────────────────────────────────────────
 let currentPhone = '';
 let ledgerByBill = {};
+const REDUCED_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ── API ────────────────────────────────────────────────────────────────────
 async function apiCall(action, data) {
@@ -602,24 +864,25 @@ function resolveTierColor(tierName, tiers) {
     const found = (tiers || []).find(t => t.name === tierName);
     if (found && found.color) return found.color;
     const n = (tierName || '').toLowerCase();
-    if (n.includes('gold'))                 return '#f59e0b';
-    if (n.includes('silver'))               return '#94a3b8';
-    if (n.includes('plat') || n.includes('diamond')) return '#8b5cf6';
-    return '#f97316'; // bronze / default
+    if (n.includes('gold'))                 return '#d4af37';
+    if (n.includes('silver'))               return '#b9c2cc';
+    if (n.includes('plat') || n.includes('diamond')) return '#c9b8e8';
+    return '#cb9b51'; // bronze / default
 }
 
-// ── Login Particles ────────────────────────────────────────────────────────
+// ── Login Particles — rising gold dust ─────────────────────────────────────
 function spawnParticles() {
+    if (REDUCED_MOTION) return;
     const container = document.getElementById('particles');
-    const symbols   = ['💎','✦','✧','◆','◇','⬡'];
-    for (let i = 0; i < 18; i++) {
+    const symbols   = ['✦', '✧', '·', '💎', '✦', '·'];
+    for (let i = 0; i < 16; i++) {
         const p = document.createElement('span');
         p.className = 'particle';
-        p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+        p.textContent = symbols[i % symbols.length];
         p.style.left      = Math.random() * 100 + '%';
-        p.style.fontSize  = (12 + Math.random() * 18) + 'px';
-        p.style.animationDuration  = (8 + Math.random() * 14) + 's';
-        p.style.animationDelay     = (Math.random() * 12) + 's';
+        p.style.fontSize  = (8 + Math.random() * 12) + 'px';
+        p.style.animationDuration  = (10 + Math.random() * 16) + 's';
+        p.style.animationDelay     = (Math.random() * 14) + 's';
         p.style.opacity = '0';
         container.appendChild(p);
     }
@@ -632,6 +895,55 @@ document.getElementById('phoneInput').addEventListener('input', function() {
     btn.classList.toggle('has-input', this.value.replace(/\D/g,'').length >= 8);
 });
 
+// ── 3D Tilt engine ─────────────────────────────────────────────────────────
+// Pointer on desktop, gyroscope on phones that emit deviceorientation
+// without a permission prompt; everyone else gets the slow idle float.
+// Transform-only — never touches layout.
+const TILT_MAX = 7; // degrees
+let gyroActive = false;
+
+function setTilt(el, rx, ry) {
+    el.style.setProperty('--rx', rx.toFixed(2) + 'deg');
+    el.style.setProperty('--ry', ry.toFixed(2) + 'deg');
+    const sheen = el.querySelector('.card-sheen');
+    if (sheen) {
+        sheen.style.setProperty('--shx', (50 - ry * 6) + '%');
+        sheen.style.setProperty('--shy', (50 + rx * 6) + '%');
+    }
+}
+
+function attachPointerTilt(el) {
+    if (REDUCED_MOTION) return;
+    el.addEventListener('pointermove', e => {
+        if (e.pointerType === 'touch' || gyroActive) return;
+        const r  = el.getBoundingClientRect();
+        const dx = (e.clientX - r.left) / r.width  - 0.5;
+        const dy = (e.clientY - r.top)  / r.height - 0.5;
+        el.classList.remove('idle');
+        setTilt(el, -dy * TILT_MAX, dx * TILT_MAX);
+    }, { passive: true });
+    el.addEventListener('pointerleave', () => {
+        if (gyroActive) return;
+        setTilt(el, 0, 0);
+        el.classList.add('idle');
+    }, { passive: true });
+}
+
+if (!REDUCED_MOTION) {
+    window.addEventListener('deviceorientation', e => {
+        if (e.beta == null && e.gamma == null) return;
+        gyroActive = true;
+        const rx = Math.max(-TILT_MAX, Math.min(TILT_MAX, (e.beta - 40) / 5));
+        const ry = Math.max(-TILT_MAX, Math.min(TILT_MAX, e.gamma / 5));
+        const card = document.getElementById('memberCard');
+        const box  = document.getElementById('loginBox');
+        if (card) { card.classList.remove('idle'); setTilt(card, -rx, ry); }
+        if (box && document.getElementById('loginSection').style.display !== 'none') setTilt(box, -rx * 0.5, ry * 0.5);
+    }, { passive: true });
+}
+attachPointerTilt(document.getElementById('loginBox'));
+attachPointerTilt(document.getElementById('memberCard'));
+
 // ── Loading Sequence ───────────────────────────────────────────────────────
 async function showLoadMsg(idx, text, duration) {
     const el = document.getElementById('loadMsg' + idx);
@@ -643,33 +955,87 @@ async function showLoadMsg(idx, text, duration) {
     await wait(250);
 }
 
-// ── Confetti ───────────────────────────────────────────────────────────────
-function launchConfetti(color) {
-    const symbols = ['💎','✦','★','◆','✧','❋'];
-    const colors  = [color || '#a855f7', '#f59e0b', '#10b981', '#ef4444', '#3b82f6'];
-    for (let i = 0; i < 45; i++) {
-        const p = document.createElement('span');
-        p.className = 'confetti-piece';
-        p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
-        p.style.left     = (5 + Math.random() * 90) + 'vw';
-        p.style.fontSize = (10 + Math.random() * 16) + 'px';
-        p.style.color    = colors[Math.floor(Math.random() * colors.length)];
-        p.style.animationDuration = (1.8 + Math.random() * 2.4) + 's';
-        p.style.animationDelay   = (Math.random() * 0.8) + 's';
-        document.body.appendChild(p);
-        p.addEventListener('animationend', () => p.remove());
+// ── Confetti — canvas engine, gold foil ────────────────────────────────────
+// Single rAF loop that stops itself when the last piece leaves the screen;
+// nothing runs when idle. DPR-aware, transform-free, no DOM churn.
+const fxCanvas = document.getElementById('fxCanvas');
+const fxCtx    = fxCanvas.getContext('2d');
+let fxPieces = [], fxRunning = false;
+
+function fxResize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    fxCanvas.width  = window.innerWidth  * dpr;
+    fxCanvas.height = window.innerHeight * dpr;
+    fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', fxResize, { passive: true });
+fxResize();
+
+const FX_GOLD = ['#f6e27a', '#d4af37', '#cb9b51', '#fff8e1', '#e8c96a', '#b8860b'];
+
+function launchConfetti(color, count = 150) {
+    if (REDUCED_MOTION) return;
+    const palette = color ? FX_GOLD.concat([color, color]) : FX_GOLD;
+    const W = window.innerWidth;
+    for (let i = 0; i < count; i++) {
+        fxPieces.push({
+            x: Math.random() * W,
+            y: -20 - Math.random() * window.innerHeight * 0.3,
+            w: 4 + Math.random() * 5,
+            h: 8 + Math.random() * 9,
+            vx: (Math.random() - 0.5) * 1.8,
+            vy: 2.2 + Math.random() * 3,
+            rot: Math.random() * Math.PI,
+            vr: (Math.random() - 0.5) * 0.28,
+            sway: Math.random() * Math.PI * 2,
+            swayV: 0.02 + Math.random() * 0.045,
+            color: palette[(Math.random() * palette.length) | 0],
+            circle: Math.random() < 0.15
+        });
     }
+    if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxTick); }
+}
+
+function fxTick() {
+    const W = window.innerWidth, H = window.innerHeight;
+    fxCtx.clearRect(0, 0, W, H);
+    const alive = [];
+    for (const p of fxPieces) {
+        p.sway += p.swayV;
+        p.x += p.vx + Math.sin(p.sway) * 1.1;
+        p.y += p.vy;
+        p.rot += p.vr;
+        if (p.y < H + 30) alive.push(p);
+        fxCtx.save();
+        fxCtx.translate(p.x, p.y);
+        fxCtx.rotate(p.rot);
+        // Foil flicker — thin when edge-on, bright when face-on
+        const face = Math.abs(Math.cos(p.sway * 1.4));
+        fxCtx.globalAlpha = 0.55 + face * 0.45;
+        fxCtx.fillStyle = p.color;
+        if (p.circle) {
+            fxCtx.beginPath();
+            fxCtx.arc(0, 0, p.w * 0.55, 0, Math.PI * 2);
+            fxCtx.fill();
+        } else {
+            fxCtx.fillRect(-p.w / 2, -p.h / 2 * (0.35 + face * 0.65), p.w, p.h * (0.35 + face * 0.65));
+        }
+        fxCtx.restore();
+    }
+    fxPieces = alive;
+    if (fxPieces.length) requestAnimationFrame(fxTick);
+    else { fxRunning = false; fxCtx.clearRect(0, 0, W, H); }
 }
 
 // ── Tier Upgrade Celebration ───────────────────────────────────────────────
 async function showTierUpgrade(newTierName, color) {
     const overlay = document.getElementById('tierUpgradeOverlay');
-    document.getElementById('upgradeTierName').textContent = 'You\'re now ' + newTierName + '!';
-    document.getElementById('upgradeTierName').style.color = color || '#fff';
-    document.getElementById('upgradeGemIcon').style.filter = `drop-shadow(0 0 20px ${color || '#a855f7'})`;
+    document.getElementById('upgradeTierName').textContent = 'You\'re now ' + newTierName;
+    document.getElementById('upgradeTierName').style.color = color || '#f4efe4';
+    document.getElementById('upgradeGemIcon').style.filter = `drop-shadow(0 0 22px ${color || '#d4af37'})`;
 
     overlay.classList.add('active');
-    launchConfetti(color);
+    launchConfetti(color, 220);
 
     await wait(3500);
     overlay.classList.remove('active');
@@ -746,7 +1112,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     // Show loading overlay + first message
     const overlay = document.getElementById('loadingOverlay');
     overlay.classList.add('active');
-    showLoadMsg(0, 'Searching for your account…', 900);
+    showLoadMsg(0, 'Verifying your membership…', 900);
 
     try {
         const loginRes = await apiCall('customer_login', { phone });
@@ -756,7 +1122,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             msgEl.className = 'login-msg error';
             msgEl.textContent = loginRes.message || 'Phone number not found.';
             btn.disabled = false;
-            btn.innerHTML = 'View My Gems';
+            btn.innerHTML = 'Enter the Lounge';
             btn.classList.toggle('has-input', phone.length >= 8);
             return;
         }
@@ -777,7 +1143,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const firstName = name.split(' ')[0];
 
         // "Found you!" message
-        await showLoadMsg(1, `Found you, ${firstName}! 🎉`, 900);
+        await showLoadMsg(1, `Welcome, ${firstName} ✦`, 900);
 
         // Fetch remaining data in parallel
         const [loyaltyRes, histRes, ledgerRes] = await Promise.all([
@@ -786,7 +1152,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             apiCall('get_loyalty_ledger', { phone })
         ]);
 
-        await showLoadMsg(2, 'Loading your Gems…', 700);
+        await showLoadMsg(2, 'Curating your privileges…', 700);
 
         currentPhone = phone;
         sessionStorage.setItem('cp_phone', phone);
@@ -800,12 +1166,15 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         document.getElementById('loginSection').style.display = 'none';
         showDashboard(name, phone, loyaltyRes, histRes, ledgerRes);
 
+        // A golden welcome — every member arrival deserves an entrance.
+        setTimeout(() => launchConfetti('#f6e27a', 160), 450);
+
     } catch (err) {
         overlay.classList.remove('active');
         msgEl.className = 'login-msg error';
         msgEl.textContent = 'Network error. Please try again.';
         btn.disabled = false;
-        btn.innerHTML = 'View My Gems';
+        btn.innerHTML = 'Enter the Lounge';
     }
 });
 
@@ -830,6 +1199,7 @@ async function showDashboard(name, phone, loyaltyRes, histRes, ledgerRes) {
     document.getElementById('dashSection').style.display = 'block';
     document.getElementById('cpGreeting').textContent = greeting();
     document.getElementById('headerName').textContent = name;
+    document.getElementById('cardHolderName').textContent = name;
 
     // Build ledger map
     ledgerByBill = {};
@@ -860,11 +1230,8 @@ async function showDashboard(name, phone, loyaltyRes, histRes, ledgerRes) {
     }
 
     // Staggered reveal
-    const loyaltyCard   = document.getElementById('loyaltyCard');
-    const summaryBar    = document.getElementById('summaryBar');
-    const lastVisitWrap = document.getElementById('lastVisitWrap');
-    const historyWrap   = document.getElementById('historyWrap');
-    const emptyState    = document.getElementById('emptyState');
+    const loyaltyCard = document.getElementById('loyaltyCard');
+    const emptyState  = document.getElementById('emptyState');
 
     // Reveal enabled sections in their configured order (Permissions >
     // Customer Portal), 250ms stagger. revealAt itself skips disabled
@@ -903,7 +1270,10 @@ async function showDashboard(name, phone, loyaltyRes, histRes, ledgerRes) {
     const visitCount = bills.length;
     const milestones = [5, 10, 25, 50, 100];
     if (milestones.includes(visitCount)) {
-        setTimeout(() => showMilestone(`🎉 Your ${visitCount}th visit — thank you!`), 1400);
+        setTimeout(() => {
+            showMilestone(`✦ Your ${visitCount}th visit — thank you!`);
+            launchConfetti('#f6e27a', 200);
+        }, 1400);
     }
 }
 
@@ -928,7 +1298,7 @@ function renderLoyaltyCard(loyalty) {
 
     // Gems label
     document.getElementById('cpGemsLabel').textContent = pointsName;
-    document.getElementById('cpGemsSub').textContent   = `available to redeem`;
+    document.getElementById('cpGemsSub').textContent   = `at your disposal`;
 
     // Progress bar
     if (loyalty.nextTier && loyalty.nextThreshold != null) {
@@ -996,7 +1366,7 @@ function renderHistory(histRes) {
         const daysSince = Math.floor((Date.now() - lastDate) / 86400000);
         if (daysSince > 90) {
             const note = document.getElementById('cpAbsenceNote');
-            note.textContent = `We missed you — it's been ${daysSince} days since your last visit 💙`;
+            note.textContent = `We've missed you — it's been ${daysSince} days since your last visit ✦`;
             note.style.display = 'block';
         }
     }
@@ -1013,7 +1383,7 @@ function renderHistory(histRes) {
              <div class="lv-items-title">Services &amp; Products</div>
              ${lastBillItems.map(it => `
                <div class="lv-item-row">
-                 <span class="lv-item-name">${esc(it.itemName)}${it.staffName ? `<span style="opacity:.6;font-size:11px;"> by ${esc(it.staffName)}</span>` : ''}</span>
+                 <span class="lv-item-name">${esc(it.itemName)}${it.staffName ? `<span style="opacity:.55;font-size:11px;"> by ${esc(it.staffName)}</span>` : ''}</span>
                  <span class="lv-item-price">${fmtCurrency(it.lineTotal)}</span>
                </div>`).join('')}
            </div>` : '';
@@ -1027,7 +1397,7 @@ function renderHistory(histRes) {
     document.getElementById('lastVisitCard').innerHTML = `
         <div class="lv-label">Last Visit</div>
         <div class="lv-date">${fmtDate(last.date)}</div>
-        <div class="lv-visit-num">Visit #${visitNum}</div>
+        <div class="lv-visit-num">Visit No. ${visitNum}</div>
         <div class="lv-amount">${fmtCurrency(last.grandTotal)} <span>total</span></div>
         <div class="lv-meta">
             <div class="lv-meta-item"><strong>${esc(last.paymentMode || '—')}</strong>Payment</div>
@@ -1088,7 +1458,7 @@ function esc(s) {
     const overlay = document.getElementById('loadingOverlay');
     const msg = document.getElementById('loadMsg1');
     overlay.classList.add('active');
-    msg.textContent = `Welcome back, ${name.split(' ')[0]}! 💎`;
+    msg.textContent = `Welcome back, ${name.split(' ')[0]} ✦`;
     msg.classList.add('visible');
 
     try {
