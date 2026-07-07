@@ -543,6 +543,26 @@
             <div class="hist-list" id="histList"></div>
         </div>
 
+        <!-- Profile (view-only) -->
+        <div id="profileWrap" class="reveal-item" style="display:none;">
+            <p class="section-title" style="margin-top:20px;">My Profile</p>
+            <div style="background:white;border-radius:14px;box-shadow:0 1px 4px rgba(0,0,0,0.08);padding:4px 18px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f0f4f8;font-size:14px;">
+                    <span style="color:#718096;">Name</span>
+                    <span style="font-weight:600;color:#2d3748;" id="cpProfileName">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #f0f4f8;font-size:14px;">
+                    <span style="color:#718096;">Phone</span>
+                    <span style="font-weight:600;color:#2d3748;" id="cpProfilePhone">—</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 0;font-size:14px;">
+                    <span style="color:#718096;">Member Since</span>
+                    <span style="font-weight:600;color:#2d3748;" id="cpProfileSince">—</span>
+                </div>
+            </div>
+            <p style="font-size:12px;color:#a0aec0;margin-top:8px;">To update these details, please ask at the salon on your next visit.</p>
+        </div>
+
         <div class="empty-state" id="emptyState" style="display:none;">
             <div class="empty-icon">🧾</div>
             <p>No visits found yet.<br>Come visit us soon!</p>
@@ -551,7 +571,7 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbxEkTn8BsCc6dXVQg7ROpVWsC50VYWbCVoyP0K5XnG4xiUPCQayEfX6MoIGZTwLv5HVxQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbx6kJkyP7v5iyR8uPrjcPlmBOKzT6Y-gqsMq8lEV9g_mjuji8NX7_NHam5h1JTLY9zJmA/exec';
 
 // ── State ──────────────────────────────────────────────────────────────────
 let currentPhone = '';
@@ -680,11 +700,24 @@ async function showMilestone(text) {
 // ── Staggered Reveal ───────────────────────────────────────────────────────
 // Sections the admin has enabled for this portal (Permissions > Customer
 // Portal). Defaults to everything; replaced from the customer_login response.
-let CP_ENABLED_SECTIONS = ['loyalty', 'summary', 'lastVisit', 'history'];
+let CP_ENABLED_SECTIONS = ['loyalty', 'summary', 'lastVisit', 'history', 'profile'];
 const CP_SECTION_BY_ID = {
     loyaltyCard: 'loyalty', summaryBar: 'summary',
-    lastVisitWrap: 'lastVisit', historyWrap: 'history'
+    lastVisitWrap: 'lastVisit', historyWrap: 'history', profileWrap: 'profile'
 };
+const CP_ID_BY_SECTION = Object.fromEntries(Object.entries(CP_SECTION_BY_ID).map(([id, s]) => [s, id]));
+
+// The enabled list is ORDERED (Permissions > Customer Portal ↑/↓) — move the
+// section elements into that order inside .cp-content before revealing.
+function applySectionOrder() {
+    const parent = document.querySelector('.cp-content');
+    if (!parent) return;
+    const emptyState = document.getElementById('emptyState');
+    CP_ENABLED_SECTIONS.forEach(s => {
+        const el = document.getElementById(CP_ID_BY_SECTION[s] || '');
+        if (el) parent.insertBefore(el, emptyState);
+    });
+}
 
 function revealAt(el, delayMs) {
     if (!el) return;
@@ -731,6 +764,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         if (Array.isArray(loginRes.enabledSections) && loginRes.enabledSections.length) {
             CP_ENABLED_SECTIONS = loginRes.enabledSections;
         }
+        applySectionOrder();
+
+        // Profile section (view-only) — everything it shows came with login.
+        document.getElementById('cpProfileName').textContent  = loginRes.name  || '—';
+        document.getElementById('cpProfilePhone').textContent = loginRes.phone || '—';
+        document.getElementById('cpProfileSince').textContent = loginRes.since
+            ? new Date(loginRes.since).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+            : '—';
 
         const name = loginRes.name || '';
         const firstName = name.split(' ')[0];
@@ -825,12 +866,21 @@ async function showDashboard(name, phone, loyaltyRes, histRes, ledgerRes) {
     const historyWrap   = document.getElementById('historyWrap');
     const emptyState    = document.getElementById('emptyState');
 
-    if (loyalty && loyaltyCard.dataset.hasData) {
-        revealAt(loyaltyCard, 0);
-        revealAt(summaryBar,  300);
-        revealAt(lastVisitWrap, 600);
-        revealAt(historyWrap,   900);
+    // Reveal enabled sections in their configured order (Permissions >
+    // Customer Portal), 250ms stagger. revealAt itself skips disabled
+    // sections; the loyalty card additionally needs actual loyalty data.
+    const showLoyalty = !!(loyalty && loyaltyCard.dataset.hasData);
+    let slot = 0;
+    CP_ENABLED_SECTIONS.forEach(section => {
+        const el = document.getElementById(CP_ID_BY_SECTION[section] || '');
+        if (!el) return;
+        if (section === 'loyalty' && !showLoyalty) return;
+        revealAt(el, slot * 250);
+        slot++;
+    });
+    if (!showLoyalty && emptyState.style.display !== 'none') revealAt(emptyState, 100);
 
+    if (showLoyalty && CP_ENABLED_SECTIONS.includes('loyalty')) {
         // Animate gem counter after loyalty card appears
         setTimeout(() => {
             const count = Number(loyalty.pointsBalance || 0);
@@ -846,12 +896,6 @@ async function showDashboard(name, phone, loyaltyRes, histRes, ledgerRes) {
             document.getElementById('tierGlow').classList.add('visible');
             document.getElementById('cpTierBadge').classList.add('pop');
         }, 350);
-
-    } else {
-        revealAt(summaryBar,    0);
-        revealAt(lastVisitWrap, 200);
-        revealAt(historyWrap,   500);
-        if (emptyState.style.display !== 'none') revealAt(emptyState, 100);
     }
 
     // Milestone check

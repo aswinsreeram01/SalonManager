@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbxEkTn8BsCc6dXVQg7ROpVWsC50VYWbCVoyP0K5XnG4xiUPCQayEfX6MoIGZTwLv5HVxQ/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbx6kJkyP7v5iyR8uPrjcPlmBOKzT6Y-gqsMq8lEV9g_mjuji8NX7_NHam5h1JTLY9zJmA/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
@@ -33,6 +33,7 @@ const StaffAPI = {
     getMyPayslips()                { return this.call('get_my_payslips'); },
     approveMyPayslip(payrollId)    { return this.call('approve_my_payslip',  { payrollId }); },
     getPortalConfig()              { return this.call('get_portal_config'); },
+    getMyProfile()                 { return this.call('get_my_profile'); },
 };
 
 // ── App controller ────────────────────────────────────────────────────────────
@@ -183,10 +184,12 @@ const StaffApp = {
         document.getElementById('tab-attendance').style.display = tab === 'attendance' ? 'block' : 'none';
         document.getElementById('tab-advance').style.display    = tab === 'advance'    ? 'block' : 'none';
         document.getElementById('tab-payslips').style.display   = tab === 'payslips'   ? 'block' : 'none';
+        document.getElementById('tab-profile').style.display    = tab === 'profile'    ? 'block' : 'none';
         if (tab === 'pending')    this.loadPendingItems();
         if (tab === 'attendance') this.loadAttendance();
         if (tab === 'advance')    this.loadAdvances();
         if (tab === 'payslips')   this.loadPayslips();
+        if (tab === 'profile')    this.loadProfile();
     },
 
     // ── My Records tab ────────────────────────────────────────────────────────
@@ -733,6 +736,7 @@ const StaffApp = {
             ${row('Make Up Incentive', fmt(p.makeupIncentive))}
             ${row('Products Incentive', fmt(p.productIncentive))}
             ${row('Tips', fmt(p.tipsOverride))}
+            ${(Number(p.unusedLeavePay) || 0) > 0 ? row('Unused Leave Pay', fmt(p.unusedLeavePay)) : ''}
             ${section('Deductions')}
             ${row('Leave Allowance', fmt(p.leaveDeduction), { negative: true })}
             ${row('Advance Deducted', fmt(p.advanceDeducted), { negative: true })}
@@ -740,6 +744,46 @@ const StaffApp = {
                 <span style="font-size:14px;font-weight:700;">Net Payable</span>
                 <span style="font-size:18px;font-weight:700;color:#667eea;">${fmt(p.netPay)}</span>
             </div>`;
+    },
+
+    // ── Profile tab (view-only) ───────────────────────────────────────────────
+
+    async loadProfile() {
+        const wrap    = document.getElementById('profileContent');
+        const loading = document.getElementById('profileLoading');
+        loading.style.display = 'block';
+        wrap.style.display    = 'none';
+        _clearMsg(document.getElementById('profileMessage'));
+        try {
+            const res = await StaffAPI.getMyProfile();
+            if (res.status !== 'success' || !res.profile) throw new Error(res.message || 'failed');
+            this._renderProfile(res.profile);
+            wrap.style.display = 'block';
+        } catch (err) {
+            _showMsg(document.getElementById('profileMessage'), 'Failed to load profile: ' + err.message, 'error');
+        } finally {
+            loading.style.display = 'none';
+        }
+    },
+
+    _renderProfile(p) {
+        const fields = [
+            ['Name',          p.name],
+            ['Phone',         p.phone],
+            ['Email',         p.email],
+            ['Role',          p.role],
+            ['Staff Type',    p.staffType],
+            ['Start Date',    p.startDate],
+            ['UPI / GPay ID', p.upiId],
+            ['Aadhar Number', p.aadharNumber],
+            ['Organization',  p.orgName],
+            ['Status',        p.status],
+        ];
+        document.getElementById('profileFieldsList').innerHTML = fields.map(([label, value]) => `
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #f0f4f8;font-size:14px;">
+                <span style="color:#718096;">${_esc(label)}</span>
+                <span style="font-weight:600;color:#2d3748;text-align:right;word-break:break-word;">${_esc(value || '—')}</span>
+            </div>`).join('');
     },
 
     async approvePayslip(payrollId) {
@@ -780,15 +824,20 @@ const StaffApp = {
             const res = await StaffAPI.getPortalConfig();
             const enabled = (res.status === 'success' && Array.isArray(res.enabledTabs)) ? res.enabledTabs : null;
             if (!enabled || !enabled.length) return;
-            let firstEnabled = null;
-            document.querySelectorAll('.sp-tab').forEach(btn => {
-                const t = btn.dataset.tab;
-                const on = enabled.includes(t);
-                btn.style.display = on ? '' : 'none';
-                if (on && !firstEnabled) firstEnabled = t;
+
+            const tabBar = document.querySelector('.sp-tabs');
+            const btnByTab = {};
+            document.querySelectorAll('.sp-tab').forEach(btn => { btnByTab[btn.dataset.tab] = btn; });
+
+            // The enabled list is ORDERED (Permissions > Staff Portal ↑/↓) —
+            // re-append the buttons in that order, then hide the rest.
+            enabled.forEach(t => { if (btnByTab[t]) tabBar.appendChild(btnByTab[t]); });
+            Object.entries(btnByTab).forEach(([t, btn]) => {
+                btn.style.display = enabled.includes(t) ? '' : 'none';
             });
-            if (!enabled.includes(this._activeTab) && firstEnabled) {
-                this.switchTab(firstEnabled);
+
+            if (!enabled.includes(this._activeTab)) {
+                this.switchTab(enabled[0]);
             }
         } catch (e) { /* leave all tabs visible */ }
     }

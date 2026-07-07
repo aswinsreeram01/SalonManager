@@ -80,6 +80,7 @@ const Staff = {
     );
     document.getElementById('hrPayRevPayableDays').addEventListener('input', () => this._recalcLeaveAllowancePreview());
     document.getElementById('hrPayRevEligOffs').addEventListener('input', () => this._recalcLeaveAllowancePreview());
+    document.getElementById('hrPayRevPayUnused').addEventListener('change', () => this._recalcLeaveAllowancePreview());
     document.getElementById('hrPayRevAdvDeduct').addEventListener('input', () => this._syncAdvanceFields('deduct'));
     document.getElementById('hrPayRevRemainingBalance').addEventListener('input', () => this._syncAdvanceFields('remain'));
 
@@ -1318,6 +1319,8 @@ const Staff = {
 
     document.getElementById('hrPayRevPayableDays').value = r.payableDays ?? '';
     document.getElementById('hrPayRevEligOffs').value     = r.eligibleOffs ?? '';
+    document.getElementById('hrPayRevPayUnused').checked  = !!r.payUnusedLeaves;
+    document.getElementById('hrPayRevUnusedReason').value = r.unusedLeavesReason || '';
     document.getElementById('hrPayRevStatus').value       = r.status || 'draft';
     document.getElementById('hrPayRevNotes').value        = r.notes || '';
     document.getElementById('hrPayRevAdvDeduct').value = '';
@@ -1377,7 +1380,8 @@ const Staff = {
   // inputs out rather than letting the user edit and then fail on save.
   // Status and Notes stay editable (voiding a paid record is allowed).
   _setPayReviewLock(locked) {
-    ['hrPayRevPayableDays', 'hrPayRevEligOffs', 'hrPayRevAdvDeduct', 'hrPayRevRemainingBalance']
+    ['hrPayRevPayableDays', 'hrPayRevEligOffs', 'hrPayRevAdvDeduct', 'hrPayRevRemainingBalance',
+     'hrPayRevPayUnused', 'hrPayRevUnusedReason']
       .forEach(id => { document.getElementById(id).disabled = locked; });
   },
 
@@ -1408,6 +1412,15 @@ const Staff = {
     const excessLeaves = Math.max(0, (r.totalDaysOff || 0) - eligibleOffs);
     const leaveDeduction = payableDays > 0 ? excessLeaves * (r.baseSalary / payableDays) : 0;
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(leaveDeduction);
+
+    // Unused Leave Pay previews live too — same server formula: unused offs
+    // × (base salary ÷ calendar days of the month).
+    const [pyr, pmo] = String(r.period || '').split('-').map(Number);
+    const calDays = (pyr && pmo) ? new Date(pyr, pmo, 0).getDate() : 30;
+    const unusedOffs = Math.max(0, eligibleOffs - (r.totalDaysOff || 0));
+    const paysUnused = document.getElementById('hrPayRevPayUnused').checked;
+    const unusedLeavePay = paysUnused && calDays > 0 ? unusedOffs * (r.baseSalary / calDays) : 0;
+    document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(unusedLeavePay);
   },
 
   _renderPayrollReviewReadonly(r) {
@@ -1432,6 +1445,7 @@ const Staff = {
     document.getElementById('hrPayRevWorkingDays').textContent = (yr && mo) ? new Date(yr, mo, 0).getDate() : '—';
 
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
+    document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(r.unusedLeavePay);
 
     // Weekly-target staff earn incentives from approved weekly snapshots —
     // the monthly revenue figures don't exist for them, so don't imply ₹0.
@@ -1513,6 +1527,22 @@ const Staff = {
           + `Leave Allowance = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
       }
 
+      case 'unusedLeavePay': {
+        const [uyr, umo] = String(r.period || '').split('-').map(Number);
+        const calDays = (uyr && umo) ? new Date(uyr, umo, 0).getDate() : 30;
+        const unused = Math.max(0, (r.eligibleOffs || 0) - (r.totalDaysOff || 0));
+        if (!r.payUnusedLeaves) {
+          return `"Pay for leaves not taken" is not ticked for this record, so Unused Leave Pay = 0.\n\n`
+            + `If ticked, it would pay Unused Offs (max(0, Eligible Offs (${r.eligibleOffs}) − Days Off (${r.totalDaysOff})) = ${unused}) `
+            + `× Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}).`;
+        }
+        return `The manager attested this staff member skipped eligible offs on instruction`
+          + (r.unusedLeavesReason ? ` — "${r.unusedLeavesReason}"` : '') + `.\n\n`
+          + `Unused Offs = max(0, Eligible Offs (${r.eligibleOffs}) − Days Off (${r.totalDaysOff})) = ${unused}\n`
+          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Calendar Days (${calDays}) = ${fmt(calDays > 0 ? r.baseSalary / calDays : 0)}\n\n`
+          + `Unused Leave Pay = ${unused} × ${fmt(calDays > 0 ? r.baseSalary / calDays : 0)} = ${fmt(r.unusedLeavePay)}`;
+      }
+
       case 'ot': {
         const rate = r.otHours > 0 ? r.otPay / r.otHours : (profile ? profile.otHourlyRate : 0);
         return `OT Hours are hours worked beyond the Comp Plan's OT threshold each day.\n\n`
@@ -1570,7 +1600,7 @@ const Staff = {
 
       case 'netPay':
         return `Net Payable = Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))}) − Leave Allowance (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
-          + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
+          + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) + Unused Leave Pay (${fmt(r.unusedLeavePay)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
           + `= ${fmt(r.netPay)}`;
 
       default:
@@ -1684,6 +1714,7 @@ const Staff = {
       ${row('Make Up Incentive', fmt(r.makeupIncentive))}
       ${row('Products Incentive', fmt(r.productIncentive))}
       ${row('Tips', fmt(r.tipsOverride))}
+      ${(Number(r.unusedLeavePay) || 0) > 0 ? row('Unused Leave Pay', fmt(r.unusedLeavePay)) : ''}
 
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:14px 0 4px;">Deductions</div>
       ${row('Leave Allowance', fmt(r.leaveDeduction), { negative: true })}
@@ -1729,6 +1760,8 @@ const Staff = {
       eligibleOffs:     val('hrPayRevEligOffs'),
       advanceDeducted:  val('hrPayRevAdvDeduct'),
       remainingBalance: val('hrPayRevRemainingBalance'),
+      payUnusedLeaves:  document.getElementById('hrPayRevPayUnused').checked,
+      unusedLeavesReason: document.getElementById('hrPayRevUnusedReason').value.trim(),
       status: document.getElementById('hrPayRevStatus').value,
       notes:  document.getElementById('hrPayRevNotes').value.trim()
     };
@@ -1997,6 +2030,8 @@ const Staff = {
         const val = ovr ? ovr[key] : '';
         el.value = (val === '' || val === null || val === undefined) ? '' : val;
       });
+      document.getElementById('hrAttSumPayUnused').checked = !!(ovr && ovr.payUnusedLeaves);
+      document.getElementById('hrAttSumUnusedReason').value = (ovr && ovr.unusedLeavesReason) || '';
     }
     this._recalcAttSumStats();
   },
@@ -2088,7 +2123,11 @@ const Staff = {
       serviceValue: this._readOverrideField('hrAttSumServiceValue'),
       makeupValue:  this._readOverrideField('hrAttSumMakeupValue'),
       productCount: this._readOverrideField('hrAttSumProductCount'),
-      tipsOverride: this._readOverrideField('hrAttSumTips')
+      tipsOverride: this._readOverrideField('hrAttSumTips'),
+      // Checkbox state is always explicit (checked or not), so always send
+      // both — unlike the numeric overrides where blank means "preserve".
+      payUnusedLeaves: document.getElementById('hrAttSumPayUnused').checked,
+      unusedLeavesReason: document.getElementById('hrAttSumUnusedReason').value.trim()
     };
     const hasOverrides = Object.values(overrides).some(v => v !== undefined);
 

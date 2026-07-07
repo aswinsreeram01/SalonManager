@@ -24,7 +24,13 @@
 //   incentive % (the staff's Comp Plan flatIncentivePct, since a manual entry has
 //   no specific Service Group to pull an override from) to get makeupIncentive(16),
 // weekdayHalfDayDates(32) — comma-separated ISO dates, Mon-Thu half-days,
-// weekendHalfDayDates(33) — comma-separated ISO dates, Fri/Sat/Sun half-days.
+// weekendHalfDayDates(33) — comma-separated ISO dates, Fri/Sat/Sun half-days,
+// payUnusedLeaves(34) — manager attestation checkbox: pay for eligible offs
+//   NOT taken (skipped on instruction). FALSE/blank by default,
+// unusedLeavesReason(35) — free-text reason recorded alongside the checkbox,
+// unusedLeavePay(36) — computed: max(0, eligibleOffs − totalDaysOff) ×
+//   (baseSalary ÷ calendar days in the month) when payUnusedLeaves is set,
+//   else 0. Stored so history stays stable if the formula ever changes.
 //
 // Attendance-derived columns (5,7,8,9,10,12,13,25,26,27,32,33) are fully
 // recomputed every time Quick Entry saves attendance for that staff+period
@@ -362,6 +368,7 @@ const Payroll = {
       weekdayAbsentDates, weekendAbsentDates, weekdayHalfDayDates, weekendHalfDayDates,
       longAbsenceExcludedDays,
       serviceValue, productCount, tipsOverride, makeupValue, advanceDeducted,
+      payUnusedLeaves, unusedLeavesReason,
       status, notes, payrollId, createdAt
     } = inputs;
 
@@ -416,7 +423,19 @@ const Payroll = {
     const totalIncentive   = targetIncentive + makeupIncentive + productIncentive;
     const tips              = (tipsOverride === '' || tipsOverride === null || tipsOverride === undefined) ? 0 : Number(tipsOverride) || 0;
     const advDeducted       = Number(advanceDeducted) || 0;
-    const netPay            = adjustedBaseSalary + allowances + otPay + totalIncentive + tips - advDeducted;
+
+    // "Pay for leaves not taken" — a manager attestation that the staff
+    // member skipped eligible offs on instruction and should be compensated
+    // for them. Each unused off pays one calendar day of base salary
+    // (base ÷ calendar days of the month — deliberately NOT payableDays,
+    // and deliberately excluding allowances).
+    const paysUnused = payUnusedLeaves === true || payUnusedLeaves === 'true' || payUnusedLeaves === 'TRUE';
+    const [byr, bmo] = String(period || '').split('-').map(Number);
+    const calendarDays = (byr && bmo) ? new Date(byr, bmo, 0).getDate() : 30;
+    const unusedOffs = Math.max(0, eligibleOffs - totalDaysOff);
+    const unusedLeavePay = paysUnused && calendarDays > 0 ? unusedOffs * (salary / calendarDays) : 0;
+
+    const netPay = adjustedBaseSalary + allowances + otPay + totalIncentive + tips + unusedLeavePay - advDeducted;
 
     return {
       payrollId: payrollId || '', staffId, staffName, period, orgId,
@@ -434,7 +453,10 @@ const Payroll = {
       serviceValue: serviceValue === '' || serviceValue === null || serviceValue === undefined ? '' : Number(serviceValue),
       productCount: productCount === '' || productCount === null || productCount === undefined ? '' : Number(productCount),
       tipsOverride: tipsOverride === '' || tipsOverride === null || tipsOverride === undefined ? '' : Number(tipsOverride),
-      makeupValue:  makeupValue  === '' || makeupValue  === null || makeupValue  === undefined ? '' : Number(makeupValue)
+      makeupValue:  makeupValue  === '' || makeupValue  === null || makeupValue  === undefined ? '' : Number(makeupValue),
+      payUnusedLeaves: paysUnused,
+      unusedLeavesReason: String(unusedLeavesReason || ''),
+      unusedLeavePay
     };
   },
 
@@ -460,7 +482,10 @@ const Payroll = {
       tipsOverride: row[30] === '' || row[30] == null ? '' : Number(row[30]),
       makeupValue:  row[31] === '' || row[31] == null ? '' : Number(row[31]),
       weekdayHalfDayDates: this._normalizeDateListCell(row[32]),
-      weekendHalfDayDates: this._normalizeDateListCell(row[33])
+      weekendHalfDayDates: this._normalizeDateListCell(row[33]),
+      payUnusedLeaves: row[34] === true || String(row[34]).toUpperCase() === 'TRUE',
+      unusedLeavesReason: String(row[35] || ''),
+      unusedLeavePay: Number(row[36]) || 0
     };
   },
 
@@ -473,7 +498,8 @@ const Payroll = {
       b.totalIncentive, b.advanceDeducted, b.netPay, b.status, b.notes, b.createdAt,
       b.orgId, b.weekdayAbsentDates, b.weekendAbsentDates, b.longAbsenceExcludedDays,
       b.serviceValue, b.productCount, b.tipsOverride, b.makeupValue,
-      b.weekdayHalfDayDates, b.weekendHalfDayDates
+      b.weekdayHalfDayDates, b.weekendHalfDayDates,
+      b.payUnusedLeaves, b.unusedLeavesReason, b.unusedLeavePay
     ];
   },
 
@@ -539,6 +565,8 @@ const Payroll = {
       productCount: data.productCount !== undefined ? data.productCount : (existingBreakdown ? existingBreakdown.productCount : ''),
       tipsOverride: data.tipsOverride !== undefined ? data.tipsOverride : (existingBreakdown ? existingBreakdown.tipsOverride : ''),
       makeupValue:  data.makeupValue  !== undefined ? data.makeupValue  : (existingBreakdown ? existingBreakdown.makeupValue  : ''),
+      payUnusedLeaves:    data.payUnusedLeaves    !== undefined ? data.payUnusedLeaves    : (existingBreakdown ? existingBreakdown.payUnusedLeaves    : false),
+      unusedLeavesReason: data.unusedLeavesReason !== undefined ? data.unusedLeavesReason : (existingBreakdown ? existingBreakdown.unusedLeavesReason : ''),
       advanceDeducted: existingBreakdown ? existingBreakdown.advanceDeducted : 0,
       status: existingBreakdown ? existingBreakdown.status : 'draft',
       notes:  existingBreakdown ? existingBreakdown.notes  : '',
@@ -547,7 +575,7 @@ const Payroll = {
     });
 
     if (existing) {
-      sheet.getRange(existing.index + 1, 1, 1, 34).setValues([this._breakdownToRowValues(breakdown)]);
+      sheet.getRange(existing.index + 1, 1, 1, 37).setValues([this._breakdownToRowValues(breakdown)]);
     } else {
       sheet.appendRow(this._breakdownToRowValues(breakdown));
     }
@@ -585,6 +613,8 @@ const Payroll = {
       const changedKeys = ['payableDays', 'eligibleOffs', 'advanceDeducted', 'remainingBalance',
         'serviceValue', 'productCount', 'tipsOverride', 'makeupValue', 'longAbsenceExcludedDays']
         .filter(k => data[k] !== undefined && data[k] !== '' && Number(data[k]) !== Number(current[k] || 0));
+      if (data.payUnusedLeaves !== undefined && !!data.payUnusedLeaves !== !!current.payUnusedLeaves) changedKeys.push('payUnusedLeaves');
+      if (data.unusedLeavesReason !== undefined && String(data.unusedLeavesReason) !== String(current.unusedLeavesReason || '')) changedKeys.push('unusedLeavesReason');
       if (changedKeys.length) {
         return Utils.createResponse('error', 'This payroll record is paid and locked — only status and notes can change.');
       }
@@ -628,13 +658,15 @@ const Payroll = {
       productCount: data.productCount !== undefined ? data.productCount : current.productCount,
       tipsOverride: data.tipsOverride !== undefined ? data.tipsOverride : current.tipsOverride,
       makeupValue:  data.makeupValue  !== undefined ? data.makeupValue  : current.makeupValue,
+      payUnusedLeaves:    data.payUnusedLeaves    !== undefined ? data.payUnusedLeaves    : current.payUnusedLeaves,
+      unusedLeavesReason: data.unusedLeavesReason !== undefined ? data.unusedLeavesReason : current.unusedLeavesReason,
       advanceDeducted: data.advanceDeducted !== undefined ? data.advanceDeducted : current.advanceDeducted,
       status: data.status !== undefined ? data.status : current.status,
       notes:  data.notes  !== undefined ? data.notes  : current.notes,
       payrollId: current.payrollId, createdAt: current.createdAt
     });
 
-    sheet.getRange(existing.index + 1, 1, 1, 34).setValues([this._breakdownToRowValues(breakdown)]);
+    sheet.getRange(existing.index + 1, 1, 1, 37).setValues([this._breakdownToRowValues(breakdown)]);
 
     // Remaining Balance is a Payroll-Review-only concept — it's never stored
     // on the Payroll row itself, only reflected into the StaffAdvance ledger
@@ -698,7 +730,9 @@ const Payroll = {
       serviceValue: b.serviceValue,
       makeupValue:  b.makeupValue,
       productCount: b.productCount,
-      tipsOverride: b.tipsOverride
+      tipsOverride: b.tipsOverride,
+      payUnusedLeaves: b.payUnusedLeaves,
+      unusedLeavesReason: b.unusedLeavesReason
     });
   },
 

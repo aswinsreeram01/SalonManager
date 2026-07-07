@@ -59,12 +59,14 @@ const Permissions = {
         { key: 'attendance', label: 'Attendance' },
         { key: 'advance',    label: 'Advance' },
         { key: 'payslips',   label: 'Payslips' },
+        { key: 'profile',    label: 'Profile' },
     ],
     customerPortalSections: [
         { key: 'loyalty',   label: 'Loyalty Card (Gems & tier)' },
         { key: 'summary',   label: 'Visit Summary (visits / spend / savings)' },
         { key: 'lastVisit', label: 'Last Visit' },
         { key: 'history',   label: 'All Visits (history)' },
+        { key: 'profile',   label: 'My Profile' },
     ],
 
     init() {
@@ -211,15 +213,36 @@ const Permissions = {
     },
 
     _renderPortalToggles(containerId, defs, enabledKeys) {
-        document.getElementById(containerId).innerHTML = defs.map(d => `
-            <label style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;">
+        // Rows render in the SAVED order (enabled first, in their configured
+        // sequence, then any disabled ones) — the row order at save time IS
+        // the portal's display order, adjusted with the ↑/↓ buttons.
+        const ordered = [
+            ...enabledKeys.map(k => defs.find(d => d.key === k)).filter(Boolean),
+            ...defs.filter(d => !enabledKeys.includes(d.key))
+        ];
+        document.getElementById(containerId).innerHTML = ordered.map(d => `
+            <div class="portal-toggle-row" data-portal-row="${d.key}" style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;">
                 <span style="font-size:14px;color:#2d3748;">${d.label}</span>
-                <label class="toggle" style="margin:0;">
-                    <input type="checkbox" data-portal-key="${d.key}" ${enabledKeys.includes(d.key) ? 'checked' : ''}>
-                    <span class="toggle-slider"></span>
-                </label>
-            </label>
+                <span style="display:flex;align-items:center;gap:8px;">
+                    <button type="button" class="action-btn" style="padding:2px 8px;" title="Move up" onclick="Permissions._movePortalRow(this, -1)">↑</button>
+                    <button type="button" class="action-btn" style="padding:2px 8px;" title="Move down" onclick="Permissions._movePortalRow(this, 1)">↓</button>
+                    <label class="toggle" style="margin:0;">
+                        <input type="checkbox" data-portal-key="${d.key}" ${enabledKeys.includes(d.key) ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </span>
+            </div>
         `).join('');
+    },
+
+    _movePortalRow(btn, dir) {
+        const row = btn.closest('.portal-toggle-row');
+        if (!row) return;
+        if (dir < 0 && row.previousElementSibling) {
+            row.parentNode.insertBefore(row, row.previousElementSibling);
+        } else if (dir > 0 && row.nextElementSibling) {
+            row.parentNode.insertBefore(row.nextElementSibling, row);
+        }
     },
 
     async savePortalVisibility(kind) {

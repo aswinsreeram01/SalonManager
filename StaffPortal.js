@@ -421,6 +421,41 @@ const StaffPortal = {
     });
   },
 
+  // View-only profile for the logged-in staff member. Deliberately no
+  // update counterpart yet — which fields staff may edit themselves is
+  // still an open product decision; everything stays admin-managed.
+  getMyProfile(data) {
+    const { staffId } = data;
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Staff');
+    if (!sheet) return Utils.createResponse('error', 'Staff data unavailable');
+
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) !== staffId) continue;
+      const r = rows[i];
+      const orgId = String(r[17] || '');
+      const org = Organizations._getAllRaw().find(o => o.id === orgId);
+      const rawStart = r[7];
+      return Utils.createResponse('success', 'Profile loaded', {
+        profile: {
+          name:         String(r[2] || ''),
+          phone:        String(r[3] || ''),
+          email:        String(r[4] || ''),
+          aadharNumber: String(r[5] || ''),
+          upiId:        String(r[6] || ''),
+          startDate:    rawStart instanceof Date
+            ? Utilities.formatDate(rawStart, Session.getScriptTimeZone(), 'yyyy-MM-dd')
+            : String(rawStart || ''),
+          role:         String(r[8] || ''),
+          staffType:    String(r[14] || ''),
+          status:       String(r[13] || ''),
+          orgName:      org ? org.name : ''
+        }
+      });
+    }
+    return Utils.createResponse('error', 'Staff record not found');
+  },
+
   // ── Payslips: view + approve own payroll records ───────────────────────────
   // Status flow (admin side): draft → review → approved → paid. Staff see a
   // record once the admin moves it to 'review'; approving it moves it to

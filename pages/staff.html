@@ -348,6 +348,16 @@
                         <input type="number" id="hrAttSumTips" min="0" step="0.01" placeholder="Leave blank">
                     </div>
                 </div>
+                <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed #e2e8f0;">
+                    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;padding-bottom:10px;">
+                        <input type="checkbox" id="hrAttSumPayUnused">
+                        Pay for leaves not taken
+                    </label>
+                    <div class="form-group" style="margin-bottom:0;flex:1;min-width:220px;">
+                        <label for="hrAttSumUnusedReason">Reason</label>
+                        <input type="text" id="hrAttSumUnusedReason" placeholder="e.g. asked to work through offs for the wedding season">
+                    </div>
+                </div>
             </div>
             <div id="hrAttSumSaveWrap" style="display:none;margin-top:16px;text-align:right;">
                 <button class="btn btn-primary" id="hrAttSumSaveBtn" type="button">Save Changes</button>
@@ -590,6 +600,20 @@
             <div class="kv-row">
                 <span class="kv-label">Leave Allowance <button type="button" class="calc-help-btn" data-calc-field="leaveDeduct">?</button></span>
                 <span class="kv-value" id="hrPayRevLeaveDeduct">—</span>
+            </div>
+            <div class="hr-edit-block">
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#4a5568;cursor:pointer;white-space:nowrap;grid-column:1/-1;">
+                    <input type="checkbox" id="hrPayRevPayUnused">
+                    Pay for leaves not taken
+                </label>
+                <div class="form-group" style="grid-column:1/-1;">
+                    <label for="hrPayRevUnusedReason">Reason</label>
+                    <input type="text" id="hrPayRevUnusedReason" placeholder="Why the offs weren't taken">
+                </div>
+            </div>
+            <div class="kv-row">
+                <span class="kv-label">Unused Leave Pay <button type="button" class="calc-help-btn" data-calc-field="unusedLeavePay">?</button></span>
+                <span class="kv-value" id="hrPayRevUnusedLeavePay">—</span>
             </div>
 
             <h4 class="hr-section-title">Incentives</h4>

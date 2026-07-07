@@ -77,8 +77,10 @@ const OrgSettings = {
   // "everything enabled" (the default for fresh installs). Global, like
   // every other OrgSettings key — not per-org.
 
-  STAFF_PORTAL_TABS:        ['records', 'pending', 'attendance', 'advance', 'payslips'],
-  CUSTOMER_PORTAL_SECTIONS: ['loyalty', 'summary', 'lastVisit', 'history'],
+  // Note: the saved comma-joined list is ORDERED — its order is the display
+  // order in the portal (Permissions > Staff/Customer Portal has ↑/↓).
+  STAFF_PORTAL_TABS:        ['records', 'pending', 'attendance', 'advance', 'payslips', 'profile'],
+  CUSTOMER_PORTAL_SECTIONS: ['loyalty', 'summary', 'lastVisit', 'history', 'profile'],
 
   // Plain-object read for backend modules (StaffPortal, Customers) — arrays
   // of enabled ids, defaulting to all when the key was never saved.
