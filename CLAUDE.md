@@ -5,10 +5,10 @@
 A multi-tenant salon management SPA. Backend is Google Apps Script (GAS) running as a web app; frontend is a static GitHub Pages site.
 
 - **Frontend**: `https://aswinsreeram01.github.io/SalonManager/`
-- **Backend deploy ID**: `AKfycbzJkRvkIp3WTeXkzYAW5O4TqjOyt0n7-4uolV6mMg7qQ8kTwCRIw1QJKCBCLppxN7bl` (version @105)
+- **Backend deploy ID**: `AKfycbyWilp6r15kGlk-WlCfKOdTsp4hBREvWr0ri_iPmBMRekHNw-tX4Z3QGXZJfZGelLFbUw` (version @107)
 - **GAS project**: `10BKxCLeGeCfNpkvFqtLGkY0d4tSMQMAaBmSTSOMc_KMEih8OsK5exlVo`
 - **Deploy**: `npx clasp push && npx clasp deploy --description "..."` from repo root
-- **Cache-bust token**: `?v=20260107a` — bump on EVERY frontend (JS/CSS/page-HTML) deploy so browsers never run stale assets. One command updates all of them:
+- **Cache-bust token**: `?v=20260108a` — bump on EVERY frontend (JS/CSS/page-HTML) deploy so browsers never run stale assets. One command updates all of them:
   `node -e "const fs=require('fs');const N='NEWTOKEN';['index.html','staff.html','js/app.js'].forEach(f=>fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/\?v=[0-9a-z]+/g,'?v='+N)))"`
 
 ---

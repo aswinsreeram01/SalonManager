@@ -1,7 +1,15 @@
 // Payroll sheet columns (0-based):
 // payrollId(0), staffId(1), staffName(2), period(3), baseSalary(4), payableDays(5),
-// eligibleOffs(6), totalDaysOff(7), excessLeaves(8), leaveDeduction(9),
-// adjustedBaseSalary(10), allowances(11), otHours(12), otPay(13),
+// eligibleOffs(6), totalDaysOff(7), excessLeaves(8),
+// leaveDeduction(9) — excessLeaves x (baseSalary ÷ Working Days, i.e. calendar
+//   days in the period — NEVER ÷ payableDays, which would inflate the rate
+//   for a partial-month payableDays and double-penalize excess leave),
+// adjustedBaseSalary(10) — (baseSalary x payableDays/workingDays, capped at
+//   100%) − leaveDeduction. "Salary" always DISPLAYS the full nominal
+//   baseSalary+allowances; this column holds what's actually paid out,
+// allowances(11) — the raw/full monthly figure (NOT prorated here — proration
+//   is applied inline in netPay's formula, same payableDays/workingDays ratio),
+// otHours(12), otPay(13),
 // serviceIncentive(14) — actually holds REVENUE (manual serviceValue or bill-scanned),
 // productIncentive(15) — productCount x the staff's Comp Plan defaultProductIncentive
 //   rate (no specific Product Group to pull a per-unit override from, same reasoning
@@ -371,14 +379,36 @@ const Payroll = {
       status, notes, payrollId, createdAt
     } = inputs;
 
-    const daysInMonthForRatio = inputs.daysInMonth || payableDays || 30;
+    // "Working Days" — actual calendar days in the period (e.g. 30 for June).
+    // The single source of truth for every full-month rate/ratio below;
+    // deliberately computed from `period` itself rather than inferred from
+    // payableDays (the old `payableDays + longAbsenceExcludedDays` inference
+    // used by updateRow broke the moment Payable Days was edited without a
+    // matching long-absence block — exactly a manually-set partial-month case).
+    const [wyr, wmo] = String(period || '').split('-').map(Number);
+    const workingDays = (wyr && wmo) ? new Date(wyr, wmo, 0).getDate() : (inputs.daysInMonth || payableDays || 30);
+
     const eligibleOffs = eligibleOffsInput !== '' && eligibleOffsInput !== null && eligibleOffsInput !== undefined
       ? Number(eligibleOffsInput) || 0
-      : Math.floor((profile.eligibleOffs || 4) * payableDays / daysInMonthForRatio);
+      : Math.floor((profile.eligibleOffs || 4) * payableDays / workingDays);
 
+    // Payable Days prorates Base Salary + Allowances — "pay only for these
+    // days" — using a per-day rate always based on the FULL working days in
+    // the month (never on Payable Days itself), so a short Payable Days
+    // figure can't inflate the rate. Capped at 100% so an over-entered
+    // Payable Days (> Working Days) can never exceed the full monthly amount.
+    // Incentives/OT/Tips/Unused Leave Pay are entirely untouched by this.
+    const payProrationRatio = workingDays > 0 ? Math.min(1, payableDays / workingDays) : 1;
+    const proratedBaseSalary = salary * payProrationRatio;
+
+    // Leave Deduction's per-day rate is likewise always Base Salary ÷ Working
+    // Days (never ÷ Payable Days) — otherwise a short Payable Days figure
+    // would inflate this rate too and double-penalize a partial-month staff
+    // member who also exceeds Eligible Offs within their short window.
     const excessLeaves       = Math.max(0, totalDaysOff - eligibleOffs);
-    const leaveDeduction     = payableDays > 0 ? excessLeaves * (salary / payableDays) : 0;
-    const adjustedBaseSalary = salary - leaveDeduction;
+    const leaveDeduction     = workingDays > 0 ? excessLeaves * (salary / workingDays) : 0;
+    const adjustedBaseSalary = proratedBaseSalary - leaveDeduction;
+    const proratedAllowances = allowances * payProrationRatio;
     const otPay              = otHours * profile.otHourlyRate;
 
     const rev = Payroll._computeRevenueAndMakeup(staffId, period, profile, serviceValue, makeupValue, orgId);
@@ -410,12 +440,10 @@ const Payroll = {
       (weekdayAbsentDates  || []).length + (weekendAbsentDates  || []).length +
       ((weekdayHalfDayDates || []).length + (weekendHalfDayDates || []).length) * 0.5;
     const paysUnused = payUnusedLeaves === true || payUnusedLeaves === 'true' || payUnusedLeaves === 'TRUE';
-    const [byr, bmo] = String(period || '').split('-').map(Number);
-    const calendarDays = (byr && bmo) ? new Date(byr, bmo, 0).getDate() : 30;
     const unusedOffs = Math.max(0, eligibleOffs - actualDaysAbsent);
-    const unusedLeavePay = paysUnused && calendarDays > 0 ? unusedOffs * (salary / calendarDays) : 0;
+    const unusedLeavePay = paysUnused && workingDays > 0 ? unusedOffs * (salary / workingDays) : 0;
 
-    const netPay = adjustedBaseSalary + allowances + otPay + totalIncentive + tips + unusedLeavePay - advDeducted;
+    const netPay = adjustedBaseSalary + proratedAllowances + otPay + totalIncentive + tips + unusedLeavePay - advDeducted;
 
     return {
       payrollId: payrollId || '', staffId, staffName, period, orgId,
@@ -436,7 +464,14 @@ const Payroll = {
       makeupValue:  makeupValue  === '' || makeupValue  === null || makeupValue  === undefined ? '' : Number(makeupValue),
       payUnusedLeaves: paysUnused,
       unusedLeavesReason: String(unusedLeavesReason || ''),
-      unusedLeavePay
+      unusedLeavePay,
+      // Display-only — not persisted (no matching sheet column). "Salary"
+      // always shows the full nominal baseSalary+allowances; this is the
+      // separate "actually paid this period" figure for Payable Days < Working
+      // Days. workingDays is exposed too so the frontend never has to
+      // re-derive "calendar days in period" with its own separate logic.
+      workingDays,
+      proratedSalary: proratedBaseSalary + proratedAllowances
     };
   },
 
@@ -558,7 +593,6 @@ const Payroll = {
       payableDays,
       eligibleOffsInput: existingBreakdown ? existingBreakdown.eligibleOffs : '',
       totalDaysOff: attDerived.totalDaysOff, otHours: attDerived.otHours,
-      daysInMonth: attDerived.daysInMonth,
       weekdayAbsentDates: attDerived.weekdayAbsentDates,
       weekendAbsentDates: attDerived.weekendAbsentDates,
       weekdayHalfDayDates: attDerived.weekdayHalfDayDates,
@@ -659,7 +693,6 @@ const Payroll = {
       payableDays,
       eligibleOffsInput: data.eligibleOffs !== undefined ? data.eligibleOffs : current.eligibleOffs,
       totalDaysOff: current.totalDaysOff, otHours: current.otHours,
-      daysInMonth: payableDays + longAbsenceExcludedDays,
       weekdayAbsentDates: (current.weekdayAbsentDates || '').split(',').filter(Boolean),
       weekendAbsentDates: (current.weekendAbsentDates || '').split(',').filter(Boolean),
       weekdayHalfDayDates: (current.weekdayHalfDayDates || '').split(',').filter(Boolean),

@@ -1,7 +1,7 @@
 // Staff Portal — client-side controller
 
 const SP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbzJkRvkIp3WTeXkzYAW5O4TqjOyt0n7-4uolV6mMg7qQ8kTwCRIw1QJKCBCLppxN7bl/exec'
+    API_URL: 'https://script.google.com/macros/s/AKfycbyWilp6r15kGlk-WlCfKOdTsp4hBREvWr0ri_iPmBMRekHNw-tX4Z3QGXZJfZGelLFbUw/exec'
 };
 
 // ── API wrapper ───────────────────────────────────────────────────────────────
@@ -733,8 +733,17 @@ const StaffApp = {
                 // Rows render only when the figure is non-zero — a payslip
                 // shouldn't list a page of ₹0.00 lines.
                 const nz = (v, label, opts) => (Number(v) || 0) !== 0 ? row(label, fmt(v), opts) : '';
+                // "Pay only for these days" — Prorated Salary only appears
+                // for a partial-month record (Payable Days < Working Days);
+                // Salary above always shows the full nominal amount.
+                const [pyr, pmo] = String(p.period || '').split('-').map(Number);
+                const workingDays = (pyr && pmo) ? new Date(pyr, pmo, 0).getDate() : 30;
+                const payRatio = workingDays > 0 ? Math.min(1, (p.payableDays || 0) / workingDays) : 1;
+                const proratedSalary = ((Number(p.baseSalary) || 0) + (Number(p.allowances) || 0)) * payRatio;
+
                 const earnings = [
                     nz((Number(p.baseSalary) || 0) + (Number(p.allowances) || 0), 'Salary'),
+                    payRatio < 1 ? row('Prorated Salary', fmt(proratedSalary)) : '',
                     nz(p.otPay, `Overtime (${p.otHours ?? 0}h)`),
                     nz(p.targetIncentive, 'Service Incentive'),
                     nz(p.makeupIncentive, 'Make Up Incentive'),

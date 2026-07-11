@@ -1472,22 +1472,50 @@ const Staff = {
     this._recalcLeaveAllowancePreview();
   },
 
-  // Leave Deduction, Unused Leave Pay, and Net Payable recalculate live in
-  // the browser as the editable fields change — mirroring the server formulas
-  // so what's shown matches what Calculate & Save will persist, without
-  // waiting for a round trip. Returns the computed figures so the Net Payable
-  // preview can reuse them.
+  // Calendar days in a 'YYYY-MM' period — the single source of truth for
+  // every full-month rate/ratio in the Payroll Review modal (never inferred
+  // from Payable Days, which breaks for a manually-set partial month).
+  _workingDaysForPeriod(period) {
+    const [yr, mo] = String(period || '').split('-').map(Number);
+    return (yr && mo) ? new Date(yr, mo, 0).getDate() : 30;
+  },
+
+  // Payable Days ÷ Working Days, capped at 100% — the ratio Base Salary and
+  // Allowances are prorated by. "Salary" always displays the full nominal
+  // figure; this ratio only feeds the separate Prorated Salary line + Net
+  // Payable, mirroring the server's payProrationRatio exactly.
+  _payProrationRatio(payableDays, workingDays) {
+    return workingDays > 0 ? Math.min(1, payableDays / workingDays) : 1;
+  },
+
+  // Leave Deduction, Unused Leave Pay, Prorated Salary, and Net Payable
+  // recalculate live in the browser as the editable fields change — mirroring
+  // the exact server formulas so what's shown matches what Calculate & Save
+  // will persist, without waiting for a round trip.
   _recalcLeaveAllowancePreview() {
     const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
     if (!r) return;
     const payableDays = parseFloat(document.getElementById('hrPayRevPayableDays').value) || 0;
     const eligibleOffs = parseFloat(document.getElementById('hrPayRevEligOffs').value) || 0;
+    const workingDays = this._workingDaysForPeriod(r.period);
 
     // Leave DEDUCTION uses the weekend-2x-weighted totalDaysOff (its long-
-    // standing basis) against payable days.
+    // standing basis), at a rate always based on Working Days — never
+    // Payable Days, which would inflate the rate for a partial month.
     const excessLeaves = Math.max(0, (r.totalDaysOff || 0) - eligibleOffs);
-    const leaveDeduction = payableDays > 0 ? excessLeaves * (r.baseSalary / payableDays) : 0;
+    const leaveDeduction = workingDays > 0 ? excessLeaves * (r.baseSalary / workingDays) : 0;
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(leaveDeduction);
+
+    // Prorated Salary — "pay only for these days" — applies to Base Salary +
+    // Allowances only; every other line (OT, incentives, tips, unused leave
+    // pay) is untouched by this ratio. Hidden entirely when Payable Days ==
+    // Working Days (the normal full-month case) to avoid cluttering every
+    // ordinary payslip with a duplicate figure.
+    const ratio = this._payProrationRatio(payableDays, workingDays);
+    const proratedSalary = (r.baseSalary + (r.allowances || 0)) * ratio;
+    const proratedRow = document.getElementById('hrPayRevProratedSalaryRow');
+    proratedRow.style.display = ratio < 1 ? '' : 'none';
+    document.getElementById('hrPayRevProratedSalary').textContent = this._fmt(proratedSalary);
 
     // Unused Leave Pay counts against ACTUAL calendar days absent (full = 1,
     // half = 0.5), NOT the weighted totalDaysOff — matching the server.
@@ -1495,28 +1523,28 @@ const Staff = {
     const actualDaysAbsent =
       splitCount(r.weekdayAbsentDates) + splitCount(r.weekendAbsentDates) +
       (splitCount(r.weekdayHalfDayDates) + splitCount(r.weekendHalfDayDates)) * 0.5;
-    const [pyr, pmo] = String(r.period || '').split('-').map(Number);
-    const calDays = (pyr && pmo) ? new Date(pyr, pmo, 0).getDate() : 30;
     const unusedOffs = Math.max(0, eligibleOffs - actualDaysAbsent);
     const paysUnused = document.getElementById('hrPayRevPayUnused').checked;
-    const unusedLeavePay = paysUnused && calDays > 0 ? unusedOffs * (r.baseSalary / calDays) : 0;
+    const unusedLeavePay = paysUnused && workingDays > 0 ? unusedOffs * (r.baseSalary / workingDays) : 0;
     document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(unusedLeavePay);
 
-    this._recalcNetPayPreview(leaveDeduction, unusedLeavePay);
+    this._recalcNetPayPreview(leaveDeduction, unusedLeavePay, ratio);
   },
 
-  // Live Net Payable = adjusted base + allowances + OT + incentives + tips
-  // + unused leave pay − advance deducted. The server-computed incentives/
-  // OT/tips come from the loaded row; the leave-driven pieces and the advance
-  // deduction come from the current field state so the total always matches
-  // the line items on screen.
-  _recalcNetPayPreview(leaveDeduction, unusedLeavePay) {
+  // Live Net Payable = (prorated base − leave deduction) + prorated allowances
+  // + OT + incentives + tips + unused leave pay − advance deducted. The
+  // server-computed incentives/OT/tips come from the loaded row; the
+  // leave/proration-driven pieces and the advance deduction come from the
+  // current field state so the total always matches the line items on screen.
+  _recalcNetPayPreview(leaveDeduction, unusedLeavePay, ratio) {
     const r = (this._payrollRows || []).find(x => x.payrollId === this._payReviewId);
     if (!r) return;
     const advanceDeducted = parseFloat(document.getElementById('hrPayRevAdvDeduct').value) || 0;
     const tips = (r.tipsOverride === '' || r.tipsOverride == null) ? 0 : (Number(r.tipsOverride) || 0);
-    const adjustedBase = (r.baseSalary || 0) - leaveDeduction;
-    const netPay = adjustedBase + (r.allowances || 0) + (r.otPay || 0)
+    const proratedBase = (r.baseSalary || 0) * ratio;
+    const proratedAllowances = (r.allowances || 0) * ratio;
+    const adjustedBase = proratedBase - leaveDeduction;
+    const netPay = adjustedBase + proratedAllowances + (r.otPay || 0)
       + (r.totalIncentive || 0) + tips + unusedLeavePay - advanceDeducted;
     document.getElementById('hrPayRevNetPay').textContent = this._fmt(netPay);
   },
@@ -1539,11 +1567,18 @@ const Staff = {
     absCell('hrPayRevWeHalf', r.weekendHalfDayDates);
     document.getElementById('hrPayRevDaysOff').textContent = r.totalDaysOff ?? 0;
 
-    const [yr, mo] = String(r.period || '').split('-').map(Number);
-    document.getElementById('hrPayRevWorkingDays').textContent = (yr && mo) ? new Date(yr, mo, 0).getDate() : '—';
+    const workingDays = this._workingDaysForPeriod(r.period);
+    document.getElementById('hrPayRevWorkingDays').textContent = workingDays || '—';
 
     document.getElementById('hrPayRevLeaveDeduct').textContent = this._fmt(r.leaveDeduction);
     document.getElementById('hrPayRevUnusedLeavePay').textContent = this._fmt(r.unusedLeavePay);
+
+    // Prorated Salary — recomputed from primitives (not trusted from a stored
+    // field) so it's correct whether r came from a fresh Calculate & Save
+    // response or a plain list load. Hidden for the normal full-month case.
+    const ratio = this._payProrationRatio(r.payableDays || 0, workingDays);
+    document.getElementById('hrPayRevProratedSalaryRow').style.display = ratio < 1 ? '' : 'none';
+    document.getElementById('hrPayRevProratedSalary').textContent = this._fmt((r.baseSalary + (r.allowances || 0)) * ratio);
 
     document.getElementById('hrPayRevOt').textContent = `${r.otHours ?? 0}h / ${this._fmt(r.otPay)}`;
     document.getElementById('hrPayRevSvcValueDisplay').textContent = this._fmt(r.serviceIncentive);
@@ -1611,11 +1646,24 @@ const Staff = {
       }
 
       case 'leaveDeduct': {
+        const workingDays = this._workingDaysForPeriod(r.period);
         const excess = Math.max(0, (r.totalDaysOff || 0) - (r.eligibleOffs || 0));
-        const perDay = r.payableDays ? r.baseSalary / r.payableDays : 0;
+        const perDay = workingDays > 0 ? r.baseSalary / workingDays : 0;
         return `Excess Leaves = max(0, Days Off (${r.totalDaysOff}) − Eligible Offs (${r.eligibleOffs})) = ${excess}\n`
-          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Payable Days (${r.payableDays}) = ${fmt(perDay)}\n\n`
+          + `Per-day rate = Base Salary (${fmt(r.baseSalary)}) ÷ Working Days (${workingDays}) = ${fmt(perDay)}\n`
+          + `(always Working Days, never Payable Days — so a short Payable Days can't inflate this rate)\n\n`
           + `Leave Deduction = ${excess} × ${fmt(perDay)} = ${fmt(r.leaveDeduction)}`;
+      }
+
+      case 'proratedSalary': {
+        const workingDays = this._workingDaysForPeriod(r.period);
+        const ratio = this._payProrationRatio(r.payableDays || 0, workingDays);
+        const salary = (r.baseSalary || 0) + (r.allowances || 0);
+        return `"Pay only for these days" — Payable Days ÷ Working Days prorates Base Salary + Allowances only. `
+          + `Nothing else (OT, incentives, tips, Unused Leave Pay) is affected.\n\n`
+          + `Ratio = Payable Days (${r.payableDays}) ÷ Working Days (${workingDays}) = ${(ratio * 100).toFixed(1)}%`
+          + (r.payableDays > workingDays ? ` (capped at 100%)` : '') + `\n`
+          + `Prorated Salary = Salary (${fmt(salary)}) × ${(ratio * 100).toFixed(1)}% = ${fmt(salary * ratio)}`;
       }
 
       case 'unusedLeavePay': {
@@ -1687,10 +1735,16 @@ const Staff = {
           + `Products Incentive = Product Count (${count}) × Default Product Incentive (${fmt(rate)}/unit) = ${fmt(r.productIncentive)}`;
       }
 
-      case 'netPay':
-        return `Net Payable = Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))}) − Leave Deduction (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
+      case 'netPay': {
+        const workingDays = this._workingDaysForPeriod(r.period);
+        const ratio = this._payProrationRatio(r.payableDays || 0, workingDays);
+        const salaryLine = ratio < 1
+          ? `Prorated Salary (${fmt((r.baseSalary + (r.allowances || 0)) * ratio)}, i.e. Salary × Payable Days ÷ Working Days)`
+          : `Salary (${fmt((r.baseSalary || 0) + (r.allowances || 0))})`;
+        return `Net Payable = ${salaryLine} − Leave Deduction (${fmt(r.leaveDeduction)}) + OT Pay (${fmt(r.otPay)})\n`
           + `  + Incentives (${fmt(r.totalIncentive)}) + Tips (${fmt(r.tipsOverride)}) + Unused Leave Pay (${fmt(r.unusedLeavePay)}) − Advance Deducted (${fmt(r.advanceDeducted)})\n`
           + `= ${fmt(r.netPay)}`;
+      }
 
       default:
         return '';
@@ -1798,6 +1852,13 @@ const Staff = {
       <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#4a5568;margin:14px 0 4px;">Earnings</div>
       ${row('Base Salary', fmt(r.baseSalary))}
       ${row('Allowances', fmt(r.allowances))}
+      ${(() => {
+        // "Pay only for these days" — shown only for a partial-month record
+        // (Payable Days < Working Days); a normal full-month payslip omits it.
+        const workingDays = this._workingDaysForPeriod(r.period);
+        const ratio = this._payProrationRatio(r.payableDays || 0, workingDays);
+        return ratio < 1 ? row('Prorated Salary', fmt((r.baseSalary + (r.allowances || 0)) * ratio)) : '';
+      })()}
       ${row(`Overtime (${r.otHours ?? 0}h)`, fmt(r.otPay))}
       ${row('Service Incentive', fmt(r.targetIncentive))}
       ${row('Make Up Incentive', fmt(r.makeupIncentive))}
