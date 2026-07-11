@@ -6,6 +6,7 @@ const Settings = {
     init() {
         document.getElementById('setupRefreshBtn')?.addEventListener('click', () => this.loadSetupStatus());
         document.getElementById('setupSummaryBtn')?.addEventListener('click', () => this.refreshSummarySheet());
+        document.getElementById('clearCacheBtn')?.addEventListener('click', () => this.clearCache());
     },
 
     async load() {
@@ -256,6 +257,22 @@ const Settings = {
         } finally {
             if (btn) { btn.disabled = false; btn.textContent = '📋 Refresh Summary Sheet'; }
         }
+    },
+
+    // No Service Worker / Cache Storage exists in this app — the only real
+    // client-side state to clear is this admin app's own localStorage keys
+    // (currentUser/sessionToken). Deliberately does NOT call
+    // localStorage.clear() — that would also wipe the Staff/Customer portal's
+    // unrelated keys if this browser happened to be signed into those too,
+    // since localStorage is shared per-origin, not per-page. The reload uses
+    // a throwaway query param (not location.reload(), which modern browsers
+    // no longer reliably force-bypasses) so index.html and every subresource
+    // it references are refetched fresh rather than served from cache.
+    clearCache() {
+        if (!confirm('This will sign you out and reload the app fresh. Continue?')) return;
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('sessionToken');
+        window.location.href = window.location.pathname + '?_cb=' + Date.now();
     },
 
     _esc(s) {

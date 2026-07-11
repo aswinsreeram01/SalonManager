@@ -8,7 +8,7 @@ A multi-tenant salon management SPA. Backend is Google Apps Script (GAS) running
 - **Backend deploy ID**: `AKfycbyWilp6r15kGlk-WlCfKOdTsp4hBREvWr0ri_iPmBMRekHNw-tX4Z3QGXZJfZGelLFbUw` (version @107)
 - **GAS project**: `10BKxCLeGeCfNpkvFqtLGkY0d4tSMQMAaBmSTSOMc_KMEih8OsK5exlVo`
 - **Deploy**: `npx clasp push && npx clasp deploy --description "..."` from repo root
-- **Cache-bust token**: `?v=20260108a` — bump on EVERY frontend (JS/CSS/page-HTML) deploy so browsers never run stale assets. One command updates all of them:
+- **Cache-bust token**: `?v=20260108b` — bump on EVERY frontend (JS/CSS/page-HTML) deploy so browsers never run stale assets. One command updates all of them:
   `node -e "const fs=require('fs');const N='NEWTOKEN';['index.html','staff.html','js/app.js'].forEach(f=>fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/\?v=[0-9a-z]+/g,'?v='+N)))"`
 
 ---
